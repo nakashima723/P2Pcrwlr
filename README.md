@@ -5,7 +5,7 @@ P2Pスレイヤー
 
 各ユーザーのPC上で動作させられるものにします。
 
-参照：P2Pファイル交換ソフトによる権利侵害情報の流通に関する検知システムの認定について
+<strong>参照１：P2Pファイル交換ソフトによる権利侵害情報の流通に関する検知システムの認定について</strong>
 https://www.telesa.or.jp/consortium/provider/p2ptechreq/
 
 <blockquote>
@@ -28,3 +28,8 @@ https://www.telesa.or.jp/consortium/provider/p2ptechreq/
 
 注：ファイル交換ソフトネットワーク上をクローリングし、利用者が指定するキーワー
 ドや属性に合致するファイルを自動ダウンロードする機能は必須機能ではない。</blockquote>
+
+
+<strong>参照２：BitTorrent ネットワークにおける効率的な著作権侵害監視手法について </strong>
+
+http://www.ccif-j.jp/shared/pdf/BitTrrentreport.pdf
