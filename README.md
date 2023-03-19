@@ -5,7 +5,7 @@ P2Pスレイヤー
 
 各ユーザーのPC上で動作させられるものにします。
 
-<strong>参照１：P2Pファイル交換ソフトによる権利侵害情報の流通に関する検知システムの認定について</strong>
+<strong>参考１：P2Pファイル交換ソフトによる権利侵害情報の流通に関する検知システムの認定について</strong>
 https://www.telesa.or.jp/consortium/provider/p2ptechreq/
 
 <blockquote>
@@ -30,6 +30,10 @@ https://www.telesa.or.jp/consortium/provider/p2ptechreq/
 ドや属性に合致するファイルを自動ダウンロードする機能は必須機能ではない。</blockquote>
 
 
-<strong>参照２：BitTorrent ネットワークにおける効率的な著作権侵害監視手法について </strong>
+<strong>参考２：BitTorrent ネットワークにおける効率的な著作権侵害監視手法について </strong>
 
 http://www.ccif-j.jp/shared/pdf/BitTrrentreport.pdf
+
+<strong>参考３：P2Pソフトを解析し，活用に向けての可能性を探る（日経クロステック） </strong>
+
+https://xtech.nikkei.com/it/article/COLUMN/20080922/315234/
