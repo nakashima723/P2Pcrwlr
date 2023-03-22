@@ -1,7 +1,7 @@
 import libtorrent as lt
 
 
-def show_info(torrent_name):
+def show_info(torrent_info):
     """
     トレントファイルの情報を表示する。
 
@@ -10,8 +10,6 @@ def show_info(torrent_name):
     torrent_name : str
         トレントファイル名。
     """
-
-    torrent_info = lt.torrent_info(torrent_name)
 
     # Torrentの名前を取得する
     name = torrent_info.name
