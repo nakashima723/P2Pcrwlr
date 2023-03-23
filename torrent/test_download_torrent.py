@@ -3,22 +3,32 @@ import os
 import libtorrent as lt
 import urllib.request
 import info
+import client
 
 
 class TestInfo(unittest.TestCase):
     TEST_DIR = 'torrent/tests'
+    FILE_NAME = 'big-buck-bunny.torrent'
 
-    def test_show_info(self):
-        # テスト用にCreative Commons torrentを用いる
+    @classmethod
+    def setUpClass(self):
+        # テスト用にCreative Commons torrent をダウンロードする
         # Big Buck Bunny
         # Blender Foundation | www.blender.org
         url = 'https://webtorrent.io/torrents/big-buck-bunny.torrent'
-        save_name = os.path.join(self.TEST_DIR, 'big-buck-bunny.torrent')
 
-        # 現状、プロジェクト直下に.torrentファイルが落ちてくる
-        urllib.request.urlretrieve(url, save_name)
+        urllib.request.urlretrieve(
+            url, os.path.join(self.TEST_DIR, self.FILE_NAME))
 
-        info.show_info(lt.torrent_info(save_name))
+    # 現状、各メソッドを実行するだけで、assertionしていない。
+
+    def test_show_info(self):
+        info.show_info(lt.torrent_info(
+            os.path.join(self.TEST_DIR, self.FILE_NAME)))
+
+    def test_client(self):
+        cl = client.Client()
+        cl.download(os.path.join(self.TEST_DIR, self.FILE_NAME))
 
 
 if __name__ == "__main__":
