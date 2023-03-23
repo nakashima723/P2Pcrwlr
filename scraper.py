@@ -7,6 +7,7 @@ import shutil
 import os
 import requests
 import tempfile
+import time
 
  # フォルダ名・ファイル名に使用できない文字を削除し、ハイフンに置き換える関数
 def sanitize_filename(filename: str) -> str:
@@ -18,7 +19,7 @@ def sanitize_filename(filename: str) -> str:
 def is_within_days(datetime_utc):
     # 入力文字列をUTCでdatetimeオブジェクトに変換
     now_utc = datetime.now(timezone.utc)
-    three_days_ago = now_utc - timedelta(days=90)
+    three_days_ago = now_utc - timedelta(days=60)
     return datetime_utc >= three_days_ago
 
 # UTCをJSTに変換
@@ -60,8 +61,12 @@ soup = BeautifulSoup(html_content, 'html.parser')
 data_timestamp_elements = soup.find_all('td', attrs={'data-timestamp': True})
 
 if len(data_timestamp_elements) == 0:
-    print("アップロードされたファイルは見つかりませんでした。")
+    print("「" + input_str + "」アップロードされたファイルなし")
 else:
+    if len(data_timestamp_elements) > 5:
+        data_timestamp_elements = data_timestamp_elements[:5]
+    print("「" + input_str + "」5件以上を検出：検索語が適切か確認してください")
+
     latest_dates = []
 
     for element in data_timestamp_elements:
@@ -103,12 +108,14 @@ else:
         with open(log_file_path, "r+") as log_file:
             content = log_file.read()
             torrent_url = urljoin(base_url, torrent_links[i])
+            
             # まだ存在しないファイルだった場合、新規にtorrentファイルをダウンロード
             if torrent_url not in content:
                 log_file.write(torrent_url + "\n")
                     
                 # i番目のリンク先URLからファイルを取得
                 torrent_file = requests.get(torrent_url)
+                time.sleep(1)
 
                 # ファイルがtorrentであることを確認し、ファイル名を取得
                 if torrent_url.endswith(".torrent"):
@@ -120,7 +127,6 @@ else:
                         file_name = sanitize_filename(torrent.name)
 
                     # 新しいフォルダを作成
-
                     new_folder = os.path.join("torrent", "nyaa", f"{file_name}_{formatted_date}")
                     if not os.path.exists(new_folder):  # フォルダが存在しない場合のみ作成
                         os.makedirs(new_folder)
