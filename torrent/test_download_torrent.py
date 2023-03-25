@@ -7,7 +7,7 @@ import client
 
 
 class TestInfo(unittest.TestCase):
-    TEST_DIR = 'torrent/tests'
+    TEST_DIR = 'tests'
     FILE_NAME = 'big-buck-bunny.torrent'
 
     @classmethod
