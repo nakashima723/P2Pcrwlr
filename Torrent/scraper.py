@@ -82,13 +82,13 @@ else:
             
     print('90日以内にアップロードされたファイル:' + str(len(latest_dates)) + '件')
 
-    # torrentフォルダが存在しない場合は作成
-    if not os.path.exists("torrent"):
-        os.makedirs("torrent")
-    nyaa_folder = os.path.join("torrent", "nyaa")
-    if not os.path.exists(nyaa_folder):
-       os.makedirs(nyaa_folder)
-
+    # evidenceフォルダが存在しない場合は作成
+    if not os.path.exists("../evidence"):
+        os.makedirs("../evidence")
+    torrent_folder = os.path.join("../evidence", "torrent")
+    if not os.path.exists(torrent_folder):
+        os.makedirs(torrent_folder)
+    
     base_url = "https://nyaa.si/"  # スクレイピング対象のウェブサイトのベースURLを記入
 
     for i, date in enumerate(latest_dates):
@@ -97,7 +97,7 @@ else:
         formatted_date = latest_dates[i]
         
         # これまで取得したtorrentファイルを確認
-        log_file_path = os.path.join(nyaa_folder, "nyaa_torrent.log")
+        log_file_path = os.path.join(torrent_folder, "nyaa_torrent.log")
 
         # nyaa_torrent.logファイルが存在しない場合、作成
         if not os.path.exists(log_file_path):
@@ -127,7 +127,7 @@ else:
                         file_name = sanitize_filename(torrent.name)
 
                     # 新しいフォルダを作成
-                    new_folder = os.path.join("torrent", "nyaa", f"{file_name}_{formatted_date}")
+                    new_folder = os.path.join("../evidence", "torrent", f"{file_name}_{formatted_date}")
                     if not os.path.exists(new_folder):  # フォルダが存在しない場合のみ作成
                         os.makedirs(new_folder)
                         print('新しく作成されたフォルダ：\n' + new_folder)
