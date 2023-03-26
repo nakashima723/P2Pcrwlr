@@ -7,7 +7,8 @@ import client
 
 
 class TestInfo(unittest.TestCase):
-    TEST_DIR = 'tests'
+    TEST_DIR = 'torrent/tests'
+    DOWNLOAD_DIR = 'downloads'
     FILE_NAME = 'big-buck-bunny.torrent'
 
     @classmethod
@@ -28,7 +29,8 @@ class TestInfo(unittest.TestCase):
 
     def test_client(self):
         cl = client.Client()
-        cl.download(os.path.join(self.TEST_DIR, self.FILE_NAME))
+        cl.download(os.path.join(self.TEST_DIR, self.FILE_NAME),
+                    os.path.join(self.TEST_DIR, self.DOWNLOAD_DIR))
 
 
 if __name__ == "__main__":
