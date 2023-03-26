@@ -3,3 +3,4 @@ beautifulsoup4
 bencodepy
 libtorrent
 torrentool
+requests
