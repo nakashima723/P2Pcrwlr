@@ -32,6 +32,9 @@ class Client():
                 s.progress * 100, s.download_rate / 1000, s.upload_rate / 1000,
                 len(peer_info), s.state))
 
+            for p in peer_info:
+                print("IP address: %s   Port: %d" % (p.ip[0], p.ip[1]))
+
             time.sleep(1)
 
         print(handle.status().name, 'complete')
