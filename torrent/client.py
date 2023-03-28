@@ -23,7 +23,7 @@ class Client():
 
         print('starting', handle.status().name)
 
-        while not handle.is_seed():
+        while not handle.status().is_seeding:
             s = handle.status()
 
             peer_info = handle.get_peer_info()
