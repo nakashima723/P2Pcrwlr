@@ -23,7 +23,7 @@ class Client():
 
         print('starting', handle.status().name)
 
-        while not handle.is_seed():
+        while not handle.status().is_seeding:
             s = handle.status()
 
             peer_info = handle.get_peer_info()
@@ -31,6 +31,9 @@ class Client():
             print("downloading: %.2f%% complete (down: %.1f kB/s, up: %.1f kB/s, peers: %d) %s" % (
                 s.progress * 100, s.download_rate / 1000, s.upload_rate / 1000,
                 len(peer_info), s.state))
+
+            for p in peer_info:
+                print("IP address: %s   Port: %d" % (p.ip[0], p.ip[1]))
 
             time.sleep(1)
 
