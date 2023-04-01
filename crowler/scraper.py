@@ -131,9 +131,12 @@ else:
                     if not os.path.exists(new_folder):  # フォルダが存在しない場合のみ作成
                         os.makedirs(new_folder)
                         print('新しく作成されたフォルダ：\n' + new_folder)
-
+                        
+                        new_file_name = os.path.join(new_folder, f"{file_name}.torrent")
+                        if len(new_file_name) > 200:
+                            new_file_name = new_file_name[:200]
                         # torrentファイルを新しいフォルダに移動
-                        shutil.move(temp_file_path, os.path.join(new_folder, f"{file_name}.torrent"))
+                        shutil.move(temp_file_path, new_file_name)
                     else:
                         os.unlink(temp_file_path)
                         print('フォルダが既に存在します：\n' + new_folder)
