@@ -4,6 +4,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from torrentool.api import Torrent
 import shutil
+import pathlib
 import os
 import requests
 import tempfile
@@ -45,6 +46,10 @@ def process_query(query):
 
     return query
 
+# pathlib.Path(__file__)でこのファイルの場所を取得し、parents[1] で一階層上を指定する。
+# "../"を利用するのと比べて、コードを実行するディレクトリに関係なくevidenceフォルダの位置を決めることができる。
+EVIDENCE_FILE_PATH = os.path.join(pathlib.Path(__file__).parents[1], "evidence")
+
 input_str = input("検索語を入力してください: ")
 output_str = process_query(input_str)
 output_str = urllib.parse.quote(output_str)
@@ -83,9 +88,9 @@ else:
     print('90日以内にアップロードされたファイル:' + str(len(latest_dates)) + '件')
 
     # evidenceフォルダが存在しない場合は作成
-    if not os.path.exists("../evidence"):
-        os.makedirs("../evidence")
-    torrent_folder = os.path.join("../evidence", "torrent")
+    if not os.path.exists(EVIDENCE_FILE_PATH):
+        os.makedirs(EVIDENCE_FILE_PATH)
+    torrent_folder = os.path.join(EVIDENCE_FILE_PATH, "torrent")
     if not os.path.exists(torrent_folder):
         os.makedirs(torrent_folder)
     
@@ -127,7 +132,7 @@ else:
                         file_name = sanitize_filename(torrent.name)
 
                     # 新しいフォルダを作成
-                    new_folder = os.path.join("../evidence", "torrent", f"{file_name}_{formatted_date}")
+                    new_folder = os.path.join(EVIDENCE_FILE_PATH, "torrent", f"{file_name}_{formatted_date}")
                     if not os.path.exists(new_folder):  # フォルダが存在しない場合のみ作成
                         os.makedirs(new_folder)
                         print('新しく作成されたフォルダ：\n' + new_folder)
