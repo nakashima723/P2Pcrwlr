@@ -4,3 +4,4 @@ bencodepy
 libtorrent
 torrentool
 requests
+ntplib

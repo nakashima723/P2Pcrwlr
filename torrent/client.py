@@ -1,5 +1,7 @@
 import libtorrent as lt
 import time
+import ntplib
+from datetime import datetime, timezone, timedelta
 
 
 class Client():
@@ -37,4 +39,18 @@ class Client():
 
             time.sleep(1)
 
+        # NTPサーバのアドレスを指定する
+        ntp_server = 'ntp.nict.jp'
+
+        # NTPサーバからUNIX時刻を取得する
+        ntp_client = ntplib.NTPClient()
+        response = ntp_client.request(ntp_server)
+        unix_time = response.tx_time
+
+        # UNIX時刻を日本時間に変換する
+        jst = timezone(timedelta(hours=+9), 'JST')
+        jst_time = datetime.fromtimestamp(unix_time, jst)
+
         print(handle.status().name, 'complete')
+        print("File Hash: %s, File size: %d, Time: %s" % (
+            handle.info_hash(), info.total_size(), jst_time.strftime('%Y-%m-%d %H:%M:%S')))
