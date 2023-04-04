@@ -8,14 +8,14 @@ class Client():
 
     def download(self, torrent_path, save_path):
         """
-        torrentファイルを読み込み、本体ファイルをダウンロードする。
+        指定した.torrentファイルをもとに本体ファイルをダウンロードする。
 
         Parameters
         ----------
         torrent_path : str
-        ダウンロードを行うtorrentファイルへのパス。
+            ダウンロードを行うtorrentファイルへのパス。
         save_path : str
-        実ファイルのダウンロード先のパス。
+            本体ファイルのダウンロード先のパス。
         """
 
         session = lt.session({'listen_interfaces': '0.0.0.0:6881'})
@@ -57,8 +57,7 @@ class Client():
 
     def download_piece(self, torrent_path, save_path, piece_index):
         """
-        指定した.torrentファイルからひとつのピースだけをダウンロードする。
-        ダウンロード元ピアのIPアドレスも取得する。
+        指定した.torrentファイルからひとつのピースをダウンロードする。
 
         Parameters
         ----------
