@@ -54,3 +54,45 @@ class Client():
         print(handle.status().name, 'complete')
         print("File Hash: %s, File size: %d, Time: %s" % (
             handle.info_hash(), info.total_size(), jst_time.strftime('%Y-%m-%d %H:%M:%S')))
+
+    def download_piece(self, torrent_path, save_path, piece_index):
+        """
+        指定した.torrentファイルからひとつのピースだけをダウンロードする。
+        ダウンロード元ピアのIPアドレスも取得する。
+
+        Parameters
+        ----------
+        torrent_path : str
+            .torrentファイルへのパス。
+        save_path : str
+            ファイルの保存場所のパス。
+        piece_index : int
+            ダウンロードしたいピースのindex。
+        """
+
+        session = lt.session({'listen_interfaces': '0.0.0.0:6881'})
+
+        info = lt.torrent_info(torrent_path)
+        handle = session.add_torrent({'ti': info, 'save_path': save_path})
+
+        initial_pieces_state = handle.status().pieces
+
+        # deadlineに0を指定することで、指定したピースが優先的にダウンロードされるようにする
+        handle.set_piece_deadline(piece_index, 0)
+
+        while not handle.status().pieces[piece_index]:
+
+            s = handle.status()
+            peer_info = handle.get_peer_info()
+
+            print("downloading: %.2f%% complete (down: %.1f kB/s, up: %.1f kB/s, peers: %d) %s" % (
+                s.progress * 100, s.download_rate / 1000, s.upload_rate / 1000,
+                len(peer_info), s.state))
+
+            time.sleep(1)
+
+        # ピースのダウンロードが完了したら、ピースの状態を出力
+        last_pieces_state = handle.status().pieces
+        print(f'piece {piece_index} downloaded')
+        print(f'pieces state before: {initial_pieces_state}')
+        print(f'pieces state after: {last_pieces_state}')

@@ -32,6 +32,14 @@ class TestInfo(unittest.TestCase):
         cl.download(os.path.join(self.TEST_DIR, self.FILE_NAME),
                     os.path.join(self.TEST_DIR, self.DOWNLOAD_DIR))
 
+    def test_download_piece(self):
+        cl = client.Client()
+        cl.download_piece(
+            os.path.join(self.TEST_DIR, self.FILE_NAME),
+            os.path.join(self.TEST_DIR, self.DOWNLOAD_DIR, 'pieces'),
+            0
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
