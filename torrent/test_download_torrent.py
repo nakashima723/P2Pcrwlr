@@ -3,10 +3,11 @@ import os
 import libtorrent as lt
 import urllib.request
 import client
+import pathlib
 
 
 class TestInfo(unittest.TestCase):
-    TEST_DIR = 'torrent/tests'
+    TEST_DIR = os.path.join(pathlib.Path(__file__).parent, 'tests')
     DOWNLOAD_DIR = 'downloads'
     FILE_NAME = 'big-buck-bunny.torrent'
 
