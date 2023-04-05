@@ -27,27 +27,12 @@ class Client():
 
         while not handle.status().is_seeding:
             print_download_status(handle.status(), handle.get_peer_info())
-
-            for p in handle().get_peer_info():
-                print("IP address: %s   Port: %d" % (p.ip[0], p.ip[1]))
-
+            print_peer_info(handle)
             time.sleep(1)
-
-        # NTPサーバのアドレスを指定する
-        ntp_server = 'ntp.nict.jp'
-
-        # NTPサーバからUNIX時刻を取得する
-        ntp_client = ntplib.NTPClient()
-        response = ntp_client.request(ntp_server)
-        unix_time = response.tx_time
-
-        # UNIX時刻を日本時間に変換する
-        jst = timezone(timedelta(hours=+9), 'JST')
-        jst_time = datetime.fromtimestamp(unix_time, jst)
 
         print(handle.status().name, 'complete')
         print("File Hash: %s, File size: %d, Time: %s" % (
-            handle.info_hash(), info.total_size(), jst_time.strftime('%Y-%m-%d %H:%M:%S')))
+            handle.info_hash(), info.total_size(), fetch_jst().strftime('%Y-%m-%d %H:%M:%S')))
 
     def download_piece(self, torrent_path, save_path, piece_index):
         """
@@ -94,3 +79,32 @@ def print_download_status(torrent_status, peer_info):
             torrent_status.upload_rate / 1000,
             len(peer_info), torrent_status.state)
     )
+
+
+def print_peer_info(torrent_handle):
+    for p in torrent_handle.get_peer_info():
+        print("IP address: %s   Port: %d" % (p.ip[0], p.ip[1]))
+
+
+def fetch_jst():
+    """
+    NTPサーバからUNIX時刻を取得し、JSTに変換して返却する。
+
+    Returns
+    -------
+        jst_time: datetime
+        JSTを表すdatetime。
+    """
+    # NTPサーバのアドレスを指定する
+    ntp_server = 'ntp.nict.jp'
+
+    # NTPサーバからUNIX時刻を取得する
+    ntp_client = ntplib.NTPClient()
+    response = ntp_client.request(ntp_server)
+    unix_time = response.tx_time
+
+    # UNIX時刻をJSTに変換する
+    jst = timezone(timedelta(hours=+9), 'JST')
+    jst_time = datetime.fromtimestamp(unix_time, jst)
+
+    return jst_time
