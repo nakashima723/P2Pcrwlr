@@ -26,15 +26,9 @@ class Client():
         print('starting', handle.status().name)
 
         while not handle.status().is_seeding:
-            s = handle.status()
+            print_download_status(handle.status(), handle.get_peer_info())
 
-            peer_info = handle.get_peer_info()
-
-            print("downloading: %.2f%% complete (down: %.1f kB/s, up: %.1f kB/s, peers: %d) %s" % (
-                s.progress * 100, s.download_rate / 1000, s.upload_rate / 1000,
-                len(peer_info), s.state))
-
-            for p in peer_info:
+            for p in handle().get_peer_info():
                 print("IP address: %s   Port: %d" % (p.ip[0], p.ip[1]))
 
             time.sleep(1)
@@ -81,12 +75,7 @@ class Client():
 
         while not handle.status().pieces[piece_index]:
 
-            s = handle.status()
-            peer_info = handle.get_peer_info()
-
-            print("downloading: %.2f%% complete (down: %.1f kB/s, up: %.1f kB/s, peers: %d) %s" % (
-                s.progress * 100, s.download_rate / 1000, s.upload_rate / 1000,
-                len(peer_info), s.state))
+            print_download_status(handle.status(), handle.get_peer_info())
 
             time.sleep(1)
 
@@ -95,3 +84,13 @@ class Client():
         print(f'piece {piece_index} downloaded')
         print(f'pieces state before: {initial_pieces_state}')
         print(f'pieces state after: {last_pieces_state}')
+
+
+def print_download_status(torrent_status, peer_info):
+    print(
+        "downloading: %.2f%% complete (down: %.1f kB/s, up: %.1f kB/s, peers: %d) %s" % (
+            torrent_status.progress * 100,
+            torrent_status.download_rate / 1000,
+            torrent_status.upload_rate / 1000,
+            len(peer_info), torrent_status.state)
+    )
