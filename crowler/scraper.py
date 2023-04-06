@@ -3,25 +3,35 @@ import urllib.request
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from torrentool.api import Torrent
-import shutil
 import pathlib
+import shutil
 import os
 import requests
 import tempfile
 import time
+import ntplib
 
- # フォルダ名・ファイル名に使用できない文字を削除し、ハイフンに置き換える関数
-def sanitize_filename(filename: str) -> str:
-    invalid_chars = '\\/:*?"<>|'
-    sanitized_filename = ''.join(c if c not in invalid_chars else '-' for c in filename)
-    return sanitized_filename
+#NTPサーバからUNIX時刻を取得し、JSTに変換して返却する。
+def fetch_jst():
+    ntp_server = 'ntp.nict.jp'
+
+    # NTPサーバからUNIX時刻を取得する
+    ntp_client = ntplib.NTPClient()
+    response = ntp_client.request(ntp_server)
+    unix_time = response.tx_time
+
+    # UNIX時刻をJSTに変換する
+    jst = timezone(timedelta(hours=+9), 'JST')
+    jst_time = datetime.fromtimestamp(unix_time, jst)
+
+    return jst_time
 
  # x日以内の日付時刻かどうかチェックする関数
 def is_within_days(datetime_utc):
     # 入力文字列をUTCでdatetimeオブジェクトに変換
     now_utc = datetime.now(timezone.utc)
-    three_days_ago = now_utc - timedelta(days=60)
-    return datetime_utc >= three_days_ago
+    days_ago = now_utc - timedelta(days=60)
+    return datetime_utc >= days_ago
 
 # UTCをJSTに変換
 def utc_to_jst(datetime_utc):    
@@ -55,8 +65,10 @@ output_str = process_query(input_str)
 output_str = urllib.parse.quote(output_str)
 print('検索語：' + output_str)
 
-url = 'https://nyaa.si/?f=0&c=0_0&q=' + output_str
-response = urllib.request.urlopen(url)
+
+base_url = "https://nyaa.si/"  # スクレイピング対象のウェブサイトのベースURLを記入
+search_url = 'https://nyaa.si/?f=0&c=0_0&q=' + output_str
+response = urllib.request.urlopen(search_url)
 
 # responseオブジェクトからデコード済みのテキストを取得
 html_content = response.read().decode(response.headers.get_content_charset())
@@ -82,10 +94,10 @@ else:
             break
         else:
             datetime_jst = utc_to_jst(timestamp_str)
-            formatted_date = datetime_jst.strftime('%Y-%m-%d-%H-%M')
+            formatted_date = datetime_jst.strftime('%Y-%m-%d_%H-%M') #サイト上でアップされた時刻
             latest_dates.append(formatted_date)
             
-    print('90日以内にアップロードされたファイル:' + str(len(latest_dates)) + '件')
+    print('60日以内にアップロードされたファイル:' + str(len(latest_dates)) + '件')
 
     # evidenceフォルダが存在しない場合は作成
     if not os.path.exists(EVIDENCE_FILE_PATH):
@@ -94,30 +106,27 @@ else:
     if not os.path.exists(torrent_folder):
         os.makedirs(torrent_folder)
     
-    base_url = "https://nyaa.si/"  # スクレイピング対象のウェブサイトのベースURLを記入
-
     for i, date in enumerate(latest_dates):
         # .torrentで終わるaタグを探す
         torrent_links = [a["href"] for a in soup.find_all("a") if 'href' in a.attrs and a["href"].endswith(".torrent")]
         formatted_date = latest_dates[i]
         
         # これまで取得したtorrentファイルを確認
-        log_file_path = os.path.join(torrent_folder, "nyaa_torrent.log")
+        log_file_path = os.path.join(torrent_folder, "torrent.log")
 
-        # nyaa_torrent.logファイルが存在しない場合、作成
+        # torrent.logファイルが存在しない場合、作成
         if not os.path.exists(log_file_path):
             with open(log_file_path, "w") as log_file:
                 pass
 
-        # nyaa_torrent.logファイルの内容を取得し、torrent_urlが存在するか検索
+        # torrent.logファイルの内容を取得し、torrent_urlが存在するか検索
         with open(log_file_path, "r+") as log_file:
             content = log_file.read()
             torrent_url = urljoin(base_url, torrent_links[i])
             
             # まだ存在しないファイルだった場合、新規にtorrentファイルをダウンロード
             if torrent_url not in content:
-                log_file.write(torrent_url + "\n")
-                    
+                     
                 # i番目のリンク先URLからファイルを取得
                 torrent_file = requests.get(torrent_url)
                 time.sleep(1)
@@ -129,19 +138,24 @@ else:
                         f.write(torrent_file.content)
                     with open(temp_file_path, "rb") as f:
                         torrent = Torrent.from_string(f.read())
-                        file_name = sanitize_filename(torrent.name)
+                        log_file.write(torrent_url + "\n")
 
+                    # フォルダ名に使う現在日時を取得
+                    folder_time = fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
                     # 新しいフォルダを作成
-                    new_folder = os.path.join(EVIDENCE_FILE_PATH, "torrent", f"{file_name}_{formatted_date}")
+                    new_folder = os.path.join(EVIDENCE_FILE_PATH, "torrent", f"{folder_time}")
                     if not os.path.exists(new_folder):  # フォルダが存在しない場合のみ作成
                         os.makedirs(new_folder)
                         print('新しく作成されたフォルダ：\n' + new_folder)
                         
-                        new_file_name = os.path.join(new_folder, f"{file_name}.torrent")
-                        if len(new_file_name) > 200:
-                            new_file_name = new_file_name[:200]
+                        new_file_name = os.path.join(new_folder, f"source.torrent")
                         # torrentファイルを新しいフォルダに移動
                         shutil.move(temp_file_path, new_file_name)
+                        # torrentファイル取得時の情報を記録
+                        log_file_path = os.path.join(new_folder, "original.log")
+                        with open(log_file_path, "w") as log_file:
+                            LOG =  "対象ファイル名：" + torrent.name + "\ntorrent取得元：" + torrent_url + "\nサイト上でのアップロード日時：" + formatted_date + "\n取得日時：" + folder_time
+                            log_file.write(LOG)
                     else:
                         os.unlink(temp_file_path)
                         print('フォルダが既に存在します：\n' + new_folder)
