@@ -1,12 +1,13 @@
 import tkinter as tk
 from tkinter import ttk
+from tkinter import messagebox
 
 def main():
     window = tk.Tk()
-    window.title('ウィンドウ表示テスト')
+    window.title('P2Pスレイヤー')
     window.geometry('800x600')
     
-   # フォント設定
+   # フォント設定nesteda
     font = ('', 17)
     small_font = ('', 14)
 
@@ -20,159 +21,102 @@ def main():
     notebook.pack(fill=tk.BOTH, expand=True)
 
     tab1 = ttk.Frame(notebook)
-    notebook.add(tab1, text='巡回システム')
-
-    # 巡回の間隔
-    interval_frame = tk.Frame(tab1)
-    interval_frame.pack(pady=(10, 10))
-
-    interval_label = tk.Label(interval_frame, text="巡回の間隔",font=font)
-    interval_label.pack(side=tk.LEFT, padx=(50, 10))
-
-    interval_options = ["30分", "1時間", "2時間", "4時間", "6時間", "8時間"]
-    interval_var = tk.StringVar()
-    interval_var.set(interval_options[0])
-
-    interval_menu = ttk.Combobox(interval_frame, textvariable=interval_var, values=interval_options, font=font, state="readonly", width=6)
-    interval_menu.pack(side=tk.LEFT)
+    notebook.add(tab1, text='証拠採取')
     
-    patrol_button = tk.Button(interval_frame, text="いますぐ巡回", font=font)
-    patrol_button.pack(side=tk.RIGHT, padx=(30, 0))
-    
-    crowl_history_frame = tk.Frame(tab1)
-    crowl_history_frame.pack(pady=(10, 10))
+    # リストボックスを含むキャンバス
+    suspect_canvas = tk.Canvas(tab1)
+    suspect_canvas.pack(fill=tk.BOTH, padx=(10, 10), pady=(0, 10), expand=True)
 
-    crowl_history = tk.Label(crowl_history_frame, text="最後に巡回した日時： 2023年01月01日12時00分59秒", font=small_font)
-    crowl_history.pack(side=tk.LEFT, padx=(0, 5))
-
-
-    # 新しい検索語を追加
-    new_keyword_label = tk.Label(tab1, text="新しい検索語を追加", font=font)
-    new_keyword_label.pack(pady=(10, 0))
-
-    keyword_entry_frame = tk.Frame(tab1)
-    keyword_entry_frame.pack(fill=tk.X, pady=(10, 0))
-
-    keyword_entry = tk.Entry(keyword_entry_frame, font=font, insertwidth=3)
-    keyword_entry.pack(side=tk.LEFT, fill=tk.X, padx=(160, 10), expand=True)
-
-    add_button = tk.Button(keyword_entry_frame, text="新規追加",font=font)
-    add_button.pack(side=tk.LEFT, padx=(0, 100))
-
-    # ラジオボタン
-    radio_frame = tk.Frame(tab1)
-    radio_frame.pack(pady=(10, 5))
-
-    radio_var = tk.StringVar()
-    radio_var.set("全年齢")
-
-    radio_all = ttk.Radiobutton(radio_frame, text="全年齢", value="全年齢", variable=radio_var,  style="Large.TRadiobutton")
-    radio_all.pack(side=tk.LEFT, padx=(0, 5))
-
-    radio_adult = ttk.Radiobutton(radio_frame, text="成人向け", value="成人向け", variable=radio_var, style="Large.TRadiobutton")
-    radio_adult.pack(side=tk.LEFT)
-
-    # 空白
-    spacer = tk.Frame(tab1, height=30)
-    spacer.pack(fill=tk.X, expand=False)
-
-    # tab1内に新しいタブを追加
-    nested_notebook = ttk.Notebook(tab1)
-    nested_notebook.pack(fill=tk.BOTH, expand=True)
-
-    all_age_tab = ttk.Frame(nested_notebook)
-    nested_notebook.add(all_age_tab, text='全年齢')
-
-    button_frame = tk.Frame(all_age_tab)
-    button_frame.pack(fill=tk.X, pady=(0, 5))
-
-    delete_button = tk.Button(button_frame, text="削除する", font=font)
-    delete_button.pack(side=tk.RIGHT, padx=(0, 10))
-
-    # リストボックスを含むフレーム
-    all_age_listbox_frame = tk.Frame(all_age_tab)
-    all_age_listbox_frame.pack(fill=tk.BOTH, padx=(10, 10), pady=(0, 10), expand=True)
+    # キャンバス内にリストボックスを含むフレームを配置
+    suspect_listbox_frame = tk.Frame(suspect_canvas)
+    suspect_listbox_frame.pack(fill=tk.BOTH, expand=True)
 
     # リストボックス
-    keyword_listbox = tk.Listbox(all_age_listbox_frame, width=-1, height=7, font=font)
+    keyword_listbox = tk.Listbox(suspect_listbox_frame, width=-1, height=4, font=small_font)
     keyword_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
     # スクロールバー
-    all_age_scrollbar = tk.Scrollbar(all_age_listbox_frame, orient=tk.VERTICAL, command=keyword_listbox.yview)
-    all_age_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-    keyword_listbox.config(yscrollcommand=all_age_scrollbar.set)
+    suspect_scrollbar = tk.Scrollbar(suspect_listbox_frame, orient=tk.VERTICAL, command=keyword_listbox.yview)
+    suspect_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+    keyword_listbox.config(yscrollcommand=suspect_scrollbar.set)
 
     # サイズ変更用ウィジェット
-    all_age_sizegrip = ttk.Sizegrip(all_age_tab)
-    all_age_sizegrip.pack(side=tk.BOTTOM, anchor=tk.SE)
-    all_age_sizegrip.lift(aboveThis=all_age_listbox_frame)
+    def on_sizegrip_dragged(event):
+        keyword_listbox.config(height=keyword_listbox.size()+int(event.delta/10))
 
-    r18_tab = ttk.Frame(nested_notebook)
-    nested_notebook.add(r18_tab, text='成人向け')
-    
-    r18_button_frame = tk.Frame(r18_tab)
-    r18_button_frame.pack(fill=tk.X, pady=(0, 5))
+    suspect_sizegrip = ttk.Sizegrip(suspect_listbox_frame)
+    suspect_sizegrip.pack(side=tk.BOTTOM, anchor=tk.SE)
+    suspect_sizegrip.lift()
+    suspect_sizegrip.bind("<B1-Motion>", on_sizegrip_dragged)
 
-    r18_delete_button = tk.Button(r18_button_frame, text="削除する", font=font)
-    r18_delete_button.pack(side=tk.RIGHT, padx=(0, 10))
+    # 編集用ボタン
+    button_frame = tk.Frame(tab1)
+    button_frame.pack(fill=tk.X, pady=(0, 5))
 
-    # リストボックスを含むフレーム
-    r18_listbox_frame = tk.Frame(r18_tab)
-    r18_listbox_frame.pack(fill=tk.BOTH, padx=(10, 10), pady=(0, 10), expand=True)
+    bulk_add_button = tk.Button(button_frame, text="ファイルから追加", font=small_font)
+    bulk_add_button.pack(side=tk.LEFT, padx=(10, 10))
+
+    url_add_button = tk.Button(button_frame, text="URLから追加", font=small_font)
+    url_add_button.pack(side=tk.LEFT, padx=(0, 10))
+
+    delete_button = tk.Button(button_frame, text="削除", font=small_font)
+    delete_button.pack(side=tk.LEFT, padx=(0, 10))
+
+    def start_picking():
+        message = ("証拠採取を開始します。\n\n"
+                "対象のファイルがあなたの権利物であることをよく確認してください。\n"
+                "誤ったファイルをダウンロードした場合、あなたが著作権侵害に問われる場合があります。\n\n"
+                "本当によろしいですか？")
+
+        user_choice = messagebox.askyesno("警告", message)
+
+        if user_choice:
+            notebook.select(tab2)
+
+    start_button = tk.Button(button_frame, text="証拠採取を開始", font=font,command=start_picking)
+    start_button.pack(side=tk.RIGHT, padx=(0, 10))
+
+    # リストボックスを含むキャンバス
+    info_canvas = tk.Canvas(tab1)
+    info_canvas.pack(fill=tk.BOTH, padx=(10, 10), pady=(0, 10), expand=True)
+
+    # キャンバス内にリストボックスを含むフレームを配置
+    info_text_frame = tk.Frame(info_canvas)
+    info_text_frame.pack(fill=tk.BOTH, expand=True)
 
     # リストボックス
-    r18_keyword_listbox = tk.Listbox(r18_listbox_frame, width=-1, height=7, font=font)
-    r18_keyword_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    keyword_text = tk.Text(info_text_frame, wrap=tk.WORD, width=-1, height=7, font=small_font)
+    keyword_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    keyword_text.insert(tk.END, "ここにtorrentファイルの情報が表示されます。\nユーザーは表示内容を見て、証拠採取を開始するかどうか決めます。\n\n改行テスト\n改行テスト\n改行テスト\n改行テスト\n改行テスト\n改行テスト\n改行テスト\n改行テスト\n改行テスト\n改行テスト\n改行テスト\n改行テスト\n改行テスト\n改行テスト")
+
 
     # スクロールバー
-    r18_scrollbar = tk.Scrollbar(r18_listbox_frame, orient=tk.VERTICAL, command=r18_keyword_listbox.yview)
-    r18_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-    r18_keyword_listbox.config(yscrollcommand=r18_scrollbar.set)
+    info_scrollbar = tk.Scrollbar(info_text_frame, orient=tk.VERTICAL, command=keyword_text.yview)
+    info_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+    keyword_text.config(yscrollcommand=info_scrollbar.set, state=tk.DISABLED)
 
     # サイズ変更用ウィジェット
-    r18_sizegrip = ttk.Sizegrip(r18_tab)
-    r18_sizegrip.pack(side=tk.BOTTOM, anchor=tk.SE)
-    r18_sizegrip.lift(aboveThis=r18_listbox_frame)
+    def on_sizegrip_dragged(event):
+        keyword_text.config(height=keyword_text.size()+int(event.delta/10))
+
+    info_sizegrip = ttk.Sizegrip(info_text_frame)
+    info_sizegrip.pack(side=tk.BOTTOM, anchor=tk.SE)
+    info_sizegrip.lift()
+    info_sizegrip.bind("<B1-Motion>", on_sizegrip_dragged)
     
-    crowl_history_tab = ttk.Frame(nested_notebook)
-    nested_notebook.add(crowl_history_tab, text='検出履歴')
-
-    crowl_history_button_frame = tk.Frame(crowl_history_tab)
-    crowl_history_button_frame.pack(fill=tk.X, pady=(0, 5))
-
-    crowl_history_clear_button = tk.Button(crowl_history_button_frame, text="履歴をクリア", font=font)
-    crowl_history_clear_button.pack(side=tk.RIGHT, padx=(0, 10))
-    
-    # リストボックスを含むフレーム
-    listbox_frame = tk.Frame(crowl_history_tab)
-    listbox_frame.pack(fill=tk.BOTH, padx=(10, 10), pady=(0, 10), expand=True)
-
-    # リストボックス
-    crowl_history_listbox = tk.Listbox(listbox_frame, width=-1, height=7, font=font)
-    crowl_history_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-    # スクロールバー
-    scrollbar = tk.Scrollbar(listbox_frame, orient=tk.VERTICAL, command=crowl_history_listbox.yview)
-    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-    crowl_history_listbox.config(yscrollcommand=scrollbar.set)
-
-    # サイズ変更用ウィジェット
-    sizegrip = ttk.Sizegrip(crowl_history_tab)
-    sizegrip.pack(side=tk.BOTTOM, anchor=tk.SE)
-    sizegrip.lift(aboveThis=listbox_frame)
-
     tab2 = ttk.Frame(notebook)
-    notebook.add(tab2, text='証拠採取')
-    
+    notebook.add(tab2, text='採取状況')
+
     tab3 = ttk.Frame(notebook)
     notebook.add(tab3, text='統計')
     
     tab4 = ttk.Frame(notebook)
-    notebook.add(tab4, text='高度な設定')    
+    notebook.add(tab4, text='設定')    
 
     window.protocol("WM_DELETE_WINDOW", window.quit)
 
     window.mainloop()
+    
 
 if __name__ == '__main__':
     main()
