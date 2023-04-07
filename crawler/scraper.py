@@ -10,6 +10,15 @@ import requests
 import tempfile
 import time
 import ntplib
+from plyer import notification
+
+def send_notification(title, message):
+    notification.notify(
+        title=title,
+        message=message,
+        app_name="P2Pスレイヤー",
+        timeout=1,  # 通知の表示時間（秒）
+    )
 
 #NTPサーバからUNIX時刻を取得し、JSTに変換して返却する。
 def fetch_jst():
@@ -30,7 +39,7 @@ def fetch_jst():
 def is_within_days(datetime_utc):
     # 入力文字列をUTCでdatetimeオブジェクトに変換
     now_utc = datetime.now(timezone.utc)
-    days_ago = now_utc - timedelta(days=60)
+    days_ago = now_utc - timedelta(days=7)
     return datetime_utc >= days_ago
 
 # UTCをJSTに変換
@@ -59,6 +68,7 @@ def process_query(query):
 # pathlib.Path(__file__)でこのファイルの場所を取得し、parents[1] で一階層上を指定する。
 # "../"を利用するのと比べて、コードを実行するディレクトリに関係なくevidenceフォルダの位置を決めることができる。
 EVIDENCE_FILE_PATH = os.path.join(pathlib.Path(__file__).parents[1], "evidence")
+new_file = False
 
 input_str = input("検索語を入力してください: ")
 output_str = process_query(input_str)
@@ -80,9 +90,9 @@ data_timestamp_elements = soup.find_all('td', attrs={'data-timestamp': True})
 if len(data_timestamp_elements) == 0:
     print("「" + input_str + "」アップロードされたファイルなし")
 else:
-    if len(data_timestamp_elements) > 5:
-        data_timestamp_elements = data_timestamp_elements[:5]
-    print("「" + input_str + "」5件以上を検出：検索語が適切か確認してください")
+    if len(data_timestamp_elements) > 10:
+        data_timestamp_elements = data_timestamp_elements[:10]
+        print("「" + input_str + "」10件以上を検出：誤検出ではない場合、これ以上の採取はサイトから直接行ってください。→" + search_url)
 
     latest_dates = []
 
@@ -94,10 +104,10 @@ else:
             break
         else:
             datetime_jst = utc_to_jst(timestamp_str)
-            formatted_date = datetime_jst.strftime('%Y-%m-%d_%H-%M') #サイト上でアップされた時刻
+            formatted_date = datetime_jst.strftime('%Y-%m-%d %H:%M') #サイト上でアップされた時刻
             latest_dates.append(formatted_date)
             
-    print('60日以内にアップロードされたファイル:' + str(len(latest_dates)) + '件')
+    print('7日以内にアップロードされたファイル:' + str(len(latest_dates)) + '件')
 
     # evidenceフォルダが存在しない場合は作成
     if not os.path.exists(EVIDENCE_FILE_PATH):
@@ -126,6 +136,7 @@ else:
             
             # まだ存在しないファイルだった場合、新規にtorrentファイルをダウンロード
             if torrent_url not in content:
+                new_file = True
                      
                 # i番目のリンク先URLからファイルを取得
                 torrent_file = requests.get(torrent_url)
@@ -152,10 +163,14 @@ else:
                         # torrentファイルを新しいフォルダに移動
                         shutil.move(temp_file_path, new_file_name)
                         # torrentファイル取得時の情報を記録
-                        log_file_path = os.path.join(new_folder, "original.log")
+                        log_file_path = os.path.join(new_folder, "evidence_" + folder_time +".log")
                         with open(log_file_path, "w") as log_file:
-                            LOG =  "対象ファイル名：" + torrent.name + "\ntorrent取得元：" + torrent_url + "\nサイト上でのアップロード日時：" + formatted_date + "\n取得日時：" + folder_time
+                            LOG =  "対象ファイル名：" + torrent.name + "\ntorrent取得方法：「" + input_str + "」で検索"+ "\n取得元：" + torrent_url + "\nサイト上で表記されていたアップロード日時：" + formatted_date + "\n証拠フォルダ生成日時：" + folder_time + "\nファイルハッシュ：" + torrent.info_hash
                             log_file.write(LOG)
                     else:
                         os.unlink(temp_file_path)
                         print('フォルダが既に存在します：\n' + new_folder)
+
+if __name__ == "__main__":
+    if new_file:
+        send_notification("P2Pスレイヤー", "検索語「" + input_str + "」について、新しいファイルが検出されました。")
