@@ -4,6 +4,7 @@ from tkinter import messagebox
 import os
 import pathlib
 from torrentool.api import Torrent
+from plyer import notification
 
 # 証拠ディレクトリへのパスを定義
 torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evidence/torrent")
@@ -70,7 +71,7 @@ def main():
                     date_parts = subdir_time.split('_')
                     date_elements = date_parts[0].split('-')
                     time_elements = date_parts[1].split('-')
-                    subdir_time = f"{date_elements[0]}年{date_elements[1]}月{date_elements[2]}日 {time_elements[0]}時{time_elements[1]}分{time_elements[2]}秒"                    
+                    subdir_time = f"{date_elements[0]}-{date_elements[1]}-{date_elements[2]} {time_elements[0]}:{time_elements[1]}:{time_elements[2]}"                    
                     list_name = file_name + " - " + subdir_time
                     suspect_listbox.insert(tk.END, list_name)
                     folder_names.append(torrent_file_path)
@@ -88,8 +89,34 @@ def main():
             def bytes_to_mb(size_in_bytes):
                 size_in_mb = size_in_bytes / (1024 * 1024)
                 return round(size_in_mb, 3)
+            
+            # 元ファイルの取得状況を、フォルダ内のログファイルから抽出
+            def extract_log_lines(torrent_file_path):
+                log_file = None
+
+                # .logファイルを検索
+                for filename in os.listdir(torrent_file_path):
+                    if filename.endswith(".log"):
+                        log_file = os.path.join(torrent_file_path, filename)
+                        break
+
+                if log_file is None:
+                    return "注：証拠構成エラーです。このままでは証拠収集を開始できません。\n"
+
+                with open(log_file, "r") as file:
+                    lines = file.readlines()
+
+                if len(lines) >= 3:
+                    return lines[1].strip() + "\n" + lines[2].strip()+ "\n"
+                else:
+                    return "注：証拠構成エラーです。このままでは証拠収集を開始できません。\n"
+            directory = os.path.dirname(torrent_file_path)
+            torrent_situation = extract_log_lines(directory)
+
             # トレントファイルに含まれる情報を表示
-            info_text.insert(tk.END, f"ファイル名：{torrent.name}\n\n")
+            info_text.insert(tk.END, f"対象ファイル名：{torrent.name if torrent.name else '不明'}\n\n")            
+            info_text.insert(tk.END, f"取得日時：{subdir_time}\n")     
+            info_text.insert(tk.END, f"{torrent_situation}\n")
             info_text.insert(tk.END, f"作成日時：{torrent.creation_date if torrent.creation_date else '不明'}\n")
             info_text.insert(tk.END, f"作成者：{torrent.created_by if torrent.created_by else '不明'}\n")
             info_text.insert(tk.END, f"コメント：{torrent.comment if torrent.comment else '不明'}\n") 
@@ -181,11 +208,6 @@ def main():
     process_text = tk.Text(process_text_frame, wrap=tk.WORD, width=-1, height=7, font=small_font)
     process_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
     process_text.insert(tk.END, "ここに、選択したファイルの証拠採取の進行状況が表示されます。\n\nピース収集の進捗は完全にリアルタイムではなく、フォルダ内のログファイルから読み込まれます。\n最新の状況を知りたい場合は「更新」ボタンを押してください。")
-
-    # スクロールバー
-    process_scrollbar = tk.Scrollbar(info_text_frame, orient=tk.VERTICAL, command=process_text.yview)
-    process_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-    process_text.config(yscrollcommand=info_scrollbar.set, state=tk.DISABLED)
 
     # 編集用ボタン
     button_frame2 = tk.Frame(tab2)
