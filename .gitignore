@@ -1,5 +1,7 @@
 #P2Pslayer
 *.torrent
+torrent/tests/evidence/torrent/
+!torrent/tests/evidence/torrent/.gitkeep
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
