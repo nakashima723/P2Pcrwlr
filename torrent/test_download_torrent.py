@@ -33,7 +33,7 @@ class TestInfo(unittest.TestCase):
         cl = client.Client()
         cl.download_piece(
             os.path.join(self.TEST_DIR, self.FOLDER_NAME, self.FILE_NAME),
-            os.path.join(self.TEST_DIR, 'pieces'),
+            os.path.join(self.TEST_DIR),
             0
         )
 
