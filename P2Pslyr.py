@@ -1,20 +1,63 @@
+from datetime import datetime, timedelta, timezone
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
+from tkinter import filedialog
 import os
+import shutil
 import pathlib
+import time
+import ntplib
 from torrentool.api import Torrent
 from plyer import notification
 
 # 証拠ディレクトリへのパスを定義
 torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evidence/torrent")
 
+#NTPサーバからUNIX時刻を取得し、JSTに変換して返却する。
+def fetch_jst():
+    ntp_server = 'ntp.nict.jp'
+
+    # NTPサーバからUNIX時刻を取得する
+    ntp_client = ntplib.NTPClient()
+    response = ntp_client.request(ntp_server)
+    unix_time = response.tx_time
+
+    # UNIX時刻をJSTに変換する
+    jst = timezone(timedelta(hours=+9), 'JST')
+    jst_time = datetime.fromtimestamp(unix_time, jst)
+
+    return jst_time
+
+def is_info_hash_duplicate(torrent_folder, torrent_files):
+    # Traverse through all the subfolders in the torrent_folder
+    for entry in os.listdir(torrent_folder):
+        subfolder_path = os.path.join(torrent_folder, entry)
+
+        if os.path.isdir(subfolder_path):
+            # Iterate through the files in the subfolder
+            for file in os.listdir(subfolder_path):
+                if file.endswith(".torrent"):
+                    existing_torrent_path = os.path.join(subfolder_path, file)
+                    existing_torrent = Torrent.from_file(existing_torrent_path)
+                    existing_info_hash = existing_torrent.info_hash
+
+                    # Compare the existing torrent's info_hash with the info_hash of all files in the torrent_files list
+                    for torrent_file in torrent_files:
+                        new_torrent = Torrent.from_file(torrent_file)
+                        new_info_hash = new_torrent.info_hash
+
+                        if new_info_hash == existing_info_hash: 
+                            print(f"すでに存在しているtorrentファイルです: {torrent_file}")
+                            return True
+    return False
+
 def main():
     window = tk.Tk()
     window.title('P2Pスレイヤー')
     window.geometry('800x600')
     
-   # フォント設定nesteda
+   # フォント設定
     font = ('', 17)
     small_font = ('', 14)
 
@@ -101,7 +144,7 @@ def main():
                         break
 
                 if log_file is None:
-                    return "注：証拠構成エラーです。このままでは証拠収集を開始できません。\n"
+                    return "注：ログファイルなし：無効な証拠フォルダです。「誤検出」に分類したあと削除してください。\n"
 
                 with open(log_file, "r") as file:
                     lines = file.readlines()
@@ -109,7 +152,7 @@ def main():
                 if len(lines) >= 3:
                     return lines[1].strip() + "\n" + lines[2].strip()+ "\n"
                 else:
-                    return "注：証拠構成エラーです。このままでは証拠収集を開始できません。\n"
+                    return "ログファイルなし：無効な証拠フォルダです。「誤検出」に分類したあと削除してください。\n"
             directory = os.path.dirname(torrent_file_path)
             torrent_situation = extract_log_lines(directory)
 
@@ -153,10 +196,47 @@ def main():
     bulk_add_button = tk.Button(button_frame, text="ファイルから追加", font=small_font)
     bulk_add_button.pack(side=tk.LEFT, padx=(10, 10))
 
-    url_add_button = tk.Button(button_frame, text="URLから追加", font=small_font)
-    url_add_button.pack(side=tk.LEFT, padx=(0, 10))
+    # 選択したtorrentファイルから、証拠フォルダを生成するアクション
+    def on_bulk_add_button_click():
+        # 1. Open a dialog to select multiple .torrent files from the user's PC
+        torrent_files = filedialog.askopenfilenames(filetypes=[("Torrent files", "*.torrent")])
 
-    delete_button = tk.Button(button_frame, text="誤検出として記録", font=small_font)
+        if not torrent_files:
+            # 6. If no torrent file is selected, do nothing
+            return
+        if not is_info_hash_duplicate(torrent_folder, torrent_files):
+            for torrent_file in torrent_files:
+                # 2. Create a new folder with the name 'folder_time' in the 'EVIDENCE_FOLDER_PATH'
+                folder_time = fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
+                folder_path = os.path.join(torrent_folder, folder_time)
+                os.makedirs(folder_path, exist_ok=True)
+
+                # 3. Copy the selected torrent file to the 'folder_time' folder
+                dst_file_path = os.path.join(folder_path, os.path.basename(torrent_file))
+                shutil.copy2(torrent_file, dst_file_path)
+
+                # 4. Rename the copied torrent file to 'source.torrent'
+                src_file_path = os.path.join(folder_path, "source.torrent")
+                os.rename(dst_file_path, src_file_path)
+                
+                # torrentファイル読み込み時の情報を記録
+                log_file_path = os.path.join(folder_path, "evidence_" + folder_time +".log")
+                with open(log_file_path, "w") as log_file:
+                    torrent = Torrent.from_file(dst_file_path)
+                    LOG =  "対象ファイル名：" + torrent.name + "\ntorrent取得方法：ローカルに保存されたファイルから"+ "\n取得元：" + dst_file_path + "\n証拠フォルダ生成日時：" + folder_time + "\nファイルハッシュ：" + torrent.info_hash
+                    log_file.write(LOG)
+                time.sleep(1)
+        else:      
+            for torrent_file in torrent_files:      
+                root = tk.Tk()
+                torrent = Torrent.from_file(torrent_file)
+                root.withdraw()  # Hide the main window
+                messagebox.showinfo("Alert", torrent.name+ "はすでに存在しているファイルです。")
+                root.destroy()  # Close the main window
+    names()
+    bulk_add_button.config(command=on_bulk_add_button_click)
+
+    delete_button = tk.Button(button_frame, text="誤検出としてマーク", font=small_font)
     delete_button.pack(side=tk.LEFT, padx=(0, 10))
 
     def start_picking():
