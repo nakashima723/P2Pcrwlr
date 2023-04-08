@@ -14,13 +14,6 @@ from plyer import notification
 # 証拠ディレクトリへのパスを定義
 torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evidence/torrent")
 
-# completed および false フォルダの作成
-folder_types = ['completed', 'false']
-for folder_type in folder_types:
-    folder_path = os.path.join(torrent_folder, folder_type)
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-
 #NTPサーバからUNIX時刻を取得し、JSTに変換して返却する。
 def fetch_jst():
     ntp_server = 'ntp.nict.jp'
@@ -135,18 +128,7 @@ def main():
     mark_button = tk.Button(button_frame, text="誤検出としてマーク", font=small_font)
     mark_button.pack(side=tk.LEFT, padx=(0, 10))
 
-    def start_picking():
-        message = ("証拠採取を開始します。\n\n"
-                "対象のファイルがあなたの権利物であることをよく確認してください。\n"
-                "誤ったファイルをダウンロードした場合、あなたが著作権侵害に問われる場合があります。\n\n"
-                "本当によろしいですか？")
-
-        user_choice = messagebox.askyesno("警告", message)
-
-        if user_choice:
-            notebook.select(tab2)
-
-    start_button = tk.Button(button_frame, text="証拠採取を開始", font=font,command=start_picking)
+    start_button = tk.Button(button_frame, text="証拠採取を開始", font=font)
     start_button.config(state=tk.DISABLED)
     start_button.pack(side=tk.RIGHT, padx=(0, 10))
 
@@ -294,18 +276,24 @@ def main():
         folder_names = []
         suspect_listbox.delete(0, tk.END)
         # torrent_folder 内のサブディレクトリを繰り返し処理
-        torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evidence/torrent")
-        if selected_tab=="false":
-            torrent_folder = os.path.join(torrent_folder, "false")
-        if selected_tab=="completed":
-            torrent_folder = os.path.join(torrent_folder, "completed") 
+        torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evidence/torrent")        
 
         subdirs = [os.path.join(torrent_folder, folder) for folder in os.listdir(torrent_folder) if os.path.isdir(os.path.join(torrent_folder, folder))]
+
+        if selected_tab=="false":
+            subdirs = [subdir for subdir in subdirs if os.path.isfile(os.path.join(subdir, '.false'))] 
+        if selected_tab=="process":
+            subdirs = [subdir for subdir in subdirs if os.path.isfile(os.path.join(subdir, '.process'))] 
+        if selected_tab=="completed":
+            subdirs = [subdir for subdir in subdirs if os.path.isfile(os.path.join(subdir, '.comlpleted'))] 
+        if selected_tab==None:
+            subdirs = [subdir for subdir in subdirs if not (os.path.isfile(os.path.join(subdir, '.process')) or os.path.isfile(os.path.join(subdir, '.false')) or os.path.isfile(os.path.join(subdir, '.complete')))]
+
 
         for subdir_path in subdirs:
             # サブディレクトリがあるどうかをチェック
             if os.path.isdir(subdir_path):
-                if not os.path.isdir(folder_path[0]) or os.path.isdir(folder_path[1]) :             
+                if not os.path.isdir(subdir_path[0]) or os.path.isdir(subdir_path[1]) :             
                     torrent_file_path = os.path.join(subdir_path, "source.torrent")
                     
                     # source.torrent ファイルが存在するかチェック
@@ -399,80 +387,94 @@ def main():
         num = selected_indices[0]
 
         # 2. num番目のフォルダを削除
-        false_folder = os.path.join(torrent_folder, "false/")
-        folder_list = [os.path.join(false_folder, d) for d in os.listdir(false_folder) if os.path.isdir(os.path.join(false_folder, d))]
+        torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evidence/torrent")        
+        subdirs = [os.path.join(torrent_folder, folder) for folder in os.listdir(torrent_folder) if os.path.isdir(os.path.join(torrent_folder, folder))]
+        folder_list = [subdir for subdir in subdirs if os.path.isfile(os.path.join(subdir, '.false'))] 
         target_folder = folder_list[num]
         shutil.rmtree(target_folder)
         
         update()
 
-    def mark_folder():
+    def mark_folder(listbox, text,status):
         # リストボックス「suspect_listbox」の選択された要素のインデックスを取得
-        selected_indices = suspect_listbox.curselection()
-
-        # 選択された要素が存在しない場合、処理を終了
-        if not selected_indices:
-            return
-
-        num = selected_indices[0]
-
-        if selected_indices:  # 選択された要素が存在する場合
-            index = selected_indices[0]
-            selected_text = suspect_listbox.get(index)
-        else:
-            print("選択されているファイルがありません。")
-
-        # num番目のフォルダをfalseフォルダ内に移動する
-        folder_list = [os.path.join(torrent_folder, d) for d in os.listdir(torrent_folder) if os.path.isdir(os.path.join(torrent_folder, d))]
-        target_folder = folder_list[num]
-        false_folder = os.path.join(torrent_folder, "false")
-
-        # falseフォルダが存在しない場合は作成
-        if not os.path.exists(false_folder):
-            os.makedirs(false_folder)
-
-        new_folder_path = os.path.join(false_folder, os.path.basename(target_folder))
-        os.rename(target_folder, new_folder_path)
-        info_text.config(state=tk.NORMAL) 
-        info_text.delete(1.0, tk.END)
-        info_text.insert(tk.END, "「"+ selected_text +"」を誤検出タブに移動しました。")
-        info_text.config(state=tk.DISABLED)
-
-        update()
-
-    def unmark_folder():
-        # リストボックス「false_listbox」の選択された要素のインデックスを取得
-        selected_indices = false_listbox.curselection()
+        selected_indices = listbox.curselection()
         
         if selected_indices:  # 選択された要素が存在する場合
             index = selected_indices[0]
-            selected_text = false_listbox.get(index)
+            selected_text = listbox.get(index)
+        else:
+            print("選択されているファイルがありません。")
+
+        num = selected_indices[0]
+
+        # num番目のフォルダを.falseファイルでマークする 
+        torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evidence/torrent")        
+        subdirs = [os.path.join(torrent_folder, folder) for folder in os.listdir(torrent_folder) if os.path.isdir(os.path.join(torrent_folder, folder))]
+        folder_list = [subdir for subdir in subdirs if not os.path.isfile(os.path.join(subdir, status))]
+        target_folder = folder_list[num]
+
+        if not os.path.isfile(os.path.join(target_folder, status)):
+            with open(os.path.join(target_folder, status), 'w') as false_file:
+                pass
+
+        if status == ".false":
+            tab_name = "を誤検出"
+        if status == ".process":
+            tab_name = "の証拠採取を開始し、採取状況"
+
+        text.config(state=tk.NORMAL) 
+        text.delete(1.0, tk.END)
+        text.insert(tk.END, "「"+ selected_text +"」" + tab_name + "タブに移動しました。")
+        text.config(state=tk.DISABLED)
+
+        update()
+
+    def unmark_folder(listbox,text,status):
+        # リストボックス「false_listbox」の選択された要素のインデックスを取得
+        selected_indices = listbox.curselection()
+        
+        if selected_indices:  # 選択された要素が存在する場合
+            index = selected_indices[0]
+            selected_text = listbox.get(index)
         else:
             print("選択されているファイルがありません。")
             return
 
         num = selected_indices[0]
 
-        # falseフォルダ内にあるnum番目のフォルダを、ひとつ上の階層のフォルダに移動する
-        false_folder = os.path.join(torrent_folder, "false")
-        folder_list = [os.path.join(false_folder, d) for d in os.listdir(false_folder) if os.path.isdir(os.path.join(false_folder, d))]
+        # num番目のフォルダの.falseファイルを削除する
+        torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evidence/torrent")        
+        subdirs = [os.path.join(torrent_folder, folder) for folder in os.listdir(torrent_folder) if os.path.isdir(os.path.join(torrent_folder, folder))]
+        folder_list = [subdir for subdir in subdirs if os.path.isfile(os.path.join(subdir, status))] 
         target_folder = folder_list[num]
 
-        new_folder_path = os.path.join(torrent_folder, os.path.basename(target_folder))
-        os.rename(target_folder, new_folder_path)
+        if os.path.isfile(os.path.join(target_folder, status)):
+            os.remove(os.path.join(target_folder, status))
 
-        false_text.config(state=tk.NORMAL) 
-        false_text.delete(1.0, tk.END)
-        false_text.insert(tk.END, "「"+ selected_text +"」を証拠採取の候補タブに戻しました。")
-        false_text.config(state=tk.DISABLED)
+        text.config(state=tk.NORMAL) 
+        text.delete(1.0, tk.END)
+        text.insert(tk.END, "「"+ selected_text +"」を証拠採取の候補タブに戻しました。")
+        text.config(state=tk.DISABLED)
 
         update()
 
-    delete_button.config(command=delete_folder)
-    mark_button.config(command=mark_folder)
-    unmark_button.config(command=unmark_folder)
+    def start_picking():
+        message = ("証拠採取を開始します。\n\n"
+                "対象のファイルがあなたの権利物であることをよく確認してください。\n"
+                "誤ったファイルをダウンロードした場合、あなたが著作権侵害に問われる場合があります。\n\n"
+                "本当によろしいですか？")
 
-    update()
+        user_choice = messagebox.askyesno("警告", message)
+            
+    def combined_commands():
+        start_picking()
+        mark_folder(suspect_listbox, info_text, ".process")
+    
+    start_button.config(command=combined_commands)
+    mark_button.config(command=lambda: mark_folder(suspect_listbox, info_text,".false"))
+    unmark_button.config(command=lambda: unmark_folder(false_listbox, false_text,".false"))
+    suspend_button.config(command=lambda: unmark_folder(process_listbox, process_text,".process"))    
+    delete_button.config(command=delete_folder)
 
     def on_bulk_add_button_click():
     # 1. Open a dialog to select multiple .torrent files from the user's PC
@@ -515,6 +517,8 @@ def main():
 
     bulk_add_button.config(command=on_bulk_add_button_click)    
     refresh_button.config(command=update)
+
+    update()
 
     window.protocol("WM_DELETE_WINDOW", window.quit)
 
