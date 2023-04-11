@@ -1,10 +1,27 @@
 import libtorrent as lt
+import os
+import csv
 import time
 import ntplib
 from datetime import datetime, timezone, timedelta
 
 
 class Client():
+    def __init__(self):
+        # 重複するピアを記録する必要はないため、集合として定義
+        self.peer_info = set()
+
+    def add_peer_info(self, torrent_handle):
+        """
+        torrent_handleに含まれるピア情報を記録する。
+
+        Parameters
+        ----------
+        torrent_handle : torrent_handle
+        ピア情報を記録する対象のtorrent_handle。
+        """
+        for p in torrent_handle.get_peer_info():
+            self.peer_info.add(p.ip)
 
     def download(self, torrent_path, save_path):
         """
@@ -27,8 +44,13 @@ class Client():
 
         while not handle.status().is_seeding:
             print_download_status(handle.status(), handle.get_peer_info())
-            print_peer_info(handle)
+            self.add_peer_info(handle)
             time.sleep(1)
+
+        with open(os.path.join(save_path, 'peer.csv'), mode='a', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            for ip in self.peer_info:
+                writer.writerow([ip[0], ip[1]])
 
         print(handle.status().name, 'complete')
         print("File Hash: %s, File size: %d, Time: %s" % (
@@ -79,11 +101,6 @@ def print_download_status(torrent_status, peer_info):
             torrent_status.upload_rate / 1000,
             len(peer_info), torrent_status.state)
     )
-
-
-def print_peer_info(torrent_handle):
-    for p in torrent_handle.get_peer_info():
-        print("IP address: %s   Port: %d" % (p.ip[0], p.ip[1]))
 
 
 def fetch_jst():

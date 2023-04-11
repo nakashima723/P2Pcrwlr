@@ -7,8 +7,9 @@ import pathlib
 
 
 class TestInfo(unittest.TestCase):
-    TEST_DIR = os.path.join(pathlib.Path(__file__).parent, 'tests')
-    DOWNLOAD_DIR = 'downloads'
+    TEST_DIR = os.path.join(pathlib.Path(__file__).parent,
+                            'tests', 'evidence', 'torrent')
+    FOLDER_NAME = 'Big Buck Bunny'
     FILE_NAME = 'big-buck-bunny.torrent'
 
     @classmethod
@@ -19,20 +20,20 @@ class TestInfo(unittest.TestCase):
         url = 'https://webtorrent.io/torrents/big-buck-bunny.torrent'
 
         urllib.request.urlretrieve(
-            url, os.path.join(self.TEST_DIR, self.FILE_NAME))
+            url, os.path.join(self.TEST_DIR, self.FOLDER_NAME, self.FILE_NAME))
 
     # 現状、各メソッドを実行するだけで、assertionしていない。
 
     def test_client(self):
         cl = client.Client()
-        cl.download(os.path.join(self.TEST_DIR, self.FILE_NAME),
-                    os.path.join(self.TEST_DIR, self.DOWNLOAD_DIR))
+        cl.download(os.path.join(self.TEST_DIR, self.FOLDER_NAME, self.FILE_NAME),
+                    os.path.join(self.TEST_DIR, self.FOLDER_NAME))
 
     def test_download_piece(self):
         cl = client.Client()
         cl.download_piece(
-            os.path.join(self.TEST_DIR, self.FILE_NAME),
-            os.path.join(self.TEST_DIR, self.DOWNLOAD_DIR, 'pieces'),
+            os.path.join(self.TEST_DIR, self.FOLDER_NAME, self.FILE_NAME),
+            os.path.join(self.TEST_DIR, self.FOLDER_NAME),
             0
         )
 
