@@ -27,13 +27,13 @@ class TestInfo(unittest.TestCase):
     def test_client(self):
         cl = client.Client()
         cl.download(os.path.join(self.TEST_DIR, self.FOLDER_NAME, self.FILE_NAME),
-                    os.path.join(self.TEST_DIR))
+                    os.path.join(self.TEST_DIR, self.FOLDER_NAME))
 
     def test_download_piece(self):
         cl = client.Client()
         cl.download_piece(
             os.path.join(self.TEST_DIR, self.FOLDER_NAME, self.FILE_NAME),
-            os.path.join(self.TEST_DIR),
+            os.path.join(self.TEST_DIR, self.FOLDER_NAME),
             0
         )
 
