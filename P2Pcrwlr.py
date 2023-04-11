@@ -1,9 +1,11 @@
 import json
+import csv
 import os
 import re
+import chardet
 import tkinter as tk
 from tkinter import ttk
-import tkinter.messagebox as messagebox
+from tkinter import filedialog, messagebox
 
 def main():
     window = tk.Tk()
@@ -213,30 +215,29 @@ def main():
         treeview.heading("参考", text="参考URL")
         treeview.column("参考", width=180)
 
+
+    def get_file_encoding(file_path):
+        with open(file_path, 'rb') as f:
+            result = chardet.detect(f.read())
+        return result['encoding']
+
     def load_queries(filename):
         settings_folder = "settings"
-        data_json = filename
-        settings_file = os.path.join(settings_folder, data_json)
+        settings_file = os.path.join(settings_folder, filename)
+
+        if not os.path.exists(settings_file):
+            with open(settings_file, 'w', encoding='utf-8') as f:
+                f.write('[]')  # 空のリストをJSON形式で書き込む
+        
+        json_file_encoding = get_file_encoding(settings_file)
 
         if os.path.exists(settings_file) and os.path.getsize(settings_file) > 0:
-            with open(settings_file, "r") as f:
+            with open(settings_file, "r", encoding=json_file_encoding) as f:
                 saved_data = json.load(f)
         else:
             saved_data = []
 
         return saved_data
-    
-    #指定したタブを表示
-    def show_tab(notebook, nested_tab_name):
-        for index in range(notebook.index("end")):
-            child_widget = notebook.nametowidget(notebook.tabs()[index])
-            if isinstance(child_widget, ttk.Notebook):
-                nested_notebook = child_widget
-                for nested_index in range(nested_notebook.index("end")):
-                    if nested_notebook.tab(nested_index, "text") == nested_tab_name:
-                        notebook.select(index)
-                        nested_notebook.select(nested_index)
-                        break
 
     def populate_treeview(treeview, data):
         # Treeviewの内容をクリア
@@ -247,8 +248,7 @@ def main():
         for item in data:
             treeview.insert("", "end", values=item)
     
-    #「追加」ボタンのコマンドを設定
-    def save_data():        
+    def save_data():
         # 入力されたデータを取得 
         keyword = keyword_entry.get()
         keyword = keyword.strip()  # 文頭のスペースを削除
@@ -274,7 +274,7 @@ def main():
             nested_notebook.select(r18_tab)
 
         # 新しいデータをタプルとして作成
-        new_data = (keyword, creator, publisher, url, age_rating)
+        new_data = (keyword, creator, publisher, url)
 
         # 保存先フォルダを作成
         settings_folder = "settings"
@@ -293,6 +293,12 @@ def main():
                 saved_data = json.load(f)
         else:
             saved_data = []
+
+        # Check if the keyword already exists in the saved_data
+        for data_row in saved_data:
+            if data_row[0] == keyword:
+                messagebox.showinfo("情報", f'検索語「{keyword}」はすでに追加済みです。')
+                return
 
         saved_data.insert(0, new_data)
 
@@ -373,8 +379,100 @@ def main():
 
         url_entry.delete(0, tk.END)
         url_entry.insert(0, item_values[3])  
-        edit_button.config(text="↑編集後、『追加』ボタンを押してください", font=font)
+        edit_button.config(text="↑編集後、『追加』ボタンを押してください")
         delete_selected_item(treeview, json_file_name)
+
+    def process_input_file(input_file):
+        file_encoding = get_file_encoding(input_file)
+
+        processed_data = []
+        empty_url = 0
+
+        with open(input_file, 'r', encoding=file_encoding, errors='replace') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if len(row) == 0 or row[0].strip() == "":
+                    continue
+                row += [""] * (4 - len(row))
+                keyword = row[0].strip()
+                keyword = re.sub(r'\s{2,}', ' ', keyword)
+                keyword = keyword.replace("　", " ")
+                row[0] = keyword
+                creator = row[1].strip() .replace(" ", "").replace("　", "")  
+                row[1] = creator
+                publisher = row[2].strip() .replace(" ", "").replace("　", "")  
+                row[2] = publisher
+                url = row[3].strip() .replace(" ", "").replace("　", "")                  
+                if not url or url is None or not url.startswith("https://"):
+                    url = ""                            
+                    if "empty_url" not in locals():
+                        empty_url = 0
+                row[3] = url
+                processed_data.append(row)
+        return processed_data, empty_url
+
+    def update_json_file(json_file, input_data):
+        added_count = 0
+        duplicated_keywords = []
+        saved_data = []
+
+        json_file_encoding = get_file_encoding(json_file)
+        with open(json_file, 'r', encoding=json_file_encoding, errors='replace') as f:
+            saved_data = json.load(f)
+
+        added_count = 0
+        duplicated_keywords = []
+        for row in input_data:
+            keyword = row[0]
+            if any(saved_row[0] == keyword for saved_row in saved_data):
+                duplicated_keywords.append(keyword)
+            else:
+                saved_data.append(row)
+                added_count += 1
+
+        with open(json_file, 'w', errors='replace') as f:
+            json.dump(saved_data, f, ensure_ascii=False, indent=2)
+
+        return added_count, duplicated_keywords
+
+    def import_data_to_json(json_file):
+        settings_folder = "settings"
+        json_file_path = os.path.join(settings_folder, json_file)
+
+        
+        messagebox.showinfo("ファイルから検索語を追加","以下のような形式で記述された.txt、または.csvファイルを選んでください。"
+                            "\n1行ごとに1つの検索語を登録できます。"
+                            "\n\n　検索語1,　作者1,　版元1,　参考URL1\n　検索語2,　作者2,　版元2,　参考URL2\n　検索語3,　作者3,　版元3,　参考URL3"
+                            "\n\n「検索語」以外の要素は無くてもかまいません。")
+
+        input_file = filedialog.askopenfilename(filetypes=[("Text files", "*.txt;*.csv")])
+        if not input_file:
+            return
+
+        input_data, empty_url = process_input_file(input_file)
+        added_count, duplicated_keywords = update_json_file(json_file_path, input_data)
+
+        # 入力結果を表示
+        file_input_str = ""
+        if not added_count or "added_count" not in locals():
+            file_input_str = "ファイル内容が不正、またはすべての検索語がすでに入力ずみのものだったため、新しく追加された検索語はありません。"
+            messagebox.showinfo("入力を行いませんでした", file_input_str)
+            return
+        else:
+            file_input_str = f"{added_count}件の検索語を入力しました。"
+
+        if "duplicated_keywords" in locals() and duplicated_keywords:
+            file_input_str += f"\n\n検索語「{'」「'.join(duplicated_keywords)}」はすでに存在していたため、入力しませんでした。"
+
+        if "empty_url" in locals() and empty_url:
+            file_input_str += f"\n\n{empty_url}件のURLについて、「https://」から始まる内容ではなかったため、入力内容から除外しました。"
+
+        messagebox.showinfo("入力結果", file_input_str)
+
+        queries_data = load_queries("queries.json")
+        r18queries_data = load_queries("r18queries.json")
+        populate_treeview(treeview, queries_data)
+        populate_treeview(r18treeview, r18queries_data)        
 
     # データを読み込み、各Treeviewに表示
     queries_data = load_queries("queries.json")
@@ -389,6 +487,8 @@ def main():
     r18_edit_button.config(command=lambda: query_edit(r18_edit_button,r18treeview, "r18queries.json"))
     delete_button.config(command=lambda: delete_selected_item(treeview, "queries.json"))
     r18_delete_button.config(command=lambda: delete_selected_item(r18treeview, "r18queries.json"))
+    bulk_add_button.config(command=lambda: import_data_to_json("queries.json"))
+    r18_bulk_add_button.config(command=lambda: import_data_to_json("r18queries.json"))
 
     # クエリ追加ボタンのコマンドを設定
     add_button.config(command=save_data) 
