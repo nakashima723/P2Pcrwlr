@@ -5,3 +5,4 @@ libtorrent
 torrentool
 requests
 ntplib
+plyer
