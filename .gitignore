@@ -1,5 +1,7 @@
 #P2Pslayer
 *.torrent
+*.json
+*.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
