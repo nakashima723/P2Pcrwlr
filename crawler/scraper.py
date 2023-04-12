@@ -10,6 +10,9 @@ import requests
 import tempfile
 import time
 import ntplib
+import gzip
+import json
+import signal
 from plyer import notification
 
 def send_notification(title, message):
@@ -60,117 +63,171 @@ def process_query(query):
     # 連続するスペースを1つのスペースに置き換え
     query = " ".join(query.split())
 
-    # スペースの前後にダブルクォートを追加し、先頭と末尾にもダブルクォートを追加
-    query = '"' + query.replace(" ", '" "') + '"'
-
     return query
 
 # pathlib.Path(__file__)でこのファイルの場所を取得し、parents[1] で一階層上を指定する。
 # "../"を利用するのと比べて、コードを実行するディレクトリに関係なくevidenceフォルダの位置を決めることができる。
 EVIDENCE_FILE_PATH = os.path.join(pathlib.Path(__file__).parents[1], "evidence")
-new_file = False
+SETTING_FOLDER = os.path.join(pathlib.Path(__file__).parents[1], "settings")
+QUERIES_FILE = os.path.join(SETTING_FOLDER, "queries.json")
+R18_QUERIES_FILE = os.path.join(SETTING_FOLDER, "r18queries.json")
+SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
 
-input_str = input("検索語を入力してください: ")
-output_str = process_query(input_str)
-output_str = urllib.parse.quote(output_str)
-print('検索語：' + output_str)
+def get_element_count(file_path):
+    with open(file_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if data:
+      return len(data[0])
 
+element_count_queries = get_element_count(QUERIES_FILE)
+element_count_r18_queries = get_element_count(R18_QUERIES_FILE)
 
-base_url = "https://nyaa.si/"  # スクレイピング対象のウェブサイトのベースURLを記入
-search_url = 'https://nyaa.si/?f=0&c=0_0&q=' + output_str
-response = urllib.request.urlopen(search_url)
+def scraper(url, file_path):
+    with open(file_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+        keywords = [item[0] for item in data]
 
-# responseオブジェクトからデコード済みのテキストを取得
-html_content = response.read().decode(response.headers.get_content_charset())
+    for keyword in keywords:
+        new_file = 0
+        input_str = process_query(keyword)
+        print('検索語：' + input_str)
 
-soup = BeautifulSoup(html_content, 'html.parser')
-# 'data-timestamp' クラスを持つtable dataの text contentを抽出
-data_timestamp_elements = soup.find_all('td', attrs={'data-timestamp': True})
+        response = urllib.request.urlopen(url)
 
-if len(data_timestamp_elements) == 0:
-    print("「" + input_str + "」アップロードされたファイルなし")
-else:
-    if len(data_timestamp_elements) > 10:
-        data_timestamp_elements = data_timestamp_elements[:10]
-        print("「" + input_str + "」10件以上を検出：誤検出ではない場合、これ以上の採取はサイトから直接行ってください。→" + search_url)
+        response_content = response.read()
+        if response.headers.get('Content-Encoding') == 'gzip':
+            response_content = gzip.decompress(response_content)
 
-    latest_dates = []
+        html_content = response_content.decode(response.headers.get_content_charset() or 'utf-8')
 
-    for element in data_timestamp_elements:
-        timestamp_str = element.get_text()
-        timestamp_str = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M').replace(tzinfo=timezone.utc)
+        soup = BeautifulSoup(html_content, 'html.parser')
 
-        if not is_within_days(timestamp_str):
-            break
+        # 'data-timestamp' クラスを持つtd要素を探索
+        data_timestamp_elements = soup.find_all('td', attrs={'data-timestamp': True})
+        target_elements = []
+        target_index = []
+
+        # すべてのtr要素を探索
+        for row in soup.find_all('tr'):
+            title_element = row.find('td', colspan="2")
+            data_timestamp_element = row.find('td', attrs={'data-timestamp': True})
+            
+            if title_element and data_timestamp_element:
+                # aタグのテキスト部分を取得
+                title_text = title_element.find('a').get_text()
+
+                # titleタグのテキスト文字列に「input_str」が含まれる場合、対象の'data-timestamp' クラスを持つtd要素のtext_contentを抽出
+                # input_str から単語のリストを作成
+                words = input_str.split()
+
+                # すべての単語が title_text に含まれているかどうか判定
+                if all(word in title_text for word in words):
+                    target_elements.append(data_timestamp_element.get_text())
+                    target_index.append(data_timestamp_elements.index(data_timestamp_element))
+
+        if len(target_elements) == 0:
+            print("「" + input_str + "」アップロードされたファイルなし")
         else:
-            datetime_jst = utc_to_jst(timestamp_str)
-            formatted_date = datetime_jst.strftime('%Y-%m-%d %H:%M') #サイト上でアップされた時刻
-            latest_dates.append(formatted_date)
+            if len(target_elements) > 5:
+                target_elements = target_elements[:5]
+                target_index = target_index[:5]
+                print("「" + input_str + "」5件以上を検出：誤検出ではない場合、これ以上の採取はサイトから直接行ってください。→" + url)
+
+            latest_dates = []
+
+            for element in target_elements:
+                timestamp_str = datetime.strptime(element, '%Y-%m-%d %H:%M').replace(tzinfo=timezone.utc)
+
+                if not is_within_days(timestamp_str):
+                    break
+                else:
+                    datetime_jst = utc_to_jst(timestamp_str)
+                    formatted_date = datetime_jst.strftime('%Y-%m-%d %H:%M') #サイト上でアップされた時刻
+                    latest_dates.append(formatted_date)
+                    
+            print('7日以内にアップロードされたファイル:' + str(len(latest_dates)) + '件')
+
+            # evidenceフォルダが存在しない場合は作成
+            if not os.path.exists(EVIDENCE_FILE_PATH):
+                os.makedirs(EVIDENCE_FILE_PATH)
+            torrent_folder = os.path.join(EVIDENCE_FILE_PATH, "torrent")
+            if not os.path.exists(torrent_folder):
+                os.makedirs(torrent_folder)
             
-    print('7日以内にアップロードされたファイル:' + str(len(latest_dates)) + '件')
+            for index in target_index:
+                # .torrentで終わるaタグを探す
+                torrent_links = [a["href"] for a in soup.find_all("a") if 'href' in a.attrs and a["href"].endswith(".torrent")]
 
-    # evidenceフォルダが存在しない場合は作成
-    if not os.path.exists(EVIDENCE_FILE_PATH):
-        os.makedirs(EVIDENCE_FILE_PATH)
-    torrent_folder = os.path.join(EVIDENCE_FILE_PATH, "torrent")
-    if not os.path.exists(torrent_folder):
-        os.makedirs(torrent_folder)
-    
-    for i, date in enumerate(latest_dates):
-        # .torrentで終わるaタグを探す
-        torrent_links = [a["href"] for a in soup.find_all("a") if 'href' in a.attrs and a["href"].endswith(".torrent")]
-        formatted_date = latest_dates[i]
-        
-        # これまで取得したtorrentファイルを確認
-        log_file_path = os.path.join(torrent_folder, "torrent.log")
+                # これまで取得したtorrentファイルを確認
+                logfile_name = input_str + ".log"
+                TORRENT_LOG_FOLDER = os.path.join(SETTING_FOLDER, "torrent_log")
+                logfile_path = os.path.join(TORRENT_LOG_FOLDER, logfile_name)
+                
+                # torrent_logフォルダが存在しない場合、作成
+                if not os.path.exists(TORRENT_LOG_FOLDER):
+                    os.makedirs(TORRENT_LOG_FOLDER)
 
-        # torrent.logファイルが存在しない場合、作成
-        if not os.path.exists(log_file_path):
-            with open(log_file_path, "w") as log_file:
-                pass
+                # 検索語に対してlogファイルが存在しない場合、作成
+                if not os.path.exists(logfile_path):
+                    with open(logfile_path, "w", encoding='utf-8') as log_file:
+                        pass
 
-        # torrent.logファイルの内容を取得し、torrent_urlが存在するか検索
-        with open(log_file_path, "r+") as log_file:
-            content = log_file.read()
-            torrent_url = urljoin(base_url, torrent_links[i])
-            
-            # まだ存在しないファイルだった場合、新規にtorrentファイルをダウンロード
-            if torrent_url not in content:
-                new_file = True
-                     
-                # i番目のリンク先URLからファイルを取得
-                torrent_file = requests.get(torrent_url)
-                time.sleep(1)
+                # torrent.logファイルの内容を取得し、torrent_urlが存在するか検索
+                with open(logfile_path, "r+", encoding='utf-8') as log_file:
+                    content = log_file.read()
+                    torrent_url = urljoin(url, torrent_links[index])
 
-                # ファイルがtorrentであることを確認し、ファイル名を取得
-                if torrent_url.endswith(".torrent"):
-                    with tempfile.NamedTemporaryFile(delete=False) as f:
-                        temp_file_path = f.name
-                        f.write(torrent_file.content)
-                    with open(temp_file_path, "rb") as f:
-                        torrent = Torrent.from_string(f.read())
-                        log_file.write(torrent_url + "\n")
+                    # まだ存在しないファイルだった場合、新規にtorrentファイルをダウンロード
+                    if torrent_url not in content:
+                        new_file += 1
 
-                    # フォルダ名に使う現在日時を取得
-                    folder_time = fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
-                    # 新しいフォルダを作成
-                    new_folder = os.path.join(EVIDENCE_FILE_PATH, "torrent", f"{folder_time}")
-                    if not os.path.exists(new_folder):  # フォルダが存在しない場合のみ作成
-                        os.makedirs(new_folder)
-                        print('新しく作成されたフォルダ：\n' + new_folder)
+                        # index番目のリンク先URLからファイルを取得
+                        torrent_file = requests.get(torrent_url)
+                        time.sleep(1)
                         
-                        new_file_name = os.path.join(new_folder, f"source.torrent")
-                        # torrentファイルを新しいフォルダに移動
-                        shutil.move(temp_file_path, new_file_name)
-                        # torrentファイル取得時の情報を記録
-                        log_file_path = os.path.join(new_folder, "evidence_" + folder_time +".log")
-                        with open(log_file_path, "w") as log_file:
-                            LOG =  "対象ファイル名：" + torrent.name + "\ntorrent取得方法：「" + input_str + "」で検索"+ "\n取得元：" + torrent_url + "\nサイト上で表記されていたアップロード日時：" + formatted_date + "\n証拠フォルダ生成日時：" + folder_time + "\nファイルハッシュ：" + torrent.info_hash
-                            log_file.write(LOG)
-                    else:
-                        os.unlink(temp_file_path)
-                        print('フォルダが既に存在します：\n' + new_folder)
+                        # ファイルがtorrentであることを確認し、ファイル名を取得
+                        if torrent_url.endswith(".torrent"):
+                            with tempfile.NamedTemporaryFile(delete=False) as f:
+                                temp_file_path = f.name
+                                f.write(torrent_file.content)
+                            with open(temp_file_path, "rb") as f:
+                                torrent = Torrent.from_string(f.read())
+                                log_file.write(torrent_url + "\n")
 
-if __name__ == "__main__":
-    if new_file:
-        send_notification("P2Pスレイヤー", "検索語「" + input_str + "」について、新しいファイルが検出されました。")
+                            # フォルダ名に使う現在日時を取得
+                            folder_time = fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
+                            # 新しいフォルダを作成
+                            new_folder = os.path.join(EVIDENCE_FILE_PATH, "torrent", f"{folder_time}")
+                            if not os.path.exists(new_folder):  # フォルダが存在しない場合のみ作成
+                                os.makedirs(new_folder)
+                                print('新しく作成されたフォルダ：\n' + new_folder)
+                                
+                                new_file_name = os.path.join(new_folder, f"source.torrent")
+                                # torrentファイルを新しいフォルダに移動
+                                shutil.move(temp_file_path, new_file_name)
+                                # torrentファイル取得時の情報を記録
+                                logfile_path = os.path.join(new_folder, "evidence_" + folder_time +".log")
+                                with open(logfile_path, 'w', encoding='utf-8') as log_file:
+                                    LOG =  "対象ファイル名：" + torrent.name + "\ntorrent取得方法：「" + input_str + "」で検索"+ "\n取得元：" + torrent_url + "\nサイト上で表記されていたアップロード日時：" + formatted_date + "\n証拠フォルダ生成日時：" + folder_time + "\nファイルハッシュ：" + torrent.info_hash
+                                    log_file.write(LOG)
+                            else:
+                                os.unlink(temp_file_path)
+                                print('フォルダが既に存在します：\n' + new_folder)
+        if __name__ == "__main__":
+            if new_file:
+                send_notification("P2Pスレイヤー", "検索語「" + input_str + "」について、新しいファイルが検出されました。")
+        time.sleep(1)
+
+with open(SETTING_FILE, "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+interval = data["interval"]
+site_urls = data["site_urls"]
+r18_site_urls = data["r18_site_urls"]
+
+for url in site_urls:
+    scraper(url, QUERIES_FILE)
+for url in r18_site_urls:
+    scraper(url, R18_QUERIES_FILE)
+
+time.sleep(1)

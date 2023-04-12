@@ -2,15 +2,73 @@ import json
 import csv
 import os
 import re
-import chardet
+import time
+import signal
 import tkinter as tk
+import pathlib
+import threading
+import subprocess
 from tkinter import ttk
 from tkinter import filedialog, messagebox
+
+SETTING_FOLDER = os.path.join(pathlib.Path(__file__).parents[0], "settings")
+SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
+
+process = None
+stop_event = threading.Event()
+
+def scraper():
+    global process
+    process = subprocess.Popen(["python", "crawler/scraper.py"], creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
+    with open(SETTING_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+        interval = data["interval"]
+    for _ in range(interval):
+        if stop_event.wait(timeout=1):  # 1 秒待機、stop_event がセットされたら中断
+            break
+
+def stop_scraper():
+    global process
+    if process:
+        if os.name == 'nt':  # Windowsの場合
+            process.send_signal(signal.CTRL_C_EVENT)
+        else:  # それ以外のOSの場合
+            process.send_signal(signal.SIGINT)  # SIGINT シグナルを送信
+        process.wait()
+        process = None
+
+def stop_repeat_thread():
+    stop_event.set()
+    stop_scraper()
+
+def repeat_function(stop_event):
+    while not stop_event.is_set():
+        scraper()
+
+stop_event = threading.Event()
+repeat_thread = threading.Thread(target=repeat_function, args=(stop_event,))
+repeat_thread.start()
+
+def restart_scraper():
+    global repeat_thread
+    if repeat_thread:
+        stop_scraper()
+        stop_repeat_thread()
+        repeat_thread.join()  # 追加: スレッドが終了するまで待機
+    stop_event.clear()  # 追加: stop_event をリセット
+    repeat_thread = threading.Thread(target=repeat_function, args=(stop_event,))
+    repeat_thread.start()
 
 def main():
     window = tk.Tk()
     window.title('P2Pクローラ')
     window.geometry('800x600')
+
+    def on_window_close():
+        stop_event.set()  # スレッドを停止
+        stop_scraper()  # サブプロセスを停止
+        window.quit()  # ウィンドウを閉じる
     
    # フォント設定
     font = ('', 17)
@@ -31,19 +89,63 @@ def main():
 
     # 巡回の間隔
     interval_frame = tk.Frame(tab1)
-    interval_frame.pack(pady=(10, 10))
+    interval_frame.pack(pady=(10, 10))    
 
     interval_label = tk.Label(interval_frame, text="巡回の間隔",font=font)
     interval_label.pack(side=tk.LEFT, padx=(50, 10))
 
-    interval_options = ["30分", "1時間", "2時間", "4時間", "6時間"]
-    interval_var = tk.StringVar()
-    interval_var.set(interval_options[0])
+    interval_options = [
+        ("10秒", 10),
+        ("30秒", 30),
+        ("3分", 180),
+        ("30分", 1800),
+        ("1時間", 3600),
+        ("2時間", 7200),
+        ("4時間", 14400),
+        ("6時間", 21600)
+    ]
 
-    interval_menu = ttk.Combobox(interval_frame, textvariable=interval_var, values=interval_options, font=font, state="readonly", width=6)
-    interval_menu.pack(side=tk.LEFT)
+    interval_var = tk.StringVar()
+
+    # 設定ファイルのパスを取得
     
-    patrol_button = tk.Button(interval_frame, text="いますぐ巡回", font=font)
+    SETTING_FOLDER = os.path.join(pathlib.Path(__file__).parents[0], "settings")
+    SETTING_FILE_PATH = os.path.join(SETTING_FOLDER, "setting.json")
+
+    # intervalの値を設定ファイルから読み込み
+    with open(SETTING_FILE_PATH, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    target_value = data["interval"]
+
+    for option, value in interval_options:
+        if value == target_value:
+            interval_var.set(option)
+            break
+
+    def on_option_changed(event):
+        selected_option = interval_var.get()
+        for option, value in interval_options:
+            if selected_option == option:
+
+                # JSONファイルを読み込む
+                with open(SETTING_FILE_PATH, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+
+                # intervalの値を更新
+                data["interval"] = value
+
+                # JSONファイルに書き込む
+                with open(SETTING_FILE_PATH, "w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+
+                break
+
+    interval_menu = ttk.Combobox(interval_frame, textvariable=interval_var, values=[option for option, value in interval_options], width=6, font=font)
+    interval_menu.bind("<<ComboboxSelected>>", on_option_changed)
+    interval_menu.pack(side=tk.LEFT, padx=(0, 10))
+    
+    patrol_button = tk.Button(interval_frame, text="いますぐ巡回", font=font, command=restart_scraper)
     patrol_button.pack(side=tk.RIGHT, padx=(30, 0))
     
     crawl_history_frame = tk.Frame(tab1)
@@ -215,12 +317,6 @@ def main():
         treeview.heading("参考", text="参考URL")
         treeview.column("参考", width=180)
 
-
-    def get_file_encoding(file_path):
-        with open(file_path, 'rb') as f:
-            result = chardet.detect(f.read())
-        return result['encoding']
-
     def load_queries(filename):
         settings_folder = "settings"
         settings_file = os.path.join(settings_folder, filename)
@@ -229,10 +325,8 @@ def main():
             with open(settings_file, 'w', encoding='utf-8') as f:
                 f.write('[]')  # 空のリストをJSON形式で書き込む
         
-        json_file_encoding = get_file_encoding(settings_file)
-
         if os.path.exists(settings_file) and os.path.getsize(settings_file) > 0:
-            with open(settings_file, "r", encoding=json_file_encoding) as f:
+            with open(settings_file, "r", encoding='utf-8') as f:
                 saved_data = json.load(f)
         else:
             saved_data = []
@@ -289,7 +383,7 @@ def main():
 
         # データを読み込み、新しいデータを追加
         if os.path.exists(settings_file) and os.path.getsize(settings_file) > 0:
-            with open(settings_file, "r") as f:
+            with open(settings_file, "r", encoding='utf-8') as f:
                 saved_data = json.load(f)
         else:
             saved_data = []
@@ -303,7 +397,7 @@ def main():
         saved_data.insert(0, new_data)
 
         # データをファイルに保存
-        with open(settings_file, "w") as f:
+        with open(settings_file, "w", encoding='utf-8') as f:
             json.dump(saved_data, f, ensure_ascii=False, indent=2)
 
         # 入力領域をクリア
@@ -341,15 +435,15 @@ def main():
             treeview.delete(item)
 
         # JSONファイルからデータを読み込み、選択されたアイテムを削除
-        with open(json_file_path, "r") as f:
+        with open(json_file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         # 選択されたアイテムを削除
         data = [item for item in data if tuple(item) not in selected_values]
 
         # JSONファイルを更新
-        with open(json_file_path, "w") as f:
-            json.dump(data, f)
+        with open(json_file_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
 
         first_values = [value[0] for value in selected_values]
         formatted_values = ['「{}」'.format(value) for value in first_values]
@@ -383,12 +477,10 @@ def main():
         delete_selected_item(treeview, json_file_name)
 
     def process_input_file(input_file):
-        file_encoding = get_file_encoding(input_file)
-
         processed_data = []
         empty_url = 0
 
-        with open(input_file, 'r', encoding=file_encoding, errors='replace') as f:
+        with open(input_file, 'r', encoding="utf-8", errors='replace') as f:
             reader = csv.reader(f)
             for row in reader:
                 if len(row) == 0 or row[0].strip() == "":
@@ -416,8 +508,7 @@ def main():
         duplicated_keywords = []
         saved_data = []
 
-        json_file_encoding = get_file_encoding(json_file)
-        with open(json_file, 'r', encoding=json_file_encoding, errors='replace') as f:
+        with open(json_file, 'r', encoding='utf-8', errors='replace') as f:
             saved_data = json.load(f)
 
         added_count = 0
@@ -430,7 +521,7 @@ def main():
                 saved_data.append(row)
                 added_count += 1
 
-        with open(json_file, 'w', errors='replace') as f:
+        with open(json_file, 'w', encoding="utf-8",errors='replace') as f:
             json.dump(saved_data, f, ensure_ascii=False, indent=2)
 
         return added_count, duplicated_keywords
@@ -493,7 +584,7 @@ def main():
     # クエリ追加ボタンのコマンドを設定
     add_button.config(command=save_data) 
 
-    window.protocol("WM_DELETE_WINDOW", window.quit)
+    window.protocol("WM_DELETE_WINDOW", on_window_close)
 
     window.mainloop()
 

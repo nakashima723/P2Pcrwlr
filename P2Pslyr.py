@@ -70,8 +70,11 @@ def main():
     notebook = ttk.Notebook(window)
     notebook.pack(fill=tk.BOTH, expand=True)
 
+    tab0 = ttk.Frame(notebook)
+    notebook.add(tab0, text='巡回システム')  
+
     tab1 = ttk.Frame(notebook)
-    notebook.add(tab1, text='証拠採取を開始')  
+    notebook.add(tab1, text='証拠採取')  
 
     tab2 = ttk.Frame(notebook)
     notebook.add(tab2, text='採取状況')
@@ -338,7 +341,7 @@ def main():
                     if log_file is None:
                         return "注：ログファイルなし：無効な証拠フォルダです。「誤検出」に分類したあと削除してください。\n"
 
-                    with open(log_file, "r") as file:
+                    with open(log_file, "r", encoding='utf-8') as file:
                         lines = file.readlines()
 
                     if len(lines) >= 3:
@@ -414,7 +417,7 @@ def main():
         target_folder = folder_list[num]
 
         if not os.path.isfile(os.path.join(target_folder, status)):
-            with open(os.path.join(target_folder, status), 'w') as false_file:
+            with open(os.path.join(target_folder, status), 'w', encoding='utf-8') as false_file:
                 pass
 
         if status == ".false":
@@ -465,17 +468,7 @@ def main():
                 "本当によろしいですか？")
 
         user_choice = messagebox.askyesno("警告", message)
-            
-    def combined_commands():
-        start_picking()
-        mark_folder(suspect_listbox, info_text, ".process")
-    
-    start_button.config(command=combined_commands)
-    mark_button.config(command=lambda: mark_folder(suspect_listbox, info_text,".false"))
-    unmark_button.config(command=lambda: unmark_folder(false_listbox, false_text,".false"))
-    suspend_button.config(command=lambda: unmark_folder(process_listbox, process_text,".process"))    
-    delete_button.config(command=delete_folder)
-
+        
     def on_bulk_add_button_click():
     # 1. Open a dialog to select multiple .torrent files from the user's PC
         torrent_files = filedialog.askopenfilenames(filetypes=[("Torrent files", "*.torrent")])
@@ -500,7 +493,7 @@ def main():
                 
                 # torrentファイル読み込み時の情報を記録
                 log_file_path = os.path.join(folder_path, "evidence_" + folder_time +".log")
-                with open(log_file_path, "w") as log_file:
+                with open(log_file_path, "w", encoding='utf-8') as log_file:
                     torrent = Torrent.from_file(dst_file_path)
                     LOG =  "対象ファイル名：" + torrent.name + "\ntorrent取得方法：ローカルに保存されたファイルから"+ "\n取得元：" + dst_file_path + "\n証拠フォルダ生成日時：" + folder_time + "\nファイルハッシュ：" + torrent.info_hash
                     log_file.write(LOG)
@@ -515,6 +508,15 @@ def main():
         
         update()
 
+    def combined_commands():
+        start_picking()
+        mark_folder(suspect_listbox, info_text, ".process")
+    
+    start_button.config(command=combined_commands)
+    mark_button.config(command=lambda: mark_folder(suspect_listbox, info_text,".false"))
+    unmark_button.config(command=lambda: unmark_folder(false_listbox, false_text,".false"))
+    suspend_button.config(command=lambda: unmark_folder(process_listbox, process_text,".process"))    
+    delete_button.config(command=delete_folder)
     bulk_add_button.config(command=on_bulk_add_button_click)    
     refresh_button.config(command=update)
 
