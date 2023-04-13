@@ -13,6 +13,33 @@ from tkinter import filedialog, messagebox
 
 SETTING_FOLDER = os.path.join(pathlib.Path(__file__).parents[0], "settings")
 SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
+QUERIES_FILE = os.path.join(SETTING_FOLDER, "queries.json")
+R18_QUERIES_FILE = os.path.join(SETTING_FOLDER, "r18queries.json")
+
+# JSONが存在しない場合は生成
+if not os.path.exists(SETTING_FILE):
+    data = {
+        "interval": 1800,
+        "last_crawl_time": "null",
+        "site_urls": [
+            "https://nyaa.si/"
+        ],
+        "r18_site_urls": [
+            "https://sukebei.nyaa.si/"
+        ]
+    }
+    with open(SETTING_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)        
+        print("Crawler33:"+str(data))
+
+def make_query_json(QUERIES_FILE):
+    if not os.path.exists(QUERIES_FILE):
+        data = []
+        with open(QUERIES_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)   
+
+make_query_json(QUERIES_FILE)
+make_query_json(R18_QUERIES_FILE)
 
 process = None
 stop_event = threading.Event()
@@ -49,7 +76,6 @@ def stop_scraper():
 
 def stop_repeat_thread():
     stop_event.set()
-    stop_scraper()
 
 def repeat_function(stop_event):
     while not stop_event.is_set():
@@ -116,12 +142,8 @@ def main():
 
     interval_var = tk.StringVar()
 
-    # 設定ファイルのパスを取得    
-    SETTING_FOLDER = os.path.join(pathlib.Path(__file__).parents[0], "settings")
-    SETTING_FILE_PATH = os.path.join(SETTING_FOLDER, "setting.json")
-
     # intervalの値を設定ファイルから読み込み
-    with open(SETTING_FILE_PATH, "r", encoding="utf-8") as f:
+    with open(SETTING_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     target_value = data["interval"]
@@ -136,7 +158,7 @@ def main():
         jst = datetime.fromtimestamp (last_crawl_time) 
         time_str = jst.strftime('%Y年%m月%d日 %H時%M分%S秒')
     else:
-        last_crawl_time = "未登録"
+        time_str = "未登録"
 
     last_crawl_time_str = "最後に巡回した日時：" + str(time_str)
 
@@ -146,15 +168,17 @@ def main():
             if selected_option == option:
 
                 # JSONファイルを読み込む
-                with open(SETTING_FILE_PATH, "r", encoding="utf-8") as f:
+                with open(SETTING_FILE, "r", encoding="utf-8") as f:
                     data = json.load(f)
 
                 # intervalの値を更新
                 data["interval"] = value
 
-                # JSONファイルに書き込む
-                with open(SETTING_FILE_PATH, "w", encoding="utf-8") as f:
-                    json.dump(data, f, ensure_ascii=False, indent=2)
+                # ファイルを書き込みモードで開いて、更新されたデータを書き込む
+                with open(SETTING_FILE, "w", encoding="utf-8") as f:
+                    f.seek(0)
+                    json.dump(data, f, ensure_ascii=False, indent=2)                       
+                    print("Crawler181:"+str(data))
 
                 break
 
@@ -461,6 +485,7 @@ def main():
         # JSONファイルを更新
         with open(json_file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
+            
 
         first_values = [value[0] for value in selected_values]
         formatted_values = ['「{}」'.format(value) for value in first_values]

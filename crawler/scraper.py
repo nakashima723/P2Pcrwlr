@@ -12,7 +12,10 @@ import time
 import ntplib
 import gzip
 import json
+import threading
 from plyer import notification
+
+file_lock = threading.Lock()
 
 def send_notification(title, message):
     notification.notify(
@@ -82,40 +85,27 @@ QUERIES_FILE = os.path.join(SETTING_FOLDER, "queries.json")
 R18_QUERIES_FILE = os.path.join(SETTING_FOLDER, "r18queries.json")
 SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
 
-def get_element_count(file_path):
-    with open(file_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    if data:
-      return len(data[0])
-    
-# SETTING_FILEが存在しない場合は生成
-if not os.path.exists(SETTING_FILE) or os.stat(SETTING_FILE).st_size == 0:
-    data = {
-        "interval": 1800,
-        "last_crawl_time": "null",
-        "site_urls": [
-            "https://nyaa.si/"
-        ],
-        "r18_site_urls": [
-            "https://sukebei.nyaa.si/"
-        ]
-    }
-    with open(SETTING_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
-
-element_count_queries = get_element_count(QUERIES_FILE)
-element_count_r18_queries = get_element_count(R18_QUERIES_FILE)
-
 def scraper(url, file_path):
     page = 1
     while not page == False:
-        print(str(page) + "ページ目を探索中......")
-        with open(file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            keywords = [item[0] for item in data]        
-        
-        with open(SETTING_FILE, "r", encoding="utf-8") as f:
-            date_data = json.load(f)
+        with file_lock:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                keywords = [item[0] for item in data]
+
+        if len(keywords) ==0:
+            print("「" + url + "」に対する検索語が存在しないため、処理を中断しました。")   
+            with file_lock:         
+                with open(SETTING_FILE, "r+", encoding="utf-8") as f:
+                    data = json.load(f)
+                    data["last_crawl_time"] = fetch_time()
+                    f.seek(0)
+                    json.dump(data, f, ensure_ascii=False, indent=4)
+                    print("Scraper129:"+str(data))
+                break
+        with file_lock:
+            with open(SETTING_FILE, "r", encoding="utf-8") as f:
+                date_data = json.load(f)
 
         if date_data["last_crawl_time"] is not None and date_data["last_crawl_time"] != "null":
             last_crawl_time = date_data["last_crawl_time"]
@@ -124,8 +114,8 @@ def scraper(url, file_path):
         
         if page > 1:
             url = url.split('?')[0] + "?p=" + str(page) 
-        print(url)
 
+        print(url.split('?')[0] + " " + str(page) + "ページ目を探索中......")
         response = urllib.request.urlopen(url)
 
         response_content = response.read()
@@ -148,7 +138,8 @@ def scraper(url, file_path):
                 last_timestamp_str = last_tag['data-timestamp'] 
                 last_timestamp = int(last_timestamp_str)
             else:
-                print("リストが存在しませんでした。")
+                print("リストが存在しませんでした。URLや、HTMLの取得方法が間違っている可能性があります。")
+                break
                 
             target_elements = []
             target_index = []
@@ -172,7 +163,7 @@ def scraper(url, file_path):
                         target_index.append(data_timestamp_elements.index(data_timestamp_element))
 
             if len(target_elements) == 0:
-                print("検索語「" + input_str + "」アップロードされたファイルなし")
+                print("検索語「" + input_str + "」アップロードされているファイルなし")
             else:
                 if len(target_elements) > 5:
                     target_elements = target_elements[:10]
@@ -219,46 +210,47 @@ def scraper(url, file_path):
                             pass
 
                     # torrent.logファイルの内容を取得し、torrent_urlが存在するか検索
-                    with open(logfile_path, "r+", encoding='utf-8') as log_file:
-                        content = log_file.read()
-                        torrent_url = urljoin(url, torrent_links[index])
+                    with file_lock:
+                        with open(logfile_path, "r+", encoding='utf-8') as log_file:
+                            content = log_file.read()
+                            torrent_url = urljoin(url, torrent_links[index])
 
-                        # まだ存在しないファイルだった場合、新規にtorrentファイルをダウンロード
-                        if torrent_url not in content:
-                            new_file += 1
+                            # まだ存在しないファイルだった場合、新規にtorrentファイルをダウンロード
+                            if torrent_url not in content:
+                                new_file += 1
 
-                            # index番目のリンク先URLからファイルを取得
-                            torrent_file = requests.get(torrent_url)
-                            time.sleep(1)
-                            
-                            # ファイルがtorrentであることを確認し、ファイル名を取得
-                            if torrent_url.endswith(".torrent"):
-                                with tempfile.NamedTemporaryFile(delete=False) as f:
-                                    temp_file_path = f.name
-                                    f.write(torrent_file.content)
-                                with open(temp_file_path, "rb") as f:
-                                    torrent = Torrent.from_string(f.read())
-                                    log_file.write(torrent_url + "\n")
+                                # index番目のリンク先URLからファイルを取得
+                                torrent_file = requests.get(torrent_url)
+                                time.sleep(1)
+                                
+                                # ファイルがtorrentであることを確認し、ファイル名を取得
+                                if torrent_url.endswith(".torrent"):
+                                    with tempfile.NamedTemporaryFile(delete=False) as f:
+                                        temp_file_path = f.name
+                                        f.write(torrent_file.content)
+                                    with open(temp_file_path, "rb") as f:
+                                        torrent = Torrent.from_string(f.read())
+                                        log_file.write(torrent_url + "\n")
 
-                                # フォルダ名に使う現在日時を取得
-                                folder_time = fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
-                                # 新しいフォルダを作成
-                                new_folder = os.path.join(EVIDENCE_FILE_PATH, "torrent", f"{folder_time}")
-                                if not os.path.exists(new_folder):  # フォルダが存在しない場合のみ作成
-                                    os.makedirs(new_folder)
-                                    print('新しく作成されたフォルダ：\n' + new_folder)
-                                    
-                                    new_file_name = os.path.join(new_folder, f"source.torrent")
-                                    # torrentファイルを新しいフォルダに移動
-                                    shutil.move(temp_file_path, new_file_name)
-                                    # torrentファイル取得時の情報を記録
-                                    logfile_path = os.path.join(new_folder, "evidence_" + folder_time +".log")
-                                    with open(logfile_path, 'w', encoding='utf-8') as log_file:
-                                        LOG =  "対象ファイル名：" + torrent.name + "\ntorrent取得方法：「" + input_str + "」で検索"+ "\n取得元：" + torrent_url + "\nサイト上で表記されていたアップロード日時：" + formatted_date + "\n証拠フォルダ生成日時：" + folder_time + "\nファイルハッシュ：" + torrent.info_hash
-                                        log_file.write(LOG)
-                                else:
-                                    os.unlink(temp_file_path)
-                                    print('フォルダが既に存在します：\n' + new_folder)
+                                    # フォルダ名に使う現在日時を取得
+                                    folder_time = fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
+                                    # 新しいフォルダを作成
+                                    new_folder = os.path.join(EVIDENCE_FILE_PATH, "torrent", f"{folder_time}")
+                                    if not os.path.exists(new_folder):  # フォルダが存在しない場合のみ作成
+                                        os.makedirs(new_folder)
+                                        print('新しく作成されたフォルダ：\n' + new_folder)
+                                        
+                                        new_file_name = os.path.join(new_folder, f"source.torrent")
+                                        # torrentファイルを新しいフォルダに移動
+                                        shutil.move(temp_file_path, new_file_name)
+                                        # torrentファイル取得時の情報を記録
+                                        logfile_path = os.path.join(new_folder, "evidence_" + folder_time +".log")
+                                        with open(logfile_path, 'w', encoding='utf-8') as log_file:
+                                            LOG =  "対象ファイル名：" + torrent.name + "\ntorrent取得方法：「" + input_str + "」で検索"+ "\n取得元：" + torrent_url + "\nサイト上で表記されていたアップロード日時：" + formatted_date + "\n証拠フォルダ生成日時：" + folder_time + "\nファイルハッシュ：" + torrent.info_hash
+                                            log_file.write(LOG)
+                                    else:
+                                        os.unlink(temp_file_path)
+                                        print('フォルダが既に存在します：\n' + new_folder)
             if __name__ == "__main__":
                 if new_file:
                     send_notification("P2Pスレイヤー", "検索語「" + input_str + "」について、新しいファイルが検出されました。")
@@ -271,15 +263,17 @@ def scraper(url, file_path):
             filename = os.path.basename(file_path)
 
             if filename == "r18queries.json":
-                with open(SETTING_FILE, "r+", encoding="utf-8") as f:
-                    data = json.load(f)
-                    data["last_crawl_time"] = fetch_time()
-                    f.seek(0)
-                    json.dump(data, f, ensure_ascii=False, indent=4)
+                with file_lock:
+                    with open(SETTING_FILE, "r+", encoding="utf-8") as f:
+                        data = json.load(f)
+                        data["last_crawl_time"] = fetch_time()
+                        f.seek(0)
+                        json.dump(data, f, ensure_ascii=False, indent=4) 
+                        print("Scraper297:"+str(data))         
 
-with open(SETTING_FILE, "r", encoding="utf-8") as f:
-    data = json.load(f)
-
+with file_lock:
+    with open(SETTING_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
 interval = data["interval"]
 site_urls = data["site_urls"]
 r18_site_urls = data["r18_site_urls"]
