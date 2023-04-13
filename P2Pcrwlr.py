@@ -2,7 +2,7 @@ import json
 import csv
 import os
 import re
-import time
+from datetime import datetime, timedelta, timezone
 import signal
 import tkinter as tk
 import pathlib
@@ -16,6 +16,15 @@ SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
 
 process = None
 stop_event = threading.Event()
+
+def utc_to_jst(datetime_utc):    
+    utc = timezone.utc
+    jst = timezone(timedelta(hours=9))
+    
+    datetime_utc = datetime_utc.replace(tzinfo=utc)
+    datetime_jst = datetime_utc.astimezone(jst)
+    
+    return datetime_jst
 
 def scraper():
     global process
@@ -107,8 +116,7 @@ def main():
 
     interval_var = tk.StringVar()
 
-    # 設定ファイルのパスを取得
-    
+    # 設定ファイルのパスを取得    
     SETTING_FOLDER = os.path.join(pathlib.Path(__file__).parents[0], "settings")
     SETTING_FILE_PATH = os.path.join(SETTING_FOLDER, "setting.json")
 
@@ -122,6 +130,15 @@ def main():
         if value == target_value:
             interval_var.set(option)
             break
+
+    if data["last_crawl_time"] is not None and data["last_crawl_time"] != "null":
+        last_crawl_time = data["last_crawl_time"]  
+        jst = datetime.fromtimestamp (last_crawl_time) 
+        time_str = jst.strftime('%Y年%m月%d日 %H時%M分%S秒')
+    else:
+        last_crawl_time = "未登録"
+
+    last_crawl_time_str = "最後に巡回した日時：" + str(time_str)
 
     def on_option_changed(event):
         selected_option = interval_var.get()
@@ -151,7 +168,7 @@ def main():
     crawl_history_frame = tk.Frame(tab1)
     crawl_history_frame.pack(pady=(10, 10))
 
-    crawl_history = tk.Label(crawl_history_frame, text="最後に巡回した日時： 2023年01月01日12時00分59秒", font=small_font)
+    crawl_history = tk.Label(crawl_history_frame, text=last_crawl_time_str, font=small_font)
     crawl_history.pack(side=tk.LEFT, padx=(0, 5))
 
     # 新しい検索語を追加
@@ -301,7 +318,7 @@ def main():
     
     style = ttk.Style()
     style.configure("Treeview", font=small_font)
-    style.configure("Treeview.Heading", font=tiny_font)
+    style.configure("Treeview.Heading", font=tiny_font)    
 
     # カラムの設定
     def treeview_set(treeview):
@@ -563,8 +580,9 @@ def main():
         queries_data = load_queries("queries.json")
         r18queries_data = load_queries("r18queries.json")
         populate_treeview(treeview, queries_data)
-        populate_treeview(r18treeview, r18queries_data)        
+        populate_treeview(r18treeview, r18queries_data)  
 
+            
     # データを読み込み、各Treeviewに表示
     queries_data = load_queries("queries.json")
     r18queries_data = load_queries("r18queries.json")
@@ -582,7 +600,7 @@ def main():
     r18_bulk_add_button.config(command=lambda: import_data_to_json("r18queries.json"))
 
     # クエリ追加ボタンのコマンドを設定
-    add_button.config(command=save_data) 
+    add_button.config(command=save_data)     
 
     window.protocol("WM_DELETE_WINDOW", on_window_close)
 
