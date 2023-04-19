@@ -3,6 +3,7 @@ import os
 import libtorrent as lt
 import urllib.request
 import client
+import csv
 import pathlib
 
 
@@ -31,11 +32,22 @@ class TestInfo(unittest.TestCase):
 
     def test_download_piece(self):
         cl = client.Client()
-        cl.download_piece(
-            os.path.join(self.TEST_DIR, self.FOLDER_NAME, self.FILE_NAME),
-            os.path.join(self.TEST_DIR, self.FOLDER_NAME),
-            0
-        )
+
+        peers = []
+        with open(os.path.join(self.TEST_DIR, self.FOLDER_NAME, 'peer.csv'), newline='') as csvfile:
+            reader = csv.reader(csvfile)
+            for row in reader:
+                # (IPアドレス : string, ポート : int) という型のタプルにする
+                peers.append((row[0], int(row[1])))
+
+        for p in peers:
+            print('download from {}'.format(p))
+            cl.download_piece(
+                os.path.join(self.TEST_DIR, self.FOLDER_NAME, self.FILE_NAME),
+                os.path.join(self.TEST_DIR, self.FOLDER_NAME, f'{p[0]}_{str(p[1])}'),
+                0,
+                p
+            )
 
 
 if __name__ == "__main__":

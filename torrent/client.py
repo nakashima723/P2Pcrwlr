@@ -56,7 +56,7 @@ class Client():
         print("File Hash: %s, File size: %d, Time: %s" % (
             handle.info_hash(), info.total_size(), fetch_jst().strftime('%Y-%m-%d %H:%M:%S')))
 
-    def download_piece(self, torrent_path, save_path, piece_index):
+    def download_piece(self, torrent_path, save_path, piece_index, peer):
         """
         指定した.torrentファイルからひとつのピースをダウンロードする。
 
@@ -68,9 +68,23 @@ class Client():
             ファイルの保存場所のパス。
         piece_index : int
             ダウンロードしたいピースのindex。
+        peer : (string, int)
+            ピースをダウンロードするピア。
         """
 
         session = lt.session({'listen_interfaces': '0.0.0.0:6881'})
+
+        # 指定されたピアのみからダウンロードするために、ipフィルタを作成する
+        ip_filter = lt.ip_filter()
+
+        # まずすべてのアドレスを禁止してから、引数で指定したアドレスのみ許可。
+        # 第三引数の0は許可するアドレス指定、1は禁止するアドレス指定
+        ip_filter.add_rule('0.0.0.0', '255.255.255.255', 1)
+        ip_filter.add_rule(peer[0], peer[0], 0)
+
+        print(ip_filter.export_filter())
+
+        session.set_ip_filter(ip_filter)
 
         info = lt.torrent_info(torrent_path)
         handle = session.add_torrent({'ti': info, 'save_path': save_path})
@@ -80,11 +94,22 @@ class Client():
         # deadlineに0を指定することで、指定したピースが優先的にダウンロードされるようにする
         handle.set_piece_deadline(piece_index, 0)
 
+        retry_counter = 0
         while not handle.status().pieces[piece_index]:
-
+            # torrent_handle.status().piecesの戻り値はboolの配列なので、この条件で判定できる
             print_download_status(handle.status(), handle.get_peer_info())
+            print('piece {}: {}'.format(piece_index, handle.status().pieces[piece_index]))
 
             time.sleep(1)
+
+            if handle.status().num_peers == 0:
+                retry_counter += 1
+
+            if retry_counter >= 10:
+                print('Max retries exceeded')
+                break
+
+        handle.read_piece(piece_index)
 
         # ピースのダウンロードが完了したら、ピースの状態を出力
         last_pieces_state = handle.status().pieces
