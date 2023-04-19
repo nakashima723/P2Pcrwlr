@@ -100,6 +100,12 @@ class Client():
             print_download_status(handle.status(), handle.get_peer_info())
             print('piece {}: {}'.format(piece_index, handle.status().pieces[piece_index]))
 
+            # alertの出力を行う
+            alerts = session.pop_alerts()
+            for a in alerts:
+                if a.category() & lt.alert.category_t.error_notification:
+                    print(a)
+
             time.sleep(1)
 
             if handle.status().num_peers == 0:
@@ -110,6 +116,13 @@ class Client():
                 break
 
         handle.read_piece(piece_index)
+
+        # msで指定する
+        session.wait_for_alert(1000)
+        alerts = session.pop_alerts()
+        for a in alerts:
+            if isinstance(a, lt.read_piece_alert):
+                print('piece read')
 
         # ピースのダウンロードが完了したら、ピースの状態を出力
         last_pieces_state = handle.status().pieces
