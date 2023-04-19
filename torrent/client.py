@@ -123,6 +123,7 @@ class Client():
         for a in alerts:
             if isinstance(a, lt.read_piece_alert):
                 print('piece read')
+                write_piece_to_file(a.buffer, os.path.join(save_path, 'piece_{}.bin'.format(piece_index)))
 
         # ピースのダウンロードが完了したら、ピースの状態を出力
         last_pieces_state = handle.status().pieces
@@ -139,6 +140,22 @@ def print_download_status(torrent_status, peer_info):
             torrent_status.upload_rate / 1000,
             len(peer_info), torrent_status.state)
     )
+
+
+def write_piece_to_file(piece, save_path):
+    """
+    ピースを指定されたパスに書き込む.
+
+    Parameters
+    ----------
+    piece : bytes
+        ピースのバイト列。
+
+    save_path : str
+        保存先ファイルのパス。
+    """
+    with open(save_path, 'wb') as f:
+        f.write(piece)
 
 
 def fetch_jst():
