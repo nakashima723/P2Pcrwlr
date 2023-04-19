@@ -18,7 +18,7 @@ class Client():
         Parameters
         ----------
         torrent_handle : torrent_handle
-        ピア情報を記録する対象のtorrent_handle。
+            ピア情報を記録する対象のtorrent_handle。
         """
         for p in torrent_handle.get_peer_info():
             self.peer_info.add(p.ip)
@@ -68,7 +68,7 @@ class Client():
             ファイルの保存場所のパス。
         piece_index : int
             ダウンロードしたいピースのindex。
-        peer : (string, int)
+        peer : (str, int)
             ピースをダウンロードするピア。
         """
 
@@ -164,7 +164,7 @@ def fetch_jst():
 
     Returns
     -------
-        jst_time: datetime
+    jst_time: datetime
         JSTを表すdatetime。
     """
     # NTPサーバのアドレスを指定する
