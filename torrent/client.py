@@ -123,7 +123,8 @@ class Client():
         for a in alerts:
             if isinstance(a, lt.read_piece_alert):
                 print('piece read')
-                write_piece_to_file(a.buffer, os.path.join(save_path, 'piece_{}.bin'.format(piece_index)))
+                write_piece_to_file(a.buffer, os.path.join(
+                    save_path, '{:05}_{}_{}_{}.bin'.format(piece_index, peer[0], peer[1], info.name())))
 
         # ピースのダウンロードが完了したら、ピースの状態を出力
         last_pieces_state = handle.status().pieces
