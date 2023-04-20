@@ -18,7 +18,7 @@ class Client():
         Parameters
         ----------
         torrent_handle : torrent_handle
-        ピア情報を記録する対象のtorrent_handle。
+            ピア情報を記録する対象のtorrent_handle。
         """
         for p in torrent_handle.get_peer_info():
             self.peer_info.add(p.ip)
@@ -68,7 +68,7 @@ class Client():
             ファイルの保存場所のパス。
         piece_index : int
             ダウンロードしたいピースのindex。
-        peer : (string, int)
+        peer : (str, int)
             ピースをダウンロードするピア。
         """
 
@@ -100,6 +100,12 @@ class Client():
             print_download_status(handle.status(), handle.get_peer_info())
             print('piece {}: {}'.format(piece_index, handle.status().pieces[piece_index]))
 
+            # alertの出力を行う
+            alerts = session.pop_alerts()
+            for a in alerts:
+                if a.category() & lt.alert.category_t.error_notification:
+                    print(a)
+
             time.sleep(1)
 
             if handle.status().num_peers == 0:
@@ -110,6 +116,15 @@ class Client():
                 break
 
         handle.read_piece(piece_index)
+
+        # msで指定する
+        session.wait_for_alert(1000)
+        alerts = session.pop_alerts()
+        for a in alerts:
+            if isinstance(a, lt.read_piece_alert):
+                print('piece read')
+                write_piece_to_file(a.buffer, os.path.join(
+                    save_path, '{:05}_{}_{}_{}.bin'.format(piece_index, peer[0], peer[1], info.name())))
 
         # ピースのダウンロードが完了したら、ピースの状態を出力
         last_pieces_state = handle.status().pieces
@@ -128,13 +143,29 @@ def print_download_status(torrent_status, peer_info):
     )
 
 
+def write_piece_to_file(piece, save_path):
+    """
+    ピースを指定されたパスに書き込む.
+
+    Parameters
+    ----------
+    piece : bytes
+        ピースのバイト列。
+
+    save_path : str
+        保存先ファイルのパス。
+    """
+    with open(save_path, 'wb') as f:
+        f.write(piece)
+
+
 def fetch_jst():
     """
     NTPサーバからUNIX時刻を取得し、JSTに変換して返却する。
 
     Returns
     -------
-        jst_time: datetime
+    jst_time: datetime
         JSTを表すdatetime。
     """
     # NTPサーバのアドレスを指定する
