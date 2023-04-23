@@ -131,7 +131,6 @@ class Client():
 
         # ピースのダウンロードが完了したら、ピースの状態を出力
         last_pieces_state = handle.status().pieces
-        print(f'piece {piece_index} downloaded')
         print(f'pieces state before: {initial_pieces_state}')
         print(f'pieces state after: {last_pieces_state}')
 
