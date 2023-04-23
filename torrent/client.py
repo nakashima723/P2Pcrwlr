@@ -91,8 +91,11 @@ class Client():
 
         initial_pieces_state = handle.status().pieces
 
-        # deadlineに0を指定することで、指定したピースが優先的にダウンロードされるようにする
-        handle.set_piece_deadline(piece_index, 0)
+        # 指定したindexのみpriorityを非ゼロにする。
+        # その他はpriority=0にする（ダウンロードしない）。
+        pp = [0]*info.num_pieces()
+        pp[piece_index] = 1
+        handle.prioritize_pieces(pp)
 
         retry_counter = 0
         while not handle.status().pieces[piece_index]:
