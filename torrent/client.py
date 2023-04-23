@@ -43,7 +43,7 @@ class Client():
         print('starting', handle.status().name)
 
         while not handle.status().is_seeding:
-            print_download_status(handle.status(), handle.get_peer_info())
+            _print_download_status(handle.status(), handle.get_peer_info())
             self.add_peer_info(handle)
             time.sleep(1)
 
@@ -54,7 +54,7 @@ class Client():
 
         print(handle.status().name, 'complete')
         print("File Hash: %s, File size: %d, Time: %s" % (
-            handle.info_hash(), info.total_size(), fetch_jst().strftime('%Y-%m-%d %H:%M:%S')))
+            handle.info_hash(), info.total_size(), _fetch_jst().strftime('%Y-%m-%d %H:%M:%S')))
 
     def download_piece(self, torrent_path, save_path, piece_index, peer):
         """
@@ -100,7 +100,7 @@ class Client():
         retry_counter = 0
         while not handle.status().pieces[piece_index]:
             # torrent_handle.status().piecesの戻り値はboolの配列なので、この条件で判定できる
-            print_download_status(handle.status(), handle.get_peer_info())
+            _print_download_status(handle.status(), handle.get_peer_info())
             print('piece {}: {}'.format(piece_index, handle.status().pieces[piece_index]))
 
             # alertの出力を行う
@@ -126,7 +126,7 @@ class Client():
         for a in alerts:
             if isinstance(a, lt.read_piece_alert):
                 print('piece read')
-                write_piece_to_file(a.buffer, os.path.join(
+                _write_piece_to_file(a.buffer, os.path.join(
                     save_path, '{:05}_{}_{}_{}.bin'.format(piece_index, peer[0], peer[1], info.name())))
 
         # ピースのダウンロードが完了したら、ピースの状態を出力
@@ -135,7 +135,7 @@ class Client():
         print(f'pieces state after: {last_pieces_state}')
 
 
-def print_download_status(torrent_status, peer_info):
+def _print_download_status(torrent_status, peer_info):
     print(
         "downloading: %.2f%% complete (down: %.1f kB/s, up: %.1f kB/s, peers: %d) %s" % (
             torrent_status.progress * 100,
@@ -145,7 +145,7 @@ def print_download_status(torrent_status, peer_info):
     )
 
 
-def write_piece_to_file(piece, save_path):
+def _write_piece_to_file(piece, save_path):
     """
     ピースを指定されたパスに書き込む.
 
@@ -161,7 +161,7 @@ def write_piece_to_file(piece, save_path):
         f.write(piece)
 
 
-def fetch_jst():
+def _fetch_jst():
     """
     NTPサーバからUNIX時刻を取得し、JSTに変換して返却する。
 
