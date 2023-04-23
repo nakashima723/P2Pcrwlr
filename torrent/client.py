@@ -97,26 +97,7 @@ class Client():
         pp[piece_index] = 1
         handle.prioritize_pieces(pp)
 
-        retry_counter = 0
-        while not handle.status().pieces[piece_index]:
-            # torrent_handle.status().piecesの戻り値はboolの配列なので、この条件で判定できる
-            _print_download_status(handle.status(), handle.get_peer_info())
-            print('piece {}: {}'.format(piece_index, handle.status().pieces[piece_index]))
-
-            # alertの出力を行う
-            alerts = session.pop_alerts()
-            for a in alerts:
-                if a.category() & lt.alert.category_t.error_notification:
-                    print(a)
-
-            time.sleep(1)
-
-            if handle.status().num_peers == 0:
-                retry_counter += 1
-
-            if retry_counter >= 10:
-                print('Max retries exceeded')
-                break
+        self.__wait_for_download(session, handle, piece_index, 10)
 
         handle.read_piece(piece_index)
 
@@ -133,6 +114,29 @@ class Client():
         last_pieces_state = handle.status().pieces
         print(f'pieces state before: {initial_pieces_state}')
         print(f'pieces state after: {last_pieces_state}')
+
+    def __wait_for_download(self, session, torrent_handle, piece_index, max_retries):
+        retry_counter = 0
+
+        while not torrent_handle.status().pieces[piece_index]:
+            # torrent_handle.status().piecesの戻り値はboolの配列なので、この条件で判定できる
+            _print_download_status(torrent_handle.status(), torrent_handle.get_peer_info())
+            print('piece {}: {}'.format(piece_index, torrent_handle.status().pieces[piece_index]))
+
+            # alertの出力を行う
+            alerts = session.pop_alerts()
+            for a in alerts:
+                if a.category() & lt.alert.category_t.error_notification:
+                    print(a)
+
+            time.sleep(1)
+
+            if torrent_handle.status().num_peers == 0:
+                retry_counter += 1
+
+            if retry_counter >= max_retries:
+                print('Max retries exceeded')
+                break
 
 
 def _print_download_status(torrent_status, peer_info):
