@@ -3,6 +3,7 @@ import os
 import csv
 import time
 import ntplib
+import tempfile
 from datetime import datetime, timezone, timedelta
 
 
@@ -87,28 +88,31 @@ class Client():
         session.set_ip_filter(ip_filter)
 
         info = lt.torrent_info(torrent_path)
-        handle = session.add_torrent({'ti': info, 'save_path': save_path})
 
-        initial_pieces_state = handle.status().pieces
+        with tempfile.TemporaryDirectory() as tmpdir:
+            print(tmpdir)
+            handle = session.add_torrent({'ti': info, 'save_path': tmpdir})
 
-        # 指定したindexのみpriorityを非ゼロにする。
-        # その他はpriority=0にする（ダウンロードしない）。
-        pp = [0]*info.num_pieces()
-        pp[piece_index] = 1
-        handle.prioritize_pieces(pp)
+            initial_pieces_state = handle.status().pieces
 
-        self.__wait_for_download(session, handle, piece_index, 10)
+            # 指定したindexのみpriorityを非ゼロにする。
+            # その他はpriority=0にする（ダウンロードしない）。
+            pp = [0]*info.num_pieces()
+            pp[piece_index] = 1
+            handle.prioritize_pieces(pp)
 
-        handle.read_piece(piece_index)
+            self.__wait_for_download(session, handle, piece_index, 10)
 
-        # msで指定する
-        session.wait_for_alert(1000)
-        alerts = session.pop_alerts()
-        for a in alerts:
-            if isinstance(a, lt.read_piece_alert):
-                print('piece read')
-                _write_piece_to_file(a.buffer, os.path.join(
-                    save_path, '{:05}_{}_{}_{}.bin'.format(piece_index, peer[0], peer[1], info.name())))
+            handle.read_piece(piece_index)
+
+            # msで指定する
+            session.wait_for_alert(1000)
+            alerts = session.pop_alerts()
+            for a in alerts:
+                if isinstance(a, lt.read_piece_alert):
+                    print('piece read')
+                    _write_piece_to_file(a.buffer, os.path.join(
+                        save_path, '{:05}_{}_{}_{}.bin'.format(piece_index, peer[0], peer[1], info.name())))
 
         # ピースのダウンロードが完了したら、ピースの状態を出力
         last_pieces_state = handle.status().pieces
@@ -161,6 +165,8 @@ def _write_piece_to_file(piece, save_path):
     save_path : str
         保存先ファイルのパス。
     """
+    dir = os.path.dirname(save_path)
+    os.makedirs(dir, exist_ok=True)
     with open(save_path, 'wb') as f:
         f.write(piece)
 
