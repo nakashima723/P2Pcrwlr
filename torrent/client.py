@@ -4,13 +4,16 @@ import csv
 import time
 import ntplib
 import tempfile
+import logging
 from datetime import datetime, timezone, timedelta
 
 
 class Client():
     def __init__(self):
+        logging.basicConfig(level=logging.INFO)
         # 重複するピアを記録する必要はないため、集合として定義
         self.peer_info = set()
+        self.logger = logging.getLogger(__name__)
 
     def add_peer_info(self, torrent_handle):
         """
@@ -41,10 +44,10 @@ class Client():
         info = lt.torrent_info(torrent_path)
         handle = session.add_torrent({'ti': info, 'save_path': save_path})
 
-        print('starting', handle.status().name)
+        self.logger.info('starting %s', handle.status().name)
 
         while not handle.status().is_seeding:
-            _print_download_status(handle.status(), handle.get_peer_info())
+            _print_download_status(handle.status(), handle.get_peer_info(), self.logger)
             self.add_peer_info(handle)
             time.sleep(1)
 
@@ -53,8 +56,8 @@ class Client():
             for ip in self.peer_info:
                 writer.writerow([ip[0], ip[1]])
 
-        print(handle.status().name, 'complete')
-        print("File Hash: %s, File size: %d, Time: %s" % (
+        self.logger.info('complete %s', handle.status().name)
+        self.logger.info("File Hash: %s, File size: %d, Time: %s" % (
             handle.info_hash(), info.total_size(), _fetch_jst().strftime('%Y-%m-%d %H:%M:%S')))
 
     def download_piece(self, torrent_path, save_path, piece_index, peer):
@@ -83,17 +86,14 @@ class Client():
         ip_filter.add_rule('0.0.0.0', '255.255.255.255', 1)
         ip_filter.add_rule(peer[0], peer[0], 0)
 
-        print(ip_filter.export_filter())
+        self.logger.info(ip_filter.export_filter())
 
         session.set_ip_filter(ip_filter)
 
         info = lt.torrent_info(torrent_path)
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            print(tmpdir)
             handle = session.add_torrent({'ti': info, 'save_path': tmpdir})
-
-            initial_pieces_state = handle.status().pieces
 
             # 指定したindexのみpriorityを非ゼロにする。
             # その他はpriority=0にする（ダウンロードしない）。
@@ -110,28 +110,22 @@ class Client():
             alerts = session.pop_alerts()
             for a in alerts:
                 if isinstance(a, lt.read_piece_alert):
-                    print('piece read')
+                    self.logger.info('piece read')
                     _write_piece_to_file(a.buffer, os.path.join(
                         save_path, '{:05}_{}_{}_{}.bin'.format(piece_index, peer[0], peer[1], info.name())))
-
-        # ピースのダウンロードが完了したら、ピースの状態を出力
-        last_pieces_state = handle.status().pieces
-        print(f'pieces state before: {initial_pieces_state}')
-        print(f'pieces state after: {last_pieces_state}')
 
     def __wait_for_download(self, session, torrent_handle, piece_index, max_retries):
         retry_counter = 0
 
         while not torrent_handle.status().pieces[piece_index]:
             # torrent_handle.status().piecesの戻り値はboolの配列なので、この条件で判定できる
-            _print_download_status(torrent_handle.status(), torrent_handle.get_peer_info())
-            print('piece {}: {}'.format(piece_index, torrent_handle.status().pieces[piece_index]))
+            _print_download_status(torrent_handle.status(), torrent_handle.get_peer_info(), self.logger)
 
             # alertの出力を行う
             alerts = session.pop_alerts()
             for a in alerts:
                 if a.category() & lt.alert.category_t.error_notification:
-                    print(a)
+                    self.logger.warn(a)
 
             time.sleep(1)
 
@@ -139,12 +133,12 @@ class Client():
                 retry_counter += 1
 
             if retry_counter >= max_retries:
-                print('Max retries exceeded')
+                self.logger.warn('Max retries exceeded')
                 break
 
 
-def _print_download_status(torrent_status, peer_info):
-    print(
+def _print_download_status(torrent_status, peer_info, logger):
+    logger.info(
         "downloading: %.2f%% complete (down: %.1f kB/s, up: %.1f kB/s, peers: %d) %s" % (
             torrent_status.progress * 100,
             torrent_status.download_rate / 1000,
