@@ -78,7 +78,8 @@ class Client():
         torrent_path : str
             .torrentファイルへのパス。
         save_path : str
-            ファイルの保存場所のパス。
+            ピースを保存するディレクトリのパス。
+            この引数で指定したディレクトリの直下に'IP_ポート番号'フォルダが作成され、その中にピースが保存される。
         piece_index : int
             ダウンロードしたいピースのindex。
         peer : (str, int)
