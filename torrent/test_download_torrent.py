@@ -7,7 +7,7 @@ import csv
 import pathlib
 
 
-class TestInfo(unittest.TestCase):
+class TestClient(unittest.TestCase):
     TEST_DIR = os.path.join(pathlib.Path(__file__).parent,
                             'tests', 'evidence', 'torrent')
     FOLDER_NAME = 'Big Buck Bunny'
@@ -25,7 +25,7 @@ class TestInfo(unittest.TestCase):
 
     # 現状、各メソッドを実行するだけで、assertionしていない。
 
-    def test_client(self):
+    def test_download(self):
         cl = client.Client()
         cl.download(os.path.join(self.TEST_DIR, self.FOLDER_NAME, self.FILE_NAME),
                     os.path.join(self.TEST_DIR, self.FOLDER_NAME))
