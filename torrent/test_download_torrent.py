@@ -46,7 +46,7 @@ class TestClient(unittest.TestCase):
             print('download from {}'.format(p))
             cl.download_piece(
                 os.path.join(self.TEST_DIR, self.FOLDER_NAME, self.FILE_NAME),
-                os.path.join(self.TEST_DIR, self.FOLDER_NAME, f'{p[0]}_{str(p[1])}'),
+                os.path.join(self.TEST_DIR, self.FOLDER_NAME),
                 0,
                 p
             )

@@ -121,7 +121,9 @@ class Client():
                 if isinstance(a, lt.read_piece_alert):
                     self.logger.info('piece read')
                     _write_piece_to_file(a.buffer, os.path.join(
-                        save_path, '{:05}_{}_{}_{}.bin'.format(piece_index, peer[0], peer[1], info.name())))
+                        save_path,
+                        f'{peer[0]}_{str(peer[1])}',
+                        '{:05}_{}_{}_{}.bin'.format(piece_index, peer[0], peer[1], info.name())))
 
     def __wait_for_download(self, session, torrent_handle, piece_index, max_retries):
         retry_counter = 0
