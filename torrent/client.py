@@ -20,7 +20,7 @@ class Client():
         Parameters
         ----------
         torrent_path : str
-            ダウンロードを行うtorrentファイルへのパス。
+            .torrentファイルへのパス。
         save_path : str
             本体ファイルのダウンロード先のパス。
         """
