@@ -6,3 +6,4 @@ torrentool
 requests
 ntplib
 plyer
+setuptools
