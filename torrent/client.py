@@ -11,21 +11,7 @@ from datetime import datetime, timezone, timedelta
 class Client():
     def __init__(self):
         logging.basicConfig(level=logging.INFO)
-        # 重複するピアを記録する必要はないため、集合として定義
-        self.peer_info = set()
         self.logger = logging.getLogger(__name__)
-
-    def add_peer_info(self, torrent_handle):
-        """
-        torrent_handleに含まれるピア情報を記録する。
-
-        Parameters
-        ----------
-        torrent_handle : torrent_handle
-            ピア情報を記録する対象のtorrent_handle。
-        """
-        for p in torrent_handle.get_peer_info():
-            self.peer_info.add(p.ip)
 
     def download(self, torrent_path, save_path):
         """
@@ -34,7 +20,7 @@ class Client():
         Parameters
         ----------
         torrent_path : str
-            ダウンロードを行うtorrentファイルへのパス。
+            .torrentファイルへのパス。
         save_path : str
             本体ファイルのダウンロード先のパス。
         """
@@ -48,17 +34,40 @@ class Client():
 
         while not handle.status().is_seeding:
             _print_download_status(handle.status(), handle.get_peer_info(), self.logger)
-            self.add_peer_info(handle)
             time.sleep(1)
-
-        with open(os.path.join(save_path, 'peer.csv'), mode='a', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            for ip in self.peer_info:
-                writer.writerow([ip[0], ip[1]])
 
         self.logger.info('complete %s', handle.status().name)
         self.logger.info("File Hash: %s, File size: %d, Time: %s" % (
             handle.info_hash(), info.total_size(), _fetch_jst().strftime('%Y-%m-%d %H:%M:%S')))
+
+    def fetch_peer_list(self, torrent_path, max_list_size=20):
+        """
+        swarmに含まれるpeerのリストを取得する。
+        swarm: all peers (including seeds) sharing a torrent
+
+        Parameters
+        ----------
+        torrent_path : str
+            .torrentファイルへのパス。
+        max_list_size : int
+            取得されるピアのリストの最大長。
+
+        Returns
+        -------
+        peers : list of ('str', int)
+            ピアのリスト。
+        """
+        session = lt.session({'listen_interfaces': '0.0.0.0:6881'})
+        info = lt.torrent_info(torrent_path)
+
+        peers = []
+        with tempfile.TemporaryDirectory() as tmpdir:
+            handle = session.add_torrent({'ti': info, 'save_path': tmpdir})
+            while len(peers) < max_list_size:
+                for p in handle.get_peer_info():
+                    if p.seed and (p.ip not in peers):
+                        peers.append(p.ip)
+        return peers[:max_list_size]
 
     def download_piece(self, torrent_path, save_path, piece_index, peer):
         """
@@ -69,7 +78,8 @@ class Client():
         torrent_path : str
             .torrentファイルへのパス。
         save_path : str
-            ファイルの保存場所のパス。
+            ピースを保存するディレクトリのパス。
+            この引数で指定したディレクトリの直下に'IP_ポート番号'フォルダが作成され、その中にピースが保存される。
         piece_index : int
             ダウンロードしたいピースのindex。
         peer : (str, int)
@@ -112,7 +122,9 @@ class Client():
                 if isinstance(a, lt.read_piece_alert):
                     self.logger.info('piece read')
                     _write_piece_to_file(a.buffer, os.path.join(
-                        save_path, '{:05}_{}_{}_{}.bin'.format(piece_index, peer[0], peer[1], info.name())))
+                        save_path,
+                        f'{peer[0]}_{str(peer[1])}',
+                        '{:05}_{}_{}_{}.bin'.format(piece_index, peer[0], peer[1], info.name())))
 
     def __wait_for_download(self, session, torrent_handle, piece_index, max_retries):
         retry_counter = 0

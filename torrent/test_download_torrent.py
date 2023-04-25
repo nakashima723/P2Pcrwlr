@@ -7,7 +7,7 @@ import csv
 import pathlib
 
 
-class TestInfo(unittest.TestCase):
+class TestClient(unittest.TestCase):
     TEST_DIR = os.path.join(pathlib.Path(__file__).parent,
                             'tests', 'evidence', 'torrent')
     FOLDER_NAME = 'Big Buck Bunny'
@@ -25,26 +25,28 @@ class TestInfo(unittest.TestCase):
 
     # 現状、各メソッドを実行するだけで、assertionしていない。
 
-    def test_client(self):
+    def test_download(self):
         cl = client.Client()
         cl.download(os.path.join(self.TEST_DIR, self.FOLDER_NAME, self.FILE_NAME),
                     os.path.join(self.TEST_DIR, self.FOLDER_NAME))
 
+    def test_fetch_peer_list(self):
+        cl = client.Client()
+        max_list_size = 10
+        peers = cl.fetch_peer_list(os.path.join(self.TEST_DIR, self.FOLDER_NAME, self.FILE_NAME), max_list_size)
+        print(peers)
+        self.assertTrue(len(peers) == max_list_size)
+
     def test_download_piece(self):
         cl = client.Client()
 
-        peers = []
-        with open(os.path.join(self.TEST_DIR, self.FOLDER_NAME, 'peer.csv'), newline='') as csvfile:
-            reader = csv.reader(csvfile)
-            for row in reader:
-                # (IPアドレス : string, ポート : int) という型のタプルにする
-                peers.append((row[0], int(row[1])))
+        peers = cl.fetch_peer_list(os.path.join(self.TEST_DIR, self.FOLDER_NAME, self.FILE_NAME), max_list_size=5)
 
         for p in peers:
             print('download from {}'.format(p))
             cl.download_piece(
                 os.path.join(self.TEST_DIR, self.FOLDER_NAME, self.FILE_NAME),
-                os.path.join(self.TEST_DIR, self.FOLDER_NAME, f'{p[0]}_{str(p[1])}'),
+                os.path.join(self.TEST_DIR, self.FOLDER_NAME),
                 0,
                 p
             )
