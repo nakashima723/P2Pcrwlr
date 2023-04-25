@@ -1,6 +1,5 @@
 import libtorrent as lt
 import os
-import csv
 import time
 import ntplib
 import tempfile
