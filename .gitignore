@@ -1,7 +1,7 @@
 #P2Pslayer
 *.torrent
-torrent/tests/evidence/torrent/
-!torrent/tests/evidence/torrent/.gitkeep
+/tests/evidence/torrent/*
+!/tests/evidence/torrent/.gitkeep
 *.json
 *.txt
 
