@@ -1,15 +1,12 @@
 import unittest
 import os
-import libtorrent as lt
 import urllib.request
-import client
-import csv
 import pathlib
+from torrent.client import Client
 
 
 class TestClient(unittest.TestCase):
-    TEST_DIR = os.path.join(pathlib.Path(__file__).parent,
-                            'tests', 'evidence', 'torrent')
+    TEST_DIR = os.path.join(pathlib.Path(__file__).parent, 'evidence', 'torrent')
     FOLDER_NAME = 'Big Buck Bunny'
     FILE_NAME = 'big-buck-bunny.torrent'
 
@@ -26,19 +23,19 @@ class TestClient(unittest.TestCase):
     # 現状、各メソッドを実行するだけで、assertionしていない。
 
     def test_download(self):
-        cl = client.Client()
+        cl = Client()
         cl.download(os.path.join(self.TEST_DIR, self.FOLDER_NAME, self.FILE_NAME),
                     os.path.join(self.TEST_DIR, self.FOLDER_NAME))
 
     def test_fetch_peer_list(self):
-        cl = client.Client()
+        cl = Client()
         max_list_size = 10
         peers = cl.fetch_peer_list(os.path.join(self.TEST_DIR, self.FOLDER_NAME, self.FILE_NAME), max_list_size)
         print(peers)
         self.assertTrue(len(peers) == max_list_size)
 
     def test_download_piece(self):
-        cl = client.Client()
+        cl = Client()
 
         peers = cl.fetch_peer_list(os.path.join(self.TEST_DIR, self.FOLDER_NAME, self.FILE_NAME), max_list_size=5)
 
