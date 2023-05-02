@@ -55,7 +55,7 @@ class Client():
         peers : list of ('str', int)
             ピアのリスト。
         """
-        session = lt.session({'listen_interfaces': '0.0.0.0:6881'})
+        session = lt.session({'listen_interfaces': '0.0.0.0:6881', })
         info = lt.torrent_info(torrent_path)
 
         peers = []
@@ -109,7 +109,7 @@ class Client():
             pp[piece_index] = 1
             handle.prioritize_pieces(pp)
 
-            self.__wait_for_download(session, handle, piece_index, 10)
+            self.__wait_for_piece_download(session, handle, piece_index, 10)
 
             handle.read_piece(piece_index)
 
@@ -119,19 +119,44 @@ class Client():
             for a in alerts:
                 if isinstance(a, lt.read_piece_alert):
                     self.logger.info('piece read')
+
                     _write_piece_to_file(a.buffer, os.path.join(
                         save_path,
                         f'{peer[0]}_{str(peer[1])}',
-                        '{:05}_{}_{}_{}.bin'.format(piece_index, peer[0], peer[1], info.name())))
+                        '{:05}_{}_{}_{}.bin'.format(piece_index, peer[0], peer[1], info.name())
+                    ))
 
-    def __wait_for_download(self, session, torrent_handle, piece_index, max_retries):
+                    _write_peer_log(
+                        info, peer, piece_index, os.path.join(
+                            save_path,
+                            f'{peer[0]}_{str(peer[1])}',
+                            '{}_{}_{}.log'.format(peer[0], str(peer[1]), info.name())
+                        )
+                    )
+
+    def save_num_complete(self, torrent_path, save_path):
+        info = lt.torrent_info(torrent_path)
+
+        save_file_path = os.path.join(save_path, 'num_complete.log')
+        if not os.path.exists(save_file_path):
+            # ファイルが存在しない場合は作成してヘッダーを書き込み
+            with open(save_file_path, 'w') as f:
+                f.write('{} ファイルハッシュ: {}\n'.format(info.name(), info.info_hash()))
+                f.write('---\n')
+
+        with open(save_file_path, 'a') as f:
+            f.write('{}\n'.format(
+                ut.fetch_jst().strftime('%Y-%m-%d %H:%M:%S'),
+            ))
+
+    def __wait_for_piece_download(self, session, torrent_handle, piece_index, max_retries):
         retry_counter = 0
 
         while not torrent_handle.status().pieces[piece_index]:
             # torrent_handle.status().piecesの戻り値はboolの配列なので、この条件で判定できる
             _print_download_status(torrent_handle.status(), torrent_handle.get_peer_info(), self.logger)
 
-            # alertの出力を行う
+            # alertの管理を行う
             alerts = session.pop_alerts()
             for a in alerts:
                 if a.category() & lt.alert.category_t.error_notification:
@@ -173,3 +198,20 @@ def _write_piece_to_file(piece, save_path):
     os.makedirs(dir, exist_ok=True)
     with open(save_path, 'wb') as f:
         f.write(piece)
+
+
+def _write_peer_log(torrent_info, peer, piece_index, save_path):
+    if not os.path.exists(save_path):
+        # ファイルが存在しない場合は作成してヘッダーを書き込み
+        with open(save_path, 'w') as f:
+            f.write('{}_{}_{}\n'.format(peer[0], str(peer[1]), torrent_info.name()))
+            f.write('ファイルハッシュ: {}\n'.format(torrent_info.info_hash()))
+            f.write('証拠収集開始時刻: {}\n'.format(ut.fetch_jst().strftime('%Y-%m-%d %H:%M:%S')))
+            f.write('---\n')
+
+    with open(save_path, 'a') as f:
+        f.write('piece{} 完了時刻: {}\n'
+                .format(
+                    piece_index,
+                    ut.fetch_jst().strftime('%Y-%m-%d %H:%M:%S'),
+                ))

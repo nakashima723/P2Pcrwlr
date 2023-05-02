@@ -34,10 +34,18 @@ class TestClient(unittest.TestCase):
         print(peers)
         self.assertTrue(len(peers) == max_list_size)
 
+    def test_save_num_complete(self):
+        cl = Client()
+
+        cl.save_num_complete(
+            os.path.join(self.TEST_DIR, self.FILE_NAME),
+            os.path.join(self.TEST_DIR, self.FOLDER_NAME)
+        )
+
     def test_download_piece(self):
         cl = Client()
 
-        peers = cl.fetch_peer_list(os.path.join(self.TEST_DIR, self.FILE_NAME), max_list_size=5)
+        peers = cl.fetch_peer_list(os.path.join(self.TEST_DIR, self.FILE_NAME), max_list_size=3)
 
         for p in peers:
             print('download from {}'.format(p))
