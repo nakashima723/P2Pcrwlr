@@ -14,8 +14,11 @@ import gzip
 import json
 import threading
 from plyer import notification
+import smtplib
+from email.message import EmailMessage
 
 file_lock = threading.Lock()
+new_file = []
 
 def send_notification(title, message):
     notification.notify(
@@ -85,6 +88,7 @@ QUERIES_FILE = os.path.join(SETTING_FOLDER, "queries.json")
 R18_QUERIES_FILE = os.path.join(SETTING_FOLDER, "r18queries.json")
 SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
 
+
 def scraper(url, file_path):
     page = 1
     while not page == False:
@@ -101,7 +105,7 @@ def scraper(url, file_path):
                     data["last_crawl_time"] = fetch_time()
                     f.seek(0)
                     json.dump(data, f, ensure_ascii=False, indent=4)
-                    print("Scraper129:"+str(data))
+                    f.truncate()
                 break
         with file_lock:
             with open(SETTING_FILE, "r", encoding="utf-8") as f:
@@ -127,14 +131,13 @@ def scraper(url, file_path):
         soup = BeautifulSoup(html_content, 'html.parser')
 
         for keyword in keywords:
-            new_file = 0
             input_str = process_query(keyword)
 
             # 'data-timestamp' クラスを持つtd要素を探索
             data_timestamp_elements = soup.find_all('td', attrs={'data-timestamp': True})         
         
             if data_timestamp_elements:
-                last_tag = soup.find('td', attrs={'data-timestamp': True}) 
+                last_tag = soup.find_all('td', attrs={'data-timestamp': True})[-1] 
                 last_timestamp_str = last_tag['data-timestamp'] 
                 last_timestamp = int(last_timestamp_str)
             else:
@@ -162,10 +165,8 @@ def scraper(url, file_path):
                         target_elements.append(data_timestamp_element.get_text())
                         target_index.append(data_timestamp_elements.index(data_timestamp_element))
 
-            if len(target_elements) == 0:
-                print("検索語「" + input_str + "」アップロードされているファイルなし")
-            else:
-                if len(target_elements) > 5:
+            if not len(target_elements) == 0:
+                if len(target_elements) > 10:
                     target_elements = target_elements[:10]
                     target_index = target_index[:10]
                     print("「" + input_str + "」10件以上を検出：誤検出ではない場合、これ以上の採取はサイトから直接行ってください。→" + url)
@@ -217,7 +218,7 @@ def scraper(url, file_path):
 
                             # まだ存在しないファイルだった場合、新規にtorrentファイルをダウンロード
                             if torrent_url not in content:
-                                new_file += 1
+                                new_file.append(input_str)
 
                                 # index番目のリンク先URLからファイルを取得
                                 torrent_file = requests.get(torrent_url)
@@ -250,15 +251,10 @@ def scraper(url, file_path):
                                             log_file.write(LOG)
                                     else:
                                         os.unlink(temp_file_path)
-                                        print('フォルダが既に存在します：\n' + new_folder)
-            if __name__ == "__main__":
-                if new_file:
-                    send_notification("P2Pスレイヤー", "検索語「" + input_str + "」について、新しいファイルが検出されました。")
-            time.sleep(1)
-            
+                                        print('フォルダが既に存在します：\n' + new_folder)            
         if last_timestamp > last_crawl_time:
             page += 1
-        else:
+        else:            
             page = False
             filename = os.path.basename(file_path)
 
@@ -268,19 +264,52 @@ def scraper(url, file_path):
                         data = json.load(f)
                         data["last_crawl_time"] = fetch_time()
                         f.seek(0)
-                        json.dump(data, f, ensure_ascii=False, indent=4) 
-                        print("Scraper297:"+str(data))         
-
+                        json.dump(data, f, ensure_ascii=False, indent=4)
+                        f.truncate()  
+                           
 with file_lock:
     with open(SETTING_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
 interval = data["interval"]
 site_urls = data["site_urls"]
 r18_site_urls = data["r18_site_urls"]
+mail_user = data["mail_user"]
+mail_pass = data["mail_pass"]
 
 for url in site_urls:
     scraper(url, QUERIES_FILE)
+    time.sleep(1)
 for url in r18_site_urls:
     scraper(url, R18_QUERIES_FILE)
+    time.sleep(1)
+
+if __name__ == "__main__":
+    if new_file:
+        unique_list = list(set(new_file))
+        new_file_wrapped = ["「" + s + "」" for s in unique_list]
+        new_file_str = "".join(new_file_wrapped)
+        notification_str = new_file_str + "について、新しいファイルが" + str(len(new_file)) + "件検出されました。"
+        send_notification("P2Pスレイヤー", notification_str)
+
+        # 送信元に使うメールアドレスが設定されている場合
+        if mail_user is not None and mail_user != "null":
+            # メールの内容を設定
+            msg = EmailMessage()
+            msg.set_content(notification_str + "\nただちにP2Pスレイヤーを起動し、証拠採取を行ってください。")
+
+            msg['Subject'] = '【P2Pスレイヤー】新しいファイルが検出されました'
+            msg['From'] = mail_user
+            msg['To'] = mail_user
+
+            # GmailのSMTPサーバーに接続してメールを送信
+            try:
+                server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+                server.login(mail_user, mail_pass)
+                server.send_message(msg)
+                server.quit()
+                print('メールが送信されました。')
+            except Exception as e:
+                print(f'メールの送信に失敗しました: {e}')
+
 
 time.sleep(1)

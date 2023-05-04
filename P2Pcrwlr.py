@@ -16,11 +16,19 @@ SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
 QUERIES_FILE = os.path.join(SETTING_FOLDER, "queries.json")
 R18_QUERIES_FILE = os.path.join(SETTING_FOLDER, "r18queries.json")
 
+file_lock = threading.Lock()
+
 # JSONが存在しない場合は生成
+
+if not os.path.exists(SETTING_FOLDER):    
+     os.makedirs(SETTING_FOLDER)
+
 if not os.path.exists(SETTING_FILE):
     data = {
         "interval": 1800,
         "last_crawl_time": "null",
+        "mail_user": "null",
+        "mail_pass": "null",
         "site_urls": [
             "https://nyaa.si/"
         ],
@@ -28,15 +36,16 @@ if not os.path.exists(SETTING_FILE):
             "https://sukebei.nyaa.si/"
         ]
     }
-    with open(SETTING_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)        
-        print("Crawler33:"+str(data))
+    with file_lock:
+        with open(SETTING_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)        
 
 def make_query_json(QUERIES_FILE):
     if not os.path.exists(QUERIES_FILE):
         data = []
-        with open(QUERIES_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)   
+        with file_lock:
+            with open(QUERIES_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)   
 
 make_query_json(QUERIES_FILE)
 make_query_json(R18_QUERIES_FILE)
@@ -122,6 +131,28 @@ def main():
     tab1 = ttk.Frame(notebook)
     notebook.add(tab1, text='巡回システム')
 
+    tab2 = ttk.Frame(notebook)
+    notebook.add(tab2, text='設定')
+    
+    # メール通知の設定欄
+    mail_frame = tk.Frame(tab2)
+    mail_frame.pack(fill=tk.X, pady=(30, 0))
+
+    mail_label = tk.Label(mail_frame, text="通知先アドレス：", font=font)
+    mail_label.pack(side=tk.LEFT, padx=(80, 10))
+
+    mail_entry = tk.Entry(mail_frame, font=font, insertwidth=3)
+    mail_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 80), expand=True)
+    
+    pass_frame = tk.Frame(tab2)
+    pass_frame.pack(fill=tk.X, pady=(10, 0))
+    
+    pass_label = tk.Label(pass_frame, text="アプリパスワード：", font=font)
+    pass_label.pack(side=tk.LEFT, padx=(80, 10))
+
+    pass_entry = tk.Entry(pass_frame, font=font, insertwidth=3)
+    pass_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 20), expand=True)
+
     # 巡回の間隔
     interval_frame = tk.Frame(tab1)
     interval_frame.pack(pady=(10, 10))    
@@ -142,11 +173,17 @@ def main():
 
     interval_var = tk.StringVar()
 
-    # intervalの値を設定ファイルから読み込み
+    # intervalとメール設定の値を設定ファイルから読み込み
     with open(SETTING_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     target_value = data["interval"]
+    mail_user = data["mail_user"]
+    mail_pass = data["mail_pass"]
+
+    # メール設定欄に、現在の設定ファイルの値を設定
+    mail_entry.insert(0, mail_user)
+    pass_entry.insert(0, mail_pass)
 
     for option, value in interval_options:
         if value == target_value:
@@ -177,8 +214,7 @@ def main():
                 # ファイルを書き込みモードで開いて、更新されたデータを書き込む
                 with open(SETTING_FILE, "w", encoding="utf-8") as f:
                     f.seek(0)
-                    json.dump(data, f, ensure_ascii=False, indent=2)                       
-                    print("Crawler181:"+str(data))
+                    json.dump(data, f, ensure_ascii=False, indent=2)               
 
                 break
 
@@ -605,8 +641,29 @@ def main():
         queries_data = load_queries("queries.json")
         r18queries_data = load_queries("r18queries.json")
         populate_treeview(treeview, queries_data)
-        populate_treeview(r18treeview, r18queries_data)  
+        populate_treeview(r18treeview, r18queries_data) 
 
+    # メール通知設定を更新するボタンの関数
+    def save_mail_settings():
+        # エントリウィジェットから値を取得
+        mail_user = mail_entry.get()
+        mail_password = pass_entry.get()
+
+        # 設定を読み込む
+        with open(SETTING_FILE, 'r') as f:
+            settings = json.load(f)
+
+        # 設定を更新
+        settings['mail_user'] = mail_user
+        settings['mail_pass'] = mail_password
+
+        # 設定を保存
+        with open(SETTING_FILE, 'w') as f:
+            json.dump(settings, f, ensure_ascii=False, indent=2)
+
+    #ボタンに関数を紐付け
+    mail_set_button = tk.Button(pass_frame, text="更新", font=font, command=save_mail_settings)    
+    mail_set_button.pack(side=tk.LEFT, padx=(0, 100))
             
     # データを読み込み、各Treeviewに表示
     queries_data = load_queries("queries.json")
