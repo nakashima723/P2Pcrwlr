@@ -134,21 +134,6 @@ class Client():
                         )
                     )
 
-    def save_num_complete(self, torrent_path, save_path):
-        info = lt.torrent_info(torrent_path)
-
-        save_file_path = os.path.join(save_path, 'num_complete.log')
-        if not os.path.exists(save_file_path):
-            # ファイルが存在しない場合は作成してヘッダーを書き込み
-            with open(save_file_path, 'w') as f:
-                f.write('{} ファイルハッシュ: {}\n'.format(info.name(), info.info_hash()))
-                f.write('---\n')
-
-        with open(save_file_path, 'a') as f:
-            f.write('{}\n'.format(
-                ut.fetch_jst().strftime('%Y-%m-%d %H:%M:%S'),
-            ))
-
     def __wait_for_piece_download(self, session, torrent_handle, piece_index, max_retries):
         retry_counter = 0
 
