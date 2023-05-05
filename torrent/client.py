@@ -186,6 +186,23 @@ def _write_piece_to_file(piece, save_path):
 
 
 def _write_peer_log(torrent_info, peer, piece_index, save_path):
+    """
+    ピアごとのピースのダウンロードログを、指定されたファイルに書き込む。
+    指定されたファイルがまだ存在しない場合は新規作成してヘッダーを書き込む。
+    指定されたファイルがすでに存在する場合は、追記する。
+
+    Parameters
+    ----------
+    torrent_info : torrent_info
+        .torrentファイルの情報を保持するクラス。
+        https://www.libtorrent.org/reference-Torrent_Info.html#torrent_info
+    peer : ('str', int)
+        ピアを表すタプル。
+    piece_index : int
+        ダウンロードするピースのindex。
+    save_path : str
+        ログを書き込むファイルのパス。
+    """
     if not os.path.exists(save_path):
         # ファイルが存在しない場合は作成してヘッダーを書き込み
         with open(save_path, 'w') as f:
