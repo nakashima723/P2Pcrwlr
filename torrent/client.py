@@ -31,7 +31,7 @@ class Client():
         self.logger.info('starting %s', handle.status().name)
 
         while not handle.status().is_seeding:
-            _print_download_status(handle.status(), handle.get_peer_info(), self.logger)
+            _print_download_status(handle.status(), self.logger)
             time.sleep(1)
 
         self.logger.info('complete %s', handle.status().name)
@@ -139,7 +139,7 @@ class Client():
 
         while not torrent_handle.status().pieces[piece_index]:
             # torrent_handle.status().piecesの戻り値はboolの配列なので、この条件で判定できる
-            _print_download_status(torrent_handle.status(), torrent_handle.get_peer_info(), self.logger)
+            _print_download_status(torrent_handle.status(), self.logger)
 
             # alertの管理を行う
             alerts = session.pop_alerts()
@@ -157,13 +157,29 @@ class Client():
                 break
 
 
-def _print_download_status(torrent_status, peer_info, logger):
+def _print_download_status(torrent_status, logger):
+    """
+    ダウンロード状況を表示する。
+    フォーマットは以下の通り。
+        x% complete (down: x.x kB/s, up: x.x kB/s, peers: x)
+
+    Parameters
+    ----------
+    torrent_status : torrent_status
+        torrentの状況のスナップショットを保持するクラス。
+        https://www.libtorrent.org/reference-Torrent_Status.html#torrent_status
+
+    logger : Logger
+        ロガー。
+    """
+
     logger.info(
-        "downloading: %.2f%% complete (down: %.1f kB/s, up: %.1f kB/s, peers: %d) %s" % (
+        "%.2f%% complete (down: %.1f kB/s, up: %.1f kB/s, peers: %d)" % (
             torrent_status.progress * 100,
             torrent_status.download_rate / 1000,
             torrent_status.upload_rate / 1000,
-            len(peer_info), torrent_status.state)
+            torrent_status.num_peers
+        )
     )
 
 
