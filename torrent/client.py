@@ -4,6 +4,7 @@ import time
 import tempfile
 import logging
 import utils.time as ut
+import csv
 
 
 class Client():
@@ -118,6 +119,7 @@ class Client():
             for a in alerts:
                 if isinstance(a, lt.read_piece_alert):
                     self.logger.info('piece read')
+                    _save_prior_peer(peer, os.path.join(save_path, 'peer.csv'))
 
                     _write_piece_to_file(a.buffer, os.path.join(
                         save_path,
@@ -252,3 +254,19 @@ def _write_peer_log(torrent_info, peer, piece_index, save_path):
                     piece_index,
                     ut.fetch_jst().strftime('%Y-%m-%d %H:%M:%S'),
                 ))
+
+
+def _save_prior_peer(peer, save_path):
+    """
+    ピアを優先接続の対象としてファイルに記録する。
+
+    Parameters
+    ----------
+    peer : (str, int)
+        ピアを表すタプル。
+    save_path : str
+        記録ファイルのパス。
+    """
+    with open(save_path, 'a', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(peer)
