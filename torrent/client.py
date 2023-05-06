@@ -133,6 +133,20 @@ class Client():
                     )
 
     def __wait_for_piece_download(self, session, torrent_handle, piece_index, max_retries):
+        """
+        ピースのダウンロードが完了するまで待機する。
+
+        Parameters
+        ----------
+        session : session
+            https://www.libtorrent.org/reference-Session.html#session
+        torrent_handle : torrent_handle
+            https://www.libtorrent.org/reference-Torrent_Handle.html#torrent_handle
+        piece_index : int
+            ダウンロードするピースのindex。
+        max_retries : int
+            ピアからのダウンロードが進行しない場合に、リトライを試みる回数。
+        """
         retry_counter = 0
         recent_progress = 0
 
