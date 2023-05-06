@@ -87,9 +87,10 @@ class Client():
         # 指定されたピアのみからダウンロードするために、ipフィルタを作成する
         ip_filter = lt.ip_filter()
 
-        # まずすべてのアドレスを禁止してから、引数で指定したアドレスのみ許可。
+        # まずすべてのアドレスを禁止してから、引数で指定したアドレスのみ許可する
         # 第三引数の0は許可するアドレス指定、1は禁止するアドレス指定
         ip_filter.add_rule('0.0.0.0', '255.255.255.255', 1)
+        ip_filter.add_rule('::', 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff', 1)
         ip_filter.add_rule(peer[0], peer[0], 0)
 
         self.logger.info(ip_filter.export_filter())
