@@ -22,7 +22,6 @@ class Client():
         save_path : str
             本体ファイルのダウンロード先のパス。
         """
-
         session = lt.session({'listen_interfaces': '0.0.0.0:6881'})
 
         info = lt.torrent_info(torrent_path)
@@ -52,7 +51,7 @@ class Client():
 
         Returns
         -------
-        peers : list of ('str', int)
+        peers : list of (str, int)
             ピアのリスト。
         """
         session = lt.session({'listen_interfaces': '0.0.0.0:6881', })
@@ -83,7 +82,6 @@ class Client():
         peer : (str, int)
             ピースをダウンロードするピア。
         """
-
         session = lt.session({'listen_interfaces': '0.0.0.0:6881'})
 
         # 指定されたピアのみからダウンロードするために、ipフィルタを作成する
@@ -172,7 +170,6 @@ def _print_download_status(torrent_status, logger):
     logger : Logger
         ロガー。
     """
-
     logger.info(
         "%.2f%% complete (down: %.1f kB/s, up: %.1f kB/s, peers: %d)" % (
             torrent_status.progress * 100,
@@ -212,7 +209,7 @@ def _write_peer_log(torrent_info, peer, piece_index, save_path):
     torrent_info : torrent_info
         .torrentファイルの情報を保持するクラス。
         https://www.libtorrent.org/reference-Torrent_Info.html#torrent_info
-    peer : ('str', int)
+    peer : (str, int)
         ピアを表すタプル。
     piece_index : int
         ダウンロードするピースのindex。
