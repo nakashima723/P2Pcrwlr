@@ -134,9 +134,11 @@ class Client():
 
     def __wait_for_piece_download(self, session, torrent_handle, piece_index, max_retries):
         retry_counter = 0
+        recent_progress = 0
 
         while not torrent_handle.status().pieces[piece_index]:
             # torrent_handle.status().piecesの戻り値はboolの配列なので、この条件で判定できる
+
             _print_download_status(torrent_handle.status(), self.logger)
 
             # alertの管理を行う
@@ -145,14 +147,19 @@ class Client():
                 if a.category() & lt.alert.category_t.error_notification:
                     self.logger.warn(a)
 
-            time.sleep(1)
+            current_progress = torrent_handle.status().progress_ppm
 
-            if torrent_handle.status().num_peers == 0:
+            if current_progress <= recent_progress:
+                # この場合、ダウンロードが進行していないと見なす
                 retry_counter += 1
 
             if retry_counter >= max_retries:
                 self.logger.warn('Max retries exceeded')
                 break
+
+            recent_progress = current_progress
+
+            time.sleep(1)
 
 
 def _print_download_status(torrent_status, logger):
