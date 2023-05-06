@@ -54,7 +54,7 @@ class Client():
         peers : list of (str, int)
             ピアのリスト。
         """
-        session = lt.session({'listen_interfaces': '0.0.0.0:6881', })
+        session = lt.session({'listen_interfaces': '0.0.0.0:6881'})
         info = lt.torrent_info(torrent_path)
 
         peers = []
