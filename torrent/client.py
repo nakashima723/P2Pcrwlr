@@ -162,7 +162,7 @@ class Client():
             alerts = session.pop_alerts()
             for a in alerts:
                 if a.category() & lt.alert.category_t.error_notification:
-                    self.logger.warn(a)
+                    self.logger.warning(a)
 
             current_progress = torrent_handle.status().progress_ppm
 
@@ -171,7 +171,7 @@ class Client():
                 retry_counter += 1
 
             if retry_counter >= max_retries:
-                self.logger.warn('Max retries exceeded')
+                self.logger.warning('Max retries exceeded')
                 break
 
             recent_progress = current_progress
