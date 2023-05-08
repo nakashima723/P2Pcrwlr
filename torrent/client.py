@@ -267,6 +267,16 @@ def _save_prior_peer(peer, save_path):
     save_path : str
         記録ファイルのパス。
     """
-    with open(save_path, 'a', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(peer)
+    existing_peers = []
+
+    if os.path.exists(save_path):
+        # 重複を避けるために、すでにファイルが存在している場合は記録されたピアを読み込む
+        with open(save_path, 'r') as f:
+            reader = csv.reader(f)
+            # peerは (str, int) 型なので読み込んだ値を型変換する
+            existing_peers = [(row[0], int(row[1])) for row in reader]
+
+    if peer not in existing_peers:
+        with open(save_path, 'a', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(peer)
