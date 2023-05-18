@@ -8,11 +8,11 @@ import csv
 
 
 class Client():
-    def __init__(self):
+    def __init__(self) -> None:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
 
-    def download(self, torrent_path, save_path):
+    def download(self, torrent_path: str, save_path: str) -> None:
         """
         指定した.torrentファイルをもとに本体ファイルをダウンロードする。
 
@@ -38,7 +38,7 @@ class Client():
         self.logger.info("File Hash: %s, File size: %d, Time: %s" % (
             handle.info_hash(), info.total_size(), ut.fetch_jst().strftime('%Y-%m-%d %H:%M:%S')))
 
-    def fetch_peer_list(self, torrent_path, max_list_size=20):
+    def fetch_peer_list(self, torrent_path: str, max_list_size: int = 20) -> list[tuple[str, int]]:
         """
         swarmに含まれるpeerのリストを取得する。
         swarm: all peers (including seeds) sharing a torrent
@@ -58,7 +58,8 @@ class Client():
         session = lt.session({'listen_interfaces': '0.0.0.0:6881'})
         info = lt.torrent_info(torrent_path)
 
-        peers = []
+        peers: list[tuple[str, int]] = []
+
         with tempfile.TemporaryDirectory() as tmpdir:
             handle = session.add_torrent({'ti': info, 'save_path': tmpdir})
             while len(peers) < max_list_size:
@@ -67,7 +68,7 @@ class Client():
                         peers.append(p.ip)
         return peers[:max_list_size]
 
-    def download_piece(self, torrent_path, save_path, piece_index, peer):
+    def download_piece(self, torrent_path: str, save_path: str, piece_index: int, peer: tuple[str, int]) -> None:
         """
         指定した.torrentファイルからひとつのピースをダウンロードする。
 
@@ -135,7 +136,7 @@ class Client():
                         )
                     )
 
-    def __wait_for_piece_download(self, session, torrent_handle, piece_index, max_retries):
+    def __wait_for_piece_download(self, session, torrent_handle, piece_index: int, max_retries: int):
         """
         ピースのダウンロードが完了するまで待機する。
 
@@ -179,7 +180,7 @@ class Client():
             time.sleep(1)
 
 
-def _print_download_status(torrent_status, logger):
+def _print_download_status(torrent_status, logger: logging.Logger) -> None:
     """
     ダウンロード状況を表示する。
     フォーマットは以下の通り。
@@ -204,7 +205,7 @@ def _print_download_status(torrent_status, logger):
     )
 
 
-def _write_piece_to_file(piece, save_path):
+def _write_piece_to_file(piece: bytes, save_path: str) -> None:
     """
     ピースを指定されたパスに書き込む.
 
@@ -222,7 +223,7 @@ def _write_piece_to_file(piece, save_path):
         f.write(piece)
 
 
-def _write_peer_log(torrent_info, peer, piece_index, save_path):
+def _write_peer_log(torrent_info, peer: tuple[str, int], piece_index: int, save_path: str) -> None:
     """
     ピアごとのピースのダウンロードログを、指定されたファイルに書き込む。
     指定されたファイルがまだ存在しない場合は新規作成してヘッダーを書き込む。
@@ -256,7 +257,7 @@ def _write_peer_log(torrent_info, peer, piece_index, save_path):
                 ))
 
 
-def _save_prior_peer(peer, save_path):
+def _save_prior_peer(peer: tuple[str, int], save_path: str) -> None:
     """
     ピアを優先接続の対象としてファイルに記録する。
 
