@@ -4,6 +4,15 @@
 !/tests/evidence/torrent/.gitkeep
 *.json
 *.txt
+*.html
+*.css
+*.js
+*.srt
+*.mp4
+*.mp3
+*.jpg
+*.png
+*.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
