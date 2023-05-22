@@ -2,7 +2,7 @@ import ntplib
 from datetime import datetime, timezone, timedelta
 
 
-def fetch_jst():
+def fetch_jst() -> datetime:
     """
     NTPサーバからUNIX時刻を取得し、JSTに変換して返却する。
 
