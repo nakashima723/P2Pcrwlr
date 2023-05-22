@@ -7,42 +7,28 @@ import os
 import shutil
 import pathlib
 import time
-import ntplib
 from torrentool.api import Torrent
 from plyer import notification
+import fetch_time as ft
 
 # 証拠ディレクトリへのパスを定義
 torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evidence/torrent")
 
-#NTPサーバからUNIX時刻を取得し、JSTに変換して返却する。
-def fetch_jst():
-    ntp_server = 'ntp.nict.jp'
-
-    # NTPサーバからUNIX時刻を取得する
-    ntp_client = ntplib.NTPClient()
-    response = ntp_client.request(ntp_server)
-    unix_time = response.tx_time
-
-    # UNIX時刻をJSTに変換する
-    jst = timezone(timedelta(hours=+9), 'JST')
-    jst_time = datetime.fromtimestamp(unix_time, jst)
-
-    return jst_time
-
 def is_info_hash_duplicate(torrent_folder, torrent_files):
-    # Traverse through all the subfolders in the torrent_folder
+#読み込んだTorrentファイルが、すでにevidenceフォルダに存在するかどうか検証する。
+# torrent_folder内の全てのサブフォルダを巡回
     for entry in os.listdir(torrent_folder):
         subfolder_path = os.path.join(torrent_folder, entry)
 
         if os.path.isdir(subfolder_path):
-            # Iterate through the files in the subfolder
+            # サブフォルダ内のファイルを一つずつ調べる
             for file in os.listdir(subfolder_path):
                 if file.endswith(".torrent"):
                     existing_torrent_path = os.path.join(subfolder_path, file)
                     existing_torrent = Torrent.from_file(existing_torrent_path)
                     existing_info_hash = existing_torrent.info_hash
 
-                    # Compare the existing torrent's info_hash with the info_hash of all files in the torrent_files list
+                    # 既存のトレントのinfo_hashと、torrent_filesリスト内の全てのファイルのinfo_hashを比較する
                     for torrent_file in torrent_files:
                         new_torrent = Torrent.from_file(torrent_file)
                         new_info_hash = new_torrent.info_hash
@@ -51,6 +37,7 @@ def is_info_hash_duplicate(torrent_folder, torrent_files):
                             print(f"すでに存在しているtorrentファイルです: {torrent_file}")
                             return True
     return False
+
 
 def main():
     window = tk.Tk()
@@ -354,8 +341,9 @@ def main():
 
                 # トレントファイルに含まれる情報を表示
                 info_text.insert(tk.END, f"対象ファイル名：{torrent.name if torrent.name else '不明'}\n\n")            
-                info_text.insert(tk.END, f"取得日時：{subdir_time}\n")     
+                info_text.insert(tk.END, f"torrent取得日時：{subdir_time}\n")     
                 info_text.insert(tk.END, f"{torrent_situation}\n")
+                info_text.insert(tk.END, f"【torrentファイル内の情報】\n")
                 info_text.insert(tk.END, f"作成日時：{torrent.creation_date if torrent.creation_date else '不明'}\n")
                 info_text.insert(tk.END, f"作成者：{torrent.created_by if torrent.created_by else '不明'}\n")
                 info_text.insert(tk.END, f"コメント：{torrent.comment if torrent.comment else '不明'}\n") 
@@ -470,41 +458,41 @@ def main():
         user_choice = messagebox.askyesno("警告", message)
         
     def on_bulk_add_button_click():
-    # 1. Open a dialog to select multiple .torrent files from the user's PC
+    # 1. ユーザーのPCから複数の.torrentファイルを選択するためのダイアログを開く
         torrent_files = filedialog.askopenfilenames(filetypes=[("Torrent files", "*.torrent")])
 
         if not torrent_files:
-            # 6. If no torrent file is selected, do nothing
+            # 6. torrentファイルが選択されていない場合は何もせずに戻る
             return
         if not is_info_hash_duplicate(torrent_folder, torrent_files):
             for torrent_file in torrent_files:
-                # 2. Create a new folder with the name 'folder_time' in the 'EVIDENCE_FOLDER_PATH'
-                folder_time = fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
+                # 2. 'folder_time'という名前の新しいフォルダを'EVIDENCE_FOLDER_PATH'内に作成する
+                folder_time = ft.fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
                 folder_path = os.path.join(torrent_folder, folder_time)
                 os.makedirs(folder_path, exist_ok=True)
 
-                # 3. Copy the selected torrent file to the 'folder_time' folder
+                # 3. 選択されたtorrentファイルを'folder_time'フォルダにコピーする
                 dst_file_path = os.path.join(folder_path, os.path.basename(torrent_file))
                 shutil.copy2(torrent_file, dst_file_path)
 
-                # 4. Rename the copied torrent file to 'source.torrent'
+                # 4. コピーされたtorrentファイルの名前を'source.torrent'に変更する
                 src_file_path = os.path.join(folder_path, "source.torrent")
                 os.rename(dst_file_path, src_file_path)
                 
-                # torrentファイル読み込み時の情報を記録
+                # torrentファイルの読み込み時の情報を記録
                 log_file_path = os.path.join(folder_path, "evidence_" + folder_time +".log")
                 with open(log_file_path, "w", encoding='utf-8') as log_file:
-                    torrent = Torrent.from_file(dst_file_path)
-                    LOG =  "対象ファイル名：" + torrent.name + "\ntorrent取得方法：ローカルに保存されたファイルから"+ "\n取得元：" + dst_file_path + "\n証拠フォルダ生成日時：" + folder_time + "\nファイルハッシュ：" + torrent.info_hash
+                    torrent = Torrent.from_file(src_file_path)
+                    LOG =  "対象ファイル名：" + torrent.name + "\ntorrent取得方法：ローカルに保存されたtorrentファイルから"+ "\n取得元：" + dst_file_path + "\n証拠フォルダ生成日時：" + folder_time + "\nファイルハッシュ：" + torrent.info_hash
                     log_file.write(LOG)
                 time.sleep(1)
         else:      
             for torrent_file in torrent_files:      
                 root = tk.Tk()
                 torrent = Torrent.from_file(torrent_file)
-                root.withdraw()  # Hide the main window
+                root.withdraw()  # メインウィンドウを隠す
                 messagebox.showinfo("Alert", torrent.name+ "はすでに存在しているファイルです。")
-                root.destroy()  # Close the main window
+                root.destroy()  # メインウィンドウを閉じる
         
         update()
 
