@@ -2,24 +2,23 @@ import json
 import csv
 import os
 import re
-from datetime import datetime, timedelta, timezone
-import signal
+from datetime import datetime
 import tkinter as tk
 import pathlib
 import threading
-import subprocess
 from tkinter import ttk
 from tkinter import filedialog, messagebox
+from task_handler import TaskHandler
 
 SETTING_FOLDER = os.path.join(pathlib.Path(__file__).parents[0], "settings")
 SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
 QUERIES_FILE = os.path.join(SETTING_FOLDER, "queries.json")
 R18_QUERIES_FILE = os.path.join(SETTING_FOLDER, "r18queries.json")
+PYTHON_FILE = "crawler/scraper.py"
 
 file_lock = threading.Lock()
 
 # JSONが存在しない場合は生成
-
 if not os.path.exists(SETTING_FOLDER):    
      os.makedirs(SETTING_FOLDER)
 
@@ -50,59 +49,8 @@ def make_query_json(QUERIES_FILE):
 make_query_json(QUERIES_FILE)
 make_query_json(R18_QUERIES_FILE)
 
-process = None
-stop_event = threading.Event()
-
-def utc_to_jst(datetime_utc):    
-    utc = timezone.utc
-    jst = timezone(timedelta(hours=9))
-    
-    datetime_utc = datetime_utc.replace(tzinfo=utc)
-    datetime_jst = datetime_utc.astimezone(jst)
-    
-    return datetime_jst
-
-def scraper():
-    global process
-    process = subprocess.Popen(["python", "crawler/scraper.py"], creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
-    with open(SETTING_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-        interval = data["interval"]
-    for _ in range(interval):
-        if stop_event.wait(timeout=1):  # 1 秒待機、stop_event がセットされたら中断
-            break
-
-def stop_scraper():
-    global process
-    if process:
-        if os.name == 'nt':  # Windowsの場合
-            process.send_signal(signal.CTRL_C_EVENT)
-        else:  # それ以外のOSの場合
-            process.send_signal(signal.SIGINT)  # SIGINT シグナルを送信
-        process.wait()
-        process = None
-
-def stop_repeat_thread():
-    stop_event.set()
-
-def repeat_function(stop_event):
-    while not stop_event.is_set():
-        scraper()
-
-stop_event = threading.Event()
-repeat_thread = threading.Thread(target=repeat_function, args=(stop_event,))
-repeat_thread.start()
-
-def restart_scraper():
-    global repeat_thread
-    if repeat_thread:
-        stop_scraper()
-        stop_repeat_thread()
-        repeat_thread.join()  # 追加: スレッドが終了するまで待機
-    stop_event.clear()  # 追加: stop_event をリセット
-    repeat_thread = threading.Thread(target=repeat_function, args=(stop_event,))
-    repeat_thread.start()
+handler = TaskHandler('crawler/scraper.py')
+handler.start_repeat_thread()
 
 def main():
     window = tk.Tk()
@@ -110,8 +58,8 @@ def main():
     window.geometry('800x600')
 
     def on_window_close():
-        stop_event.set()  # スレッドを停止
-        stop_scraper()  # サブプロセスを停止
+        handler.stop_event.set()  # スレッドを停止
+        handler.stop_task()  # サブプロセスを停止
         window.quit()  # ウィンドウを閉じる
     
    # フォント設定
@@ -222,7 +170,7 @@ def main():
     interval_menu.bind("<<ComboboxSelected>>", on_option_changed)
     interval_menu.pack(side=tk.LEFT, padx=(0, 10))
     
-    patrol_button = tk.Button(interval_frame, text="いますぐ巡回", font=font, command=restart_scraper)
+    patrol_button = tk.Button(interval_frame, text="いますぐ巡回", font=font, command=handler.restart_task)
     patrol_button.pack(side=tk.RIGHT, padx=(30, 0))
     
     crawl_history_frame = tk.Frame(tab1)
