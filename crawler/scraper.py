@@ -9,13 +9,13 @@ import os
 import requests
 import tempfile
 import time
-import ntplib
 import gzip
 import json
 import threading
 from plyer import notification
 import smtplib
 from email.message import EmailMessage
+import utils.time as ut
 
 file_lock = threading.Lock()
 new_file = []
@@ -28,47 +28,12 @@ def send_notification(title, message):
         timeout=1,  # 通知の表示時間（秒）
     )
 
-#NTPサーバからUNIX時刻を取得し、JSTに変換して返却する。
-def fetch_jst():
-    ntp_server = 'ntp.nict.jp'
-
-    # NTPサーバからUNIX時刻を取得する
-    ntp_client = ntplib.NTPClient()
-    response = ntp_client.request(ntp_server)
-    unix_time = response.tx_time
-
-    # UNIX時刻をJSTに変換する
-    jst = timezone(timedelta(hours=+9), 'JST')
-    jst_time = datetime.fromtimestamp(unix_time, jst)
-
-    return jst_time
-
-def fetch_time():
-    ntp_server = 'ntp.nict.jp'
-
-    # NTPサーバからUNIX時刻を取得する
-    ntp_client = ntplib.NTPClient()
-    response = ntp_client.request(ntp_server)
-    unix_time = response.tx_time
-
-    return unix_time
-
  # x日以内の日付時刻かどうかチェックする関数
 def is_within_days(datetime_utc):
     # 入力文字列をUTCでdatetimeオブジェクトに変換
     now_utc = datetime.now(timezone.utc)
     days_ago = now_utc - timedelta(days=7)
     return datetime_utc >= days_ago
-
-# UTCをJSTに変換
-def utc_to_jst(datetime_utc):    
-    utc = timezone.utc
-    jst = timezone(timedelta(hours=9))
-    
-    datetime_utc = datetime_utc.replace(tzinfo=utc)
-    datetime_jst = datetime_utc.astimezone(jst)
-    
-    return datetime_jst
 
 # 検索語の正規化
 def process_query(query):
@@ -102,7 +67,7 @@ def scraper(url, file_path):
             with file_lock:         
                 with open(SETTING_FILE, "r+", encoding="utf-8") as f:
                     data = json.load(f)
-                    data["last_crawl_time"] = fetch_time()
+                    data["last_crawl_time"] = ut.fetch_time()
                     f.seek(0)
                     json.dump(data, f, ensure_ascii=False, indent=4)
                     f.truncate()
@@ -114,7 +79,7 @@ def scraper(url, file_path):
         if date_data["last_crawl_time"] is not None and date_data["last_crawl_time"] != "null":
             last_crawl_time = date_data["last_crawl_time"]
         else:
-            last_crawl_time = fetch_time()
+            last_crawl_time = ut.fetch_jst()
         
         if page > 1:
             url = url.split('?')[0] + "?p=" + str(page) 
@@ -179,7 +144,7 @@ def scraper(url, file_path):
                     if not is_within_days(timestamp_str):
                         break
                     else:
-                        datetime_jst = utc_to_jst(timestamp_str)
+                        datetime_jst = ut.utc_to_jst(timestamp_str)
                         formatted_date = datetime_jst.strftime('%Y-%m-%d %H:%M') #サイト上でアップされた時刻
                         latest_dates.append(formatted_date)
                         
@@ -234,7 +199,7 @@ def scraper(url, file_path):
                                         log_file.write(torrent_url + "\n")
 
                                     # フォルダ名に使う現在日時を取得
-                                    folder_time = fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
+                                    folder_time = ut.fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
                                     # 新しいフォルダを作成
                                     new_folder = os.path.join(EVIDENCE_FILE_PATH, "torrent", f"{folder_time}")
                                     if not os.path.exists(new_folder):  # フォルダが存在しない場合のみ作成
@@ -262,7 +227,7 @@ def scraper(url, file_path):
                 with file_lock:
                     with open(SETTING_FILE, "r+", encoding="utf-8") as f:
                         data = json.load(f)
-                        data["last_crawl_time"] = fetch_time()
+                        data["last_crawl_time"] = ut.fetch_jst()
                         f.seek(0)
                         json.dump(data, f, ensure_ascii=False, indent=4)
                         f.truncate()  

@@ -9,7 +9,7 @@ import pathlib
 import time
 from torrentool.api import Torrent
 from plyer import notification
-import fetch_time as ft
+import utils.time as ut
 
 # 証拠ディレクトリへのパスを定義
 torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evidence/torrent")
@@ -37,7 +37,6 @@ def is_info_hash_duplicate(torrent_folder, torrent_files):
                             print(f"すでに存在しているtorrentファイルです: {torrent_file}")
                             return True
     return False
-
 
 def main():
     window = tk.Tk()
@@ -467,7 +466,7 @@ def main():
         if not is_info_hash_duplicate(torrent_folder, torrent_files):
             for torrent_file in torrent_files:
                 # 2. 'folder_time'という名前の新しいフォルダを'EVIDENCE_FOLDER_PATH'内に作成する
-                folder_time = ft.fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
+                folder_time = ut.fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
                 folder_path = os.path.join(torrent_folder, folder_time)
                 os.makedirs(folder_path, exist_ok=True)
 
