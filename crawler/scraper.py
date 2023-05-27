@@ -67,7 +67,7 @@ def scraper(url, file_path):
             with file_lock:         
                 with open(SETTING_FILE, "r+", encoding="utf-8") as f:
                     data = json.load(f)
-                    data["last_crawl_time"] = ut.fetch_time()
+                    data["last_crawl_time"] = ut.fetch_jst().timestamp()
                     f.seek(0)
                     json.dump(data, f, ensure_ascii=False, indent=4)
                     f.truncate()
@@ -79,7 +79,7 @@ def scraper(url, file_path):
         if date_data["last_crawl_time"] is not None and date_data["last_crawl_time"] != "null":
             last_crawl_time = date_data["last_crawl_time"]
         else:
-            last_crawl_time = ut.fetch_jst()
+            last_crawl_time = ut.fetch_jst().timestamp()
         
         if page > 1:
             url = url.split('?')[0] + "?p=" + str(page) 
@@ -216,7 +216,7 @@ def scraper(url, file_path):
                                             log_file.write(LOG)
                                     else:
                                         os.unlink(temp_file_path)
-                                        print('フォルダが既に存在します：\n' + new_folder)            
+                                        print('フォルダが既に存在します：\n' + new_folder) 
         if last_timestamp > last_crawl_time:
             page += 1
         else:            
@@ -230,7 +230,7 @@ def scraper(url, file_path):
                         data["last_crawl_time"] = ut.fetch_jst()
                         f.seek(0)
                         json.dump(data, f, ensure_ascii=False, indent=4)
-                        f.truncate()  
+                        f.truncate()
                            
 with file_lock:
     with open(SETTING_FILE, "r", encoding="utf-8") as f:

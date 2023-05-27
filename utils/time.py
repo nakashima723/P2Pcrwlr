@@ -1,7 +1,15 @@
 import ntplib
 from datetime import datetime, timezone, timedelta
 
-def fetch_time():
+def fetch_jst() -> datetime:
+    """
+    NTPサーバからUNIX時刻を取得し、JSTに変換して返却する。
+
+    Returns
+    -------
+    jst_time: datetime
+        JSTを表すdatetime。
+    """
     # NTPサーバのリストを定義
     ntp_servers = ['ntp.nict.jp', 'ntp.jst.mfeed.ad.jp', 'ntp.nifty.com', 'ntp1.jst.mfeed.ad.jp', 'ntp1.ocn.ne.jp']
 
@@ -16,22 +24,6 @@ def fetch_time():
             break
         except:
             continue
-
-    if unix_time is None:
-        return 0
-    else:
-        return unix_time
-
-def fetch_jst() -> datetime:
-    """
-    NTPサーバからUNIX時刻を取得し、JSTに変換して返却する。
-
-    Returns
-    -------
-    jst_time: datetime
-        JSTを表すdatetime。
-    """
-    unix_time = fetch_time()
 
     # UNIX時刻をJSTに変換する
     jst = timezone(timedelta(hours=+9), 'JST')

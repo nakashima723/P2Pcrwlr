@@ -2,6 +2,7 @@ import json
 import csv
 import os
 import re
+import time
 from datetime import datetime
 import tkinter as tk
 import pathlib
@@ -9,6 +10,7 @@ import threading
 from tkinter import ttk
 from tkinter import filedialog, messagebox
 from task_handler import TaskHandler
+import utils.time as ut
 
 SETTING_FOLDER = os.path.join(pathlib.Path(__file__).parents[0], "settings")
 SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
@@ -139,13 +141,13 @@ def main():
             break
 
     if data["last_crawl_time"] is not None and data["last_crawl_time"] != "null":
-        last_crawl_time = data["last_crawl_time"]  
-        jst = datetime.fromtimestamp (last_crawl_time) 
+        jst = ut.fetch_jst()
         time_str = jst.strftime('%Y年%m月%d日 %H時%M分%S秒')
     else:
         time_str = "未登録"
 
-    last_crawl_time_str = "最後に巡回した日時：" + str(time_str)
+    last_crawl_time_str = tk.StringVar()
+    last_crawl_time_str.set('最後に巡回した日時：' + str(time_str))
 
     def on_option_changed(event):
         selected_option = interval_var.get()
@@ -170,15 +172,33 @@ def main():
     interval_menu.bind("<<ComboboxSelected>>", on_option_changed)
     interval_menu.pack(side=tk.LEFT, padx=(0, 10))
     
-    patrol_button = tk.Button(interval_frame, text="いますぐ巡回", font=font, command=handler.restart_task)
-    patrol_button.pack(side=tk.RIGHT, padx=(30, 0))
-    
     crawl_history_frame = tk.Frame(tab1)
     crawl_history_frame.pack(pady=(10, 10))
 
-    crawl_history = tk.Label(crawl_history_frame, text=last_crawl_time_str, font=small_font)
+    crawl_history = tk.Label(crawl_history_frame, textvariable=last_crawl_time_str, font=small_font)
     crawl_history.pack(side=tk.LEFT, padx=(0, 5))
 
+    def get_last_crawl_time():
+        with open(SETTING_FILE, "r") as json_file:
+            data = json.load(json_file) 
+        last_crawl_time = data.get("last_crawl_time", None)
+        if last_crawl_time is not None or "null":
+            jst = datetime.fromtimestamp(last_crawl_time)
+            time_str = jst.strftime('%Y年%m月%d日 %H時%M分%S秒')
+        else:   
+            time_str = "未登録" 
+        return '最後に巡回した日時：' + str(time_str)
+    
+    def update_label():
+        last_crawl_time_str.set(get_last_crawl_time())
+
+    def combined_actions():
+        handler.set_update_label_callback(update_label)
+        handler.restart_task()
+    
+    patrol_button = tk.Button(interval_frame, text="いますぐ巡回", font=font, command=combined_actions)
+    patrol_button.pack(side=tk.RIGHT, padx=(30, 0))
+    
     # 新しい検索語を追加
     keyword_entry_frame = tk.Frame(tab1)
     keyword_entry_frame.pack(fill=tk.X, pady=(10, 0))

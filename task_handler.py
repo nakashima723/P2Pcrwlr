@@ -5,6 +5,7 @@ import signal
 import subprocess
 import threading
 import pathlib
+import utils.time as ut
 
 SETTING_FOLDER = os.path.join(pathlib.Path(__file__).parents[0], "settings")
 SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
@@ -15,6 +16,10 @@ class TaskHandler:
         self.process = None
         self.stop_event = threading.Event()
         self.repeat_thread = threading.Thread(target=self.repeat_function)
+        self.update_label_callback = None
+
+    def set_update_label_callback(self, callback):
+        self.update_label_callback = callback
 
     def start_task(self):
         self.process = subprocess.Popen(["python", self.task_file], creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
@@ -24,6 +29,8 @@ class TaskHandler:
         for _ in range(interval):
             if self.stop_event.wait(timeout=1):  # 1秒待機、stop_event がセットされたら中断
                 break
+            if self.update_label_callback:
+                self.update_label_callback()  # タスクの実行中にコールバックを呼び出す
 
     def stop_task(self):
         if self.process:
