@@ -56,9 +56,6 @@ def main():
     notebook = ttk.Notebook(window)
     notebook.pack(fill=tk.BOTH, expand=True)
 
-    tab0 = ttk.Frame(notebook)
-    notebook.add(tab0, text='巡回システム')  
-
     tab1 = ttk.Frame(notebook)
     notebook.add(tab1, text='証拠採取')  
 
