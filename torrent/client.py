@@ -5,7 +5,8 @@ import tempfile
 import logging
 import utils.time as ut
 import csv
-
+import socket
+import urllib.parse
 
 class Client():
     def __init__(self) -> None:
@@ -23,7 +24,7 @@ class Client():
         save_path : str
             本体ファイルのダウンロード先のパス。
         """
-        session = lt.session({'listen_interfaces': '0.0.0.0:6881'})
+        session = lt.session({'listen_interfaces': '0.0.0.0:6881,[::]:6881'})
 
         info = lt.torrent_info(torrent_path)
         handle = session.add_torrent({'ti': info, 'save_path': save_path})
@@ -55,7 +56,7 @@ class Client():
         peers : list of (str, int)
             ピアのリスト。
         """
-        session = lt.session({'listen_interfaces': '0.0.0.0:6881'})
+        session = lt.session({'listen_interfaces': '0.0.0.0:6881,[::]:6881'})
         info = lt.torrent_info(torrent_path)
 
         peers: list[tuple[str, int]] = []
@@ -84,22 +85,38 @@ class Client():
         peer : (str, int)
             ピースをダウンロードするピア。
         """
-        session = lt.session({'listen_interfaces': '0.0.0.0:6881'})
+        session = lt.session({'listen_interfaces': '0.0.0.0:6881,[::]:6881'})
+
+        # torrentファイルを読み込む
+        info = lt.torrent_info(torrent_path)
+
+        # トラッカーの一覧を取得
+        trackers = info.trackers()
 
         # 指定されたピアのみからダウンロードするために、ipフィルタを作成する
         ip_filter = lt.ip_filter()
 
-        # まずすべてのアドレスを禁止してから、引数で指定したアドレスのみ許可する
-        # 第三引数の0は許可するアドレス指定、1は禁止するアドレス指定
+        # まずすべてのアドレスを禁止してから、引数で指定したアドレスとトラッカーのアドレスのみ許可する
         ip_filter.add_rule('0.0.0.0', '255.255.255.255', 1)
         ip_filter.add_rule('::', 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff', 1)
         ip_filter.add_rule(peer[0], peer[0], 0)
 
-        self.logger.info(ip_filter.export_filter())
+        # 各トラッカーのIPアドレスを取得し、許可リストに追加
+        for tracker in trackers:
+            url = tracker.url
+            parsed_url = urllib.parse.urlparse(url)
+            hostname = parsed_url.hostname
+            port = parsed_url.port
+            try:
+                addr_infos = socket.getaddrinfo(hostname, port)
+                for family, type, proto, canonname, sockaddr in addr_infos:
+                    tracker_ip = sockaddr[0]
+                    ip_filter.add_rule(tracker_ip, tracker_ip, 0)
+            except socket.gaierror:
+                # ホスト名を解決できない場合、スキップする
+                pass
 
         session.set_ip_filter(ip_filter)
-
-        info = lt.torrent_info(torrent_path)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             handle = session.add_torrent({'ti': info, 'save_path': tmpdir})
@@ -121,18 +138,19 @@ class Client():
                 if isinstance(a, lt.read_piece_alert):
                     self.logger.info('piece read')
                     _save_prior_peer(peer, os.path.join(save_path, 'peer.csv'))
+                    peer_modified = peer[0].replace(':', '-') if ':' in peer[0] else peer[0]
 
                     _write_piece_to_file(a.buffer, os.path.join(
                         save_path,
-                        f'{peer[0]}_{str(peer[1])}',
-                        '{:05}_{}_{}_{}.bin'.format(piece_index, peer[0], peer[1], info.name())
+                        f'{peer_modified}_{str(peer[1])}',
+                        '{:05}_{}_{}_{}.bin'.format(piece_index, peer_modified, peer[1], info.name())
                     ))
 
                     _write_peer_log(
                         info, peer, piece_index, os.path.join(
                             save_path,
-                            f'{peer[0]}_{str(peer[1])}',
-                            '{}_{}_{}.log'.format(peer[0], str(peer[1]), info.name())
+                            f'{peer_modified}_{str(peer[1])}',
+                            '{}_{}_{}.log'.format(peer_modified, str(peer[1]), info.name())
                         )
                     )
 
@@ -244,7 +262,8 @@ def _write_peer_log(torrent_info, peer: tuple[str, int], piece_index: int, save_
     if not os.path.exists(save_path):
         # ファイルが存在しない場合は作成してヘッダーを書き込み
         with open(save_path, 'w') as f:
-            f.write('{}_{}_{}\n'.format(peer[0], str(peer[1]), torrent_info.name()))
+            peer_modified = peer[0].replace(':', '-') if ':' in peer[0] else peer[0]
+            f.write('{}_{}_{}\n'.format(peer_modified, str(peer[1]), torrent_info.name()))
             f.write('ファイルハッシュ: {}\n'.format(torrent_info.info_hash()))
             f.write('証拠収集開始時刻: {}\n'.format(ut.fetch_jst().strftime('%Y-%m-%d %H:%M:%S')))
             f.write('---\n')
