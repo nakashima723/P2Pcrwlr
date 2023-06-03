@@ -41,8 +41,12 @@ client = Client()
 
 #client.download(torrent_path, save_path)
 
+print("ピアの一覧を取得しています...")
 peers = client.fetch_peer_list(torrent_path, max_list_size)
 print("peers: " + str(peers))
 
-for i in range(max_list_size):
-    client.download_piece(torrent_path, save_path, piece_index, peers[i])
+if(peers != []):
+    for i in range(len(peers)):
+        client.download_piece(torrent_path, save_path, piece_index, peers[i])
+else:
+    print("対象となるピアがありませんでした。")

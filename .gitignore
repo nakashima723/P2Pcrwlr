@@ -3,7 +3,6 @@
 /tests/evidence/torrent/*
 !/tests/evidence/torrent/.gitkeep
 *.json
-*.txt
 *.html
 *.css
 *.js

@@ -1,5 +1,6 @@
 import libtorrent as lt
 import os
+import sys
 import time
 import tempfile
 import logging
@@ -7,6 +8,9 @@ import utils.time as ut
 import csv
 import socket
 import urllib.parse
+import struct
+import pathlib
+import ipaddress
 
 class Client():
     def __init__(self) -> None:
@@ -63,12 +67,22 @@ class Client():
 
         with tempfile.TemporaryDirectory() as tmpdir:
             handle = session.add_torrent({'ti': info, 'save_path': tmpdir})
-            while len(peers) < max_list_size:
-                for p in handle.get_peer_info():
-                    if p.seed and (p.ip not in peers):
-                        peers.append(p.ip)
-        return peers[:max_list_size]
-
+            #すべてのピアを格納する「all_peers」を設定
+            all_peers = set()
+            for _ in range(5):
+                #「all_peers」にまだ含まれていないピアのみ処理
+                current_peers = {p for p in handle.get_peer_info() if p.ip not in all_peers}
+                for p in current_peers:
+                    if (_ip_in_range(p.ip[0]) == True) or (_ip_in_range(p.ip[0]) is None):
+                        if p.flags & lt.peer_info.seed and (p.ip not in peers):     
+                            peers.append(p.ip)
+                            #設定したピアの最大数に達したら、処理を完了
+                            if len(peers) >= max_list_size:
+                                return peers[:max_list_size]
+                    all_peers.add(p.ip)
+                time.sleep(3)
+            return peers[:max_list_size]
+            
     def download_piece(self, torrent_path: str, save_path: str, piece_index: int, peer: tuple[str, int]) -> None:
         """
         指定した.torrentファイルからひとつのピースをダウンロードする。
@@ -300,3 +314,36 @@ def _save_prior_peer(peer: tuple[str, int], save_path: str) -> None:
         with open(save_path, 'a', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(peer)
+
+# 当該IPアドレスが指定した範囲内に存在するかを確認
+def _ip_in_range(ip):
+    # 設定フォルダへのパスを指定
+    if getattr(sys, 'frozen', False):
+        SETTING_FOLDER = sys._MEIPASS
+    else:        
+        main_script_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+        parent_dir = os.path.dirname(main_script_dir)
+        SETTING_FOLDER = os.path.join(parent_dir, "settings")
+
+    # IPv4なのかIPv6なのかを判定
+    try:
+        ip_obj = ipaddress.ip_address(ip)
+    except ValueError:
+        print(f"The IP address {ip} is invalid.")
+        return False
+
+    ip_range_file = os.path.join(SETTING_FOLDER, 'ipv4.txt') if ip_obj.version == 4 else os.path.join(SETTING_FOLDER, 'ipv6.txt')
+    if not os.path.exists(ip_range_file):
+        return None
+
+    if not os.path.exists(ip_range_file):
+        return False
+
+    with open(ip_range_file, 'r') as f:
+        ip_ranges = f.readlines()
+
+    for ip_range in ip_ranges:
+        ip_range = ip_range.strip()
+        if ipaddress.ip_network(ip_range, strict=False).network_address <= ip_obj <= ipaddress.ip_network(ip_range, strict=False).broadcast_address:
+            return True
+    return False
