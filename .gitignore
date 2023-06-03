@@ -8,11 +8,16 @@
 *.css
 *.js
 *.srt
+*.rar
 *.mp4
 *.mp3
 *.jpg
 *.png
 *.csv
+*.bin
+*.false
+*.completed
+*.process
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
