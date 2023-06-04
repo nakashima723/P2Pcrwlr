@@ -8,8 +8,8 @@ import utils.time as ut
 import csv
 import socket
 import urllib.parse
-import ipaddress
 import random
+import ipaddress
 
 class Client():
     def __init__(self) -> None:
@@ -27,6 +27,14 @@ class Client():
         save_path : str
             本体ファイルのダウンロード先のパス。
         """
+        info = lt.torrent_info(torrent_path)
+        target_file_path = os.path.join(save_path, info.name())
+
+        # すでに本体ファイルが存在する場合はダウンロードを行わない
+        if os.path.exists(target_file_path):
+            self.logger.info('本体ファイルダウンロード済み: %s', target_file_path)
+            return
+
         session = lt.session({'listen_interfaces': '0.0.0.0:6881,[::]:6881'})
 
         info = lt.torrent_info(torrent_path)
@@ -79,10 +87,10 @@ class Client():
                             if len(peers) >= max_list_size:
                                 return peers[:max_list_size]
                     all_peers.add(p.ip)
-                time.sleep(3)
+                time.sleep(2)
             return peers[:max_list_size]
             
-    def download_piece(self, torrent_path: str, save_path: str, piece_index: int, peer: tuple[str, int]) -> None:
+    def download_piece(self, torrent_path: str, save_path: str, peer: tuple[str, int]) -> None:
         """
         指定した.torrentファイルからひとつのピースをダウンロードする。
 
@@ -143,7 +151,7 @@ class Client():
             pp[piece_index] = 1
             handle.prioritize_pieces(pp)
 
-            self.__wait_for_piece_download(session, handle, piece_index, 20)
+            self.__wait_for_piece_download(session, handle, piece_index, 10)
 
             handle.read_piece(piece_index)
 
@@ -195,9 +203,9 @@ class Client():
 
             # alertの管理を行う
             alerts = session.pop_alerts()
-            for a in alerts:
-                if a.category() & lt.alert.category_t.error_notification:
-                    self.logger.warning(a)
+           # for a in alerts:
+            #    if a.category() & lt.alert.category_t.error_notification:
+            #        self.logger.warning(a)
 
             current_progress = torrent_handle.status().progress_ppm
 
