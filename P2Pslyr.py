@@ -5,11 +5,28 @@ from tkinter import messagebox
 from tkinter import filedialog
 import os
 import shutil
+import sys
 import pathlib
 import time
 from torrentool.api import Torrent
 from plyer import notification
 import utils.time as ut
+from pathlib import Path
+from utils.generator import SettingsGenerator
+
+if getattr(sys, 'frozen', False):
+    # PyInstallerが使用する一時ディレクトリ
+    application_path = sys._MEIPASS
+else:
+    application_path = Path(__file__).resolve().parent
+
+EVIDENCE_FOLDER = os.path.join(application_path, "evidence")
+SETTING_FOLDER = os.path.join(application_path, "settings")
+SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
+
+#設定ファイルが存在しないときは生成
+settings_manager = SettingsGenerator()
+settings_manager.make_setting_json()
 
 # 証拠ディレクトリへのパスを定義
 torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evidence/torrent")

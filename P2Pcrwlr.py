@@ -2,54 +2,34 @@ import json
 import csv
 import os
 import re
-import time
 from datetime import datetime
 import tkinter as tk
-import pathlib
-import threading
+from pathlib import Path
+import sys
 from tkinter import ttk
 from tkinter import filedialog, messagebox
 from task_handler import TaskHandler
 import utils.time as ut
+from utils.generator import SettingsGenerator, QueryGenerator
 
-SETTING_FOLDER = os.path.join(pathlib.Path(__file__).parents[0], "settings")
+if getattr(sys, 'frozen', False):
+    # PyInstallerが使用する一時ディレクトリ
+    application_path = sys._MEIPASS
+else:
+    application_path = Path(__file__).resolve().parent
+
+EVIDENCE_FOLDER = os.path.join(application_path, "evidence")
+SETTING_FOLDER = os.path.join(application_path, "settings")
 SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
-QUERIES_FILE = os.path.join(SETTING_FOLDER, "queries.json")
-R18_QUERIES_FILE = os.path.join(SETTING_FOLDER, "r18queries.json")
 PYTHON_FILE = "crawler/scraper.py"
 
-file_lock = threading.Lock()
-
-# JSONが存在しない場合は生成
-if not os.path.exists(SETTING_FOLDER):    
-     os.makedirs(SETTING_FOLDER)
-
-if not os.path.exists(SETTING_FILE):
-    data = {
-        "interval": 1800,
-        "last_crawl_time": "null",
-        "mail_user": "null",
-        "mail_pass": "null",
-        "site_urls": [
-            "https://nyaa.si/"
-        ],
-        "r18_site_urls": [
-            "https://sukebei.nyaa.si/"
-        ]
-    }
-    with file_lock:
-        with open(SETTING_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)        
-
-def make_query_json(QUERIES_FILE):
-    if not os.path.exists(QUERIES_FILE):
-        data = []
-        with file_lock:
-            with open(QUERIES_FILE, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)   
-
-make_query_json(QUERIES_FILE)
-make_query_json(R18_QUERIES_FILE)
+#設定ファイルが存在しないときは生成
+settings_manager = SettingsGenerator()
+settings_manager.make_setting_json()
+query_manager = QueryGenerator("queries.json")
+query_manager.make_query_json()
+r18query_manager = QueryGenerator("r18queries.json")
+r18query_manager.make_query_json()
 
 handler = TaskHandler('crawler/scraper.py')
 handler.start_repeat_thread()
