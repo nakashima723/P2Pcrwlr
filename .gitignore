@@ -17,6 +17,7 @@
 *.false
 *.completed
 *.process
+*.r18
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

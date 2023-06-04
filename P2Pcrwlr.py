@@ -343,8 +343,7 @@ def main():
         treeview.column("参考", width=180)
 
     def load_queries(filename):
-        settings_folder = "settings"
-        settings_file = os.path.join(settings_folder, filename)
+        settings_file = os.path.join(SETTING_FOLDER, filename)
 
         if not os.path.exists(settings_file):
             with open(settings_file, 'w', encoding='utf-8') as f:
@@ -395,16 +394,11 @@ def main():
         # 新しいデータをタプルとして作成
         new_data = (keyword, creator, publisher, url)
 
-        # 保存先フォルダを作成
-        settings_folder = "settings"
-        if not os.path.exists(settings_folder):
-            os.makedirs(settings_folder)
-
         # 保存先ファイル名をラジオボタンの値に基づいて設定
         if age_rating == "全年齢":
-            settings_file = os.path.join(settings_folder, "queries.json")
+            settings_file = os.path.join(SETTING_FOLDER, "queries.json")
         else:
-            settings_file = os.path.join(settings_folder, "r18queries.json")
+            settings_file = os.path.join(SETTING_FOLDER, "r18queries.json")
 
         # データを読み込み、新しいデータを追加
         if os.path.exists(settings_file) and os.path.getsize(settings_file) > 0:
@@ -445,8 +439,7 @@ def main():
     #クエリ表示タブの削除ボタンのコマンド
     def delete_selected_item(treeview, json_file_name):        
         selected_items = treeview.selection()
-        settings_folder = "settings"
-        json_file_path = os.path.join(settings_folder, json_file_name)
+        json_file_path = os.path.join(SETTING_FOLDER, json_file_name)
 
         if not selected_items:
             edit_button.config(text="編集する", font=small_font)
@@ -553,8 +546,7 @@ def main():
         return added_count, duplicated_keywords
 
     def import_data_to_json(json_file):
-        settings_folder = "settings"
-        json_file_path = os.path.join(settings_folder, json_file)
+        json_file_path = os.path.join(SETTING_FOLDER, json_file)
 
         
         messagebox.showinfo("ファイルから検索語を追加","以下のような形式で記述された.txt、または.csvファイルを選んでください。"

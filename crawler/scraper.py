@@ -53,6 +53,16 @@ QUERIES_FILE = os.path.join(SETTING_FOLDER, "queries.json")
 R18_QUERIES_FILE = os.path.join(SETTING_FOLDER, "r18queries.json")
 SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
 
+def url_in_r18_site_urls(R18_QUERIES_FILE, url):
+    # JSONファイルを開き、内容を読み込む
+    with open(SETTING_FILE, 'r', encoding="utf-8") as f:
+        data = json.load(f)
+
+    # 'r18_site_urls'内に指定されたURLが存在するか確認する
+    if url in data['r18_site_urls']:
+        return True
+    else:
+        return False
 
 def scraper(url, file_path):
     page = 1
@@ -214,6 +224,11 @@ def scraper(url, file_path):
                                         with open(logfile_path, 'w', encoding='utf-8') as log_file:
                                             LOG =  "対象ファイル名：" + torrent.name + "\ntorrent取得方法：「" + input_str + "」で検索"+ "\n取得元：" + torrent_url + "\nサイト上で表記されていたアップロード日時：" + formatted_date + "\n証拠フォルダ生成日時：" + folder_time + "\nファイルハッシュ：" + torrent.info_hash
                                             log_file.write(LOG)
+                                        #成人向け作品をマーク
+                                        if(url_in_r18_site_urls(R18_QUERIES_FILE, url) == True):
+                                            r18_file_path = os.path.join(new_folder, ".r18")
+                                            with open(r18_file_path, 'w') as f:
+                                                pass
                                     else:
                                         os.unlink(temp_file_path)
                                         print('フォルダが既に存在します：\n' + new_folder) 
@@ -227,7 +242,7 @@ def scraper(url, file_path):
                 with file_lock:
                     with open(SETTING_FILE, "r+", encoding="utf-8") as f:
                         data = json.load(f)
-                        data["last_crawl_time"] = ut.fetch_jst()
+                        data["last_crawl_time"] = ut.fetch_jst().timestamp()
                         f.seek(0)
                         json.dump(data, f, ensure_ascii=False, indent=4)
                         f.truncate()

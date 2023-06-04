@@ -28,9 +28,6 @@ SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
 settings_manager = SettingsGenerator()
 settings_manager.make_setting_json()
 
-# 証拠ディレクトリへのパスを定義
-torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evidence/torrent")
-
 def is_info_hash_duplicate(torrent_folder, torrent_files):
 #読み込んだTorrentファイルが、すでにevidenceフォルダに存在するかどうか検証する。
 # torrent_folder内の全てのサブフォルダを巡回
@@ -124,8 +121,11 @@ def main():
     button_frame = tk.Frame(tab1)
     button_frame.pack(fill=tk.X, pady=(0, 5))
 
-    bulk_add_button = tk.Button(button_frame, text="ファイルから追加", font=small_font)
+    bulk_add_button = tk.Button(button_frame, text="全年齢で追加", font=small_font)
     bulk_add_button.pack(side=tk.LEFT, padx=(10, 10))
+    
+    r18_bulk_add_button = tk.Button(button_frame, text="R18で追加", font=small_font)
+    r18_bulk_add_button.pack(side=tk.LEFT, padx=(0, 10))
 
     # 選択したtorrentファイルから、証拠フォルダを生成するアクション
     mark_button = tk.Button(button_frame, text="誤検出としてマーク", font=small_font)
@@ -279,7 +279,7 @@ def main():
         folder_names = []
         suspect_listbox.delete(0, tk.END)
         # torrent_folder 内のサブディレクトリを繰り返し処理
-        torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evidence/torrent")        
+        torrent_folder = os.path.join(EVIDENCE_FOLDER, "torrent")        
 
         subdirs = [os.path.join(torrent_folder, folder) for folder in os.listdir(torrent_folder) if os.path.isdir(os.path.join(torrent_folder, folder))]
 
@@ -470,20 +470,27 @@ def main():
 
         user_choice = messagebox.askyesno("警告", message)
         
-    def on_bulk_add_button_click():
+    def on_bulk_add_button_click(age):
     # 1. ユーザーのPCから複数の.torrentファイルを選択するためのダイアログを開く
-        torrent_files = filedialog.askopenfilenames(filetypes=[("Torrent files", "*.torrent")])
+        torrent_files = filedialog.askopenfilenames(filetypes=[("Torrentファイルを選択して追加", "*.torrent")])        
+        torrent_folder = os.path.join(EVIDENCE_FOLDER, 'torrent')
 
         if not torrent_files:
             # 6. torrentファイルが選択されていない場合は何もせずに戻る
             return
-        if not is_info_hash_duplicate(torrent_folder, torrent_files):
-            for torrent_file in torrent_files:
-                # 2. 'folder_time'という名前の新しいフォルダを'EVIDENCE_FOLDER_PATH'内に作成する
-                folder_time = ut.fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
+        if not is_info_hash_duplicate(EVIDENCE_FOLDER, torrent_files):
+            for torrent_file in torrent_files:          
+                # 2. 'folder_time'という名前の新しいフォルダを'EVIDENCE_FOLDER'内に作成する
+                folder_time = ut.fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')     
+
                 folder_path = os.path.join(torrent_folder, folder_time)
                 os.makedirs(folder_path, exist_ok=True)
 
+                if age == 'r18':
+                    r18_file_path = os.path.join(folder_path, ".r18")
+                    with open(r18_file_path, 'w') as f:
+                        pass
+                
                 # 3. 選択されたtorrentファイルを'folder_time'フォルダにコピーする
                 dst_file_path = os.path.join(folder_path, os.path.basename(torrent_file))
                 shutil.copy2(torrent_file, dst_file_path)
@@ -494,6 +501,7 @@ def main():
                 
                 # torrentファイルの読み込み時の情報を記録
                 log_file_path = os.path.join(folder_path, "evidence_" + folder_time +".log")
+
                 with open(log_file_path, "w", encoding='utf-8') as log_file:
                     torrent = Torrent.from_file(src_file_path)
                     LOG =  "対象ファイル名：" + torrent.name + "\ntorrent取得方法：ローカルに保存されたtorrentファイルから"+ "\n取得元：" + dst_file_path + "\n証拠フォルダ生成日時：" + folder_time + "\nファイルハッシュ：" + torrent.info_hash
@@ -518,7 +526,8 @@ def main():
     unmark_button.config(command=lambda: unmark_folder(false_listbox, false_text,".false"))
     suspend_button.config(command=lambda: unmark_folder(process_listbox, process_text,".process"))    
     delete_button.config(command=delete_folder)
-    bulk_add_button.config(command=on_bulk_add_button_click)    
+    bulk_add_button.config(command=lambda:on_bulk_add_button_click("all"))    
+    r18_bulk_add_button.config(command=lambda:on_bulk_add_button_click("r18"))    
     refresh_button.config(command=update)
 
     update()
