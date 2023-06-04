@@ -8,9 +8,8 @@ import utils.time as ut
 import csv
 import socket
 import urllib.parse
-import struct
-import pathlib
 import ipaddress
+import random
 
 class Client():
     def __init__(self) -> None:
@@ -135,13 +134,16 @@ class Client():
         with tempfile.TemporaryDirectory() as tmpdir:
             handle = session.add_torrent({'ti': info, 'save_path': tmpdir})
 
+            # 全てのピースからランダムに1つ選ぶ
+            piece_index = random.randint(0, info.num_pieces() - 1)
+
             # 指定したindexのみpriorityを非ゼロにする。
             # その他はpriority=0にする（ダウンロードしない）。
             pp = [0]*info.num_pieces()
             pp[piece_index] = 1
             handle.prioritize_pieces(pp)
 
-            self.__wait_for_piece_download(session, handle, piece_index, 10)
+            self.__wait_for_piece_download(session, handle, piece_index, 20)
 
             handle.read_piece(piece_index)
 
