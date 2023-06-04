@@ -2,21 +2,22 @@ import os
 import sys
 from torrent.client import Client
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 if getattr(sys, 'frozen', False):
     # PyInstallerが使用する一時ディレクトリ
     application_path = sys._MEIPASS
 else:
-    application_path = os.path.dirname(os.path.abspath(__file__))
+    application_path = Path(__file__).resolve().parent.parent
 
-EVIDENCE_FILE_PATH = os.path.join(application_path, "evidence")
+EVIDENCE_FOLDER = os.path.join(application_path, "evidence")
 SETTING_FOLDER = os.path.join(application_path, "settings")
 SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
 
-folder_list = []  # 「.process」ファイルを含むフォルダパスのリスト
+folder_list = []  # 「.processing」ファイルを含むフォルダパスのリスト
 
 # フォルダ内のすべてのサブフォルダをチェック
-for root, dirs, files in os.walk(EVIDENCE_FILE_PATH):
+for root, dirs, files in os.walk(EVIDENCE_FOLDER):
     # 各ファイルに対してチェック
     for file in files:
         # ファイル名が「.process」であるかどうかを確認
@@ -33,6 +34,7 @@ for folder in folder_list:
     source_file_path = os.path.join(folder, "source.torrent")
     # パスを「source_files」リストに追加
     source_files.append(source_file_path)
+print(str(source_files)) # ダウンロード対象にするファイルを表示
 
 max_list_size = 50
 
