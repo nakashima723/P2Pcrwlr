@@ -47,7 +47,7 @@ def process_query(query):
 
 # pathlib.Path(__file__)でこのファイルの場所を取得し、parents[1] で一階層上を指定する。
 # "../"を利用するのと比べて、コードを実行するディレクトリに関係なくevidenceフォルダの位置を決めることができる。
-EVIDENCE_FILE_PATH = os.path.join(pathlib.Path(__file__).parents[1], "evidence")
+EVIDENCE_FILE_PATH = os.path.join(pathlib.Path(__file__).parents[1], "evi")
 SETTING_FOLDER = os.path.join(pathlib.Path(__file__).parents[1], "settings")
 QUERIES_FILE = os.path.join(SETTING_FOLDER, "queries.json")
 R18_QUERIES_FILE = os.path.join(SETTING_FOLDER, "r18queries.json")
@@ -163,7 +163,7 @@ def scraper(url, file_path):
                 # evidenceフォルダが存在しない場合は作成
                 if not os.path.exists(EVIDENCE_FILE_PATH):
                     os.makedirs(EVIDENCE_FILE_PATH)
-                torrent_folder = os.path.join(EVIDENCE_FILE_PATH, "torrent")
+                torrent_folder = os.path.join(EVIDENCE_FILE_PATH, "tor")
                 if not os.path.exists(torrent_folder):
                     os.makedirs(torrent_folder)
                 
@@ -211,8 +211,8 @@ def scraper(url, file_path):
                                     # フォルダ名に使う現在日時を取得
                                     folder_time = ut.fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
                                     # 新しいフォルダを作成
-                                    new_folder = os.path.join(EVIDENCE_FILE_PATH, "torrent", f"{folder_time}")
-                                    if not os.path.exists(new_folder):  # フォルダが存在しない場合のみ作成
+                                    new_folder = os.path.join(EVIDENCE_FILE_PATH, "tor", f"{folder_time}")
+                                    if not os.path.exists(new_folder):  # フォルダが存在しない場合は作成
                                         os.makedirs(new_folder)
                                         print('新しく作成されたフォルダ：\n' + new_folder)
                                         
@@ -220,7 +220,7 @@ def scraper(url, file_path):
                                         # torrentファイルを新しいフォルダに移動
                                         shutil.move(temp_file_path, new_file_name)
                                         # torrentファイル取得時の情報を記録
-                                        logfile_path = os.path.join(new_folder, "evidence_" + folder_time +".log")
+                                        logfile_path = os.path.join(new_folder, "evi_" + folder_time +".log")
                                         with open(logfile_path, 'w', encoding='utf-8') as log_file:
                                             LOG =  "対象ファイル名：" + torrent.name + "\ntorrent取得方法：「" + input_str + "」で検索"+ "\n取得元：" + torrent_url + "\nサイト上で表記されていたアップロード日時：" + formatted_date + "\n証拠フォルダ生成日時：" + folder_time + "\nファイルハッシュ：" + torrent.info_hash
                                             log_file.write(LOG)

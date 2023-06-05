@@ -10,11 +10,11 @@ if getattr(sys, 'frozen', False):
 else:
     application_path = Path(__file__).resolve().parent.parent
 
-EVIDENCE_FOLDER = os.path.join(application_path, "evidence")
+EVIDENCE_FOLDER = os.path.join(application_path, "evi")
 SETTING_FOLDER = os.path.join(application_path, "settings")
 SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
 
-folder_list = []  # 「.processing」ファイルを含むフォルダパスのリスト
+folder_list = []  # 「.process」ファイルを含むフォルダパスのリスト
 
 # フォルダ内のすべてのサブフォルダをチェック
 for root, dirs, files in os.walk(EVIDENCE_FOLDER):

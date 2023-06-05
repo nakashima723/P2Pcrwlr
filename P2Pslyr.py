@@ -20,7 +20,7 @@ if getattr(sys, 'frozen', False):
 else:
     application_path = Path(__file__).resolve().parent
 
-EVIDENCE_FOLDER = os.path.join(application_path, "evidence")
+EVIDENCE_FOLDER = os.path.join(application_path, "evi")
 SETTING_FOLDER = os.path.join(application_path, "settings")
 SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
 
@@ -279,7 +279,7 @@ def main():
         folder_names = []
         suspect_listbox.delete(0, tk.END)
         # torrent_folder 内のサブディレクトリを繰り返し処理
-        torrent_folder = os.path.join(EVIDENCE_FOLDER, "torrent")        
+        torrent_folder = os.path.join(EVIDENCE_FOLDER, "tor")        
 
         subdirs = [os.path.join(torrent_folder, folder) for folder in os.listdir(torrent_folder) if os.path.isdir(os.path.join(torrent_folder, folder))]
 
@@ -391,7 +391,7 @@ def main():
         num = selected_indices[0]
 
         # 2. num番目のフォルダを削除
-        torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evidence/torrent")        
+        torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evi/tor")        
         subdirs = [os.path.join(torrent_folder, folder) for folder in os.listdir(torrent_folder) if os.path.isdir(os.path.join(torrent_folder, folder))]
         folder_list = [subdir for subdir in subdirs if os.path.isfile(os.path.join(subdir, '.false'))] 
         target_folder = folder_list[num]
@@ -412,7 +412,7 @@ def main():
         num = selected_indices[0]
 
         # num番目のフォルダを.falseファイルでマークする 
-        torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evidence/torrent")        
+        torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evi/tor")        
         subdirs = [os.path.join(torrent_folder, folder) for folder in os.listdir(torrent_folder) if os.path.isdir(os.path.join(torrent_folder, folder))]
         folder_list = [subdir for subdir in subdirs if not os.path.isfile(os.path.join(subdir, status))]
         target_folder = folder_list[num]
@@ -447,7 +447,7 @@ def main():
         num = selected_indices[0]
 
         # num番目のフォルダの.falseファイルを削除する
-        torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evidence/torrent")        
+        torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evi/tor")        
         subdirs = [os.path.join(torrent_folder, folder) for folder in os.listdir(torrent_folder) if os.path.isdir(os.path.join(torrent_folder, folder))]
         folder_list = [subdir for subdir in subdirs if os.path.isfile(os.path.join(subdir, status))] 
         target_folder = folder_list[num]
@@ -500,7 +500,7 @@ def main():
                 os.rename(dst_file_path, src_file_path)
                 
                 # torrentファイルの読み込み時の情報を記録
-                log_file_path = os.path.join(folder_path, "evidence_" + folder_time +".log")
+                log_file_path = os.path.join(folder_path, "evi_" + folder_time +".log")
 
                 with open(log_file_path, "w", encoding='utf-8') as log_file:
                     torrent = Torrent.from_file(src_file_path)
