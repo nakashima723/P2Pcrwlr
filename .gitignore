@@ -11,6 +11,8 @@
 *.mp4
 *.mp3
 *.jpg
+*.jpeg
+*.gif
 *.png
 *.csv
 *.bin
