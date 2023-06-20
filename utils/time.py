@@ -32,12 +32,12 @@ def fetch_jst() -> datetime:
     return datetime.now()
 
 
-def utc_to_jst(datetime_utc):  
-    # UTCをJSTに変換  
+def utc_to_jst(datetime_utc):
+    # UTCをJSTに変換
     utc = timezone.utc
     jst = timezone(timedelta(hours=9))
-    
+
     datetime_utc = datetime_utc.replace(tzinfo=utc)
     datetime_jst = datetime_utc.astimezone(jst)
-    
+
     return datetime_jst
