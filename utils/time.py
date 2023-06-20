@@ -1,9 +1,10 @@
 import ntplib
 from datetime import datetime, timezone, timedelta
 
+
 def fetch_jst() -> datetime:
     """
-    NTPサーバからUNIX時刻を取得し、JSTに変換して返却する。
+    NTPサーバからタイムスタンプを取得し、JSTに変換して返却する。
 
     Returns
     -------
@@ -13,23 +14,23 @@ def fetch_jst() -> datetime:
     # NTPサーバのリストを定義
     ntp_servers = ['ntp.nict.jp', 'ntp.jst.mfeed.ad.jp', 'ntp.nifty.com', 'ntp1.jst.mfeed.ad.jp', 'ntp1.ocn.ne.jp']
 
-    # NTPサーバからUNIX時刻を取得するクライアントを初期化
+    # NTPサーバからタイムスタンプを取得するクライアントを初期化
     ntp_client = ntplib.NTPClient()
 
-    unix_time = None
     for ntp_server in ntp_servers:
         try:
             response = ntp_client.request(ntp_server)
-            unix_time = response.tx_time
-            break
+            timestamp = response.tx_time
+            # UNIX時刻をJSTに変換する
+            jst = timezone(timedelta(hours=+9), 'JST')
+            jst_time = datetime.fromtimestamp(timestamp, jst)
+
+            return jst_time
         except:
             continue
 
-    # UNIX時刻をJSTに変換する
-    jst = timezone(timedelta(hours=+9), 'JST')
-    jst_time = datetime.fromtimestamp(unix_time, jst)
+    return datetime.now()
 
-    return jst_time
 
 def utc_to_jst(datetime_utc):  
     # UTCをJSTに変換  
