@@ -67,6 +67,8 @@ class Client():
         peers : list of (str, int)
             ピアのリスト。
         """
+        RETRY_COUNTER = 10
+
         session = lt.session({'listen_interfaces': '0.0.0.0:6881,[::]:6881'})
         info = lt.torrent_info(torrent_path)
 
@@ -74,22 +76,19 @@ class Client():
 
         with tempfile.TemporaryDirectory() as tmpdir:
             handle = session.add_torrent({'ti': info, 'save_path': tmpdir})
-            #すべてのピアを格納する「all_peers」を設定
-            all_peers = set()
-            for _ in range(5):
-                #「all_peers」にまだ含まれていないピアのみ処理
-                current_peers = {p for p in handle.get_peer_info() if p.ip not in all_peers}
-                for p in current_peers:
-                    if (_ip_in_range(p.ip[0]) == True) or (_ip_in_range(p.ip[0]) is None):
-                        if p.flags & lt.peer_info.seed and (p.ip not in peers):     
-                            peers.append(p.ip)
-                            #設定したピアの最大数に達したら、処理を完了
-                            if len(peers) >= max_list_size:
-                                return peers[:max_list_size]
-                    all_peers.add(p.ip)
-                time.sleep(2)
+
+            cnt = 0
+            while cnt < RETRY_COUNTER:
+                for p in handle.get_peer_info():
+                    if (p.seed
+                                and p.ip not in peers
+                                and (_ip_in_range(p.ip[0]) == True) or (_ip_in_range(p.ip[0]) is None)
+                            ):
+                        peers.append(p.ip)
+                cnt += 1
+                time.sleep(1)
             return peers[:max_list_size]
-            
+
     def download_piece(self, torrent_path: str, save_path: str, peer: tuple[str, int]) -> None:
         """
         指定した.torrentファイルからひとつのピースをダウンロードする。
