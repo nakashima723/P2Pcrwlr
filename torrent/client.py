@@ -11,6 +11,7 @@ import urllib.parse
 import random
 import ipaddress
 
+
 class Client():
     def __init__(self) -> None:
         logging.basicConfig(level=logging.INFO)
@@ -67,6 +68,8 @@ class Client():
         peers : list of (str, int)
             ピアのリスト。
         """
+        RETRY_COUNTER = 10
+
         session = lt.session({'listen_interfaces': '0.0.0.0:6881,[::]:6881'})
         info = lt.torrent_info(torrent_path)
 
@@ -74,22 +77,19 @@ class Client():
 
         with tempfile.TemporaryDirectory() as tmpdir:
             handle = session.add_torrent({'ti': info, 'save_path': tmpdir})
-            #すべてのピアを格納する「all_peers」を設定
-            all_peers = set()
-            for _ in range(5):
-                #「all_peers」にまだ含まれていないピアのみ処理
-                current_peers = {p for p in handle.get_peer_info() if p.ip not in all_peers}
-                for p in current_peers:
-                    if (_ip_in_range(p.ip[0]) == True) or (_ip_in_range(p.ip[0]) is None):
-                        if p.flags & lt.peer_info.seed and (p.ip not in peers):     
-                            peers.append(p.ip)
-                            #設定したピアの最大数に達したら、処理を完了
-                            if len(peers) >= max_list_size:
-                                return peers[:max_list_size]
-                    all_peers.add(p.ip)
-                time.sleep(2)
+
+            cnt = 0
+            while cnt < RETRY_COUNTER:
+                for p in handle.get_peer_info():
+                    if (p.seed
+                            and p.ip not in peers
+                            and (_ip_in_range(p.ip[0]) == True) or (_ip_in_range(p.ip[0]) is None)
+                            ):
+                        peers.append(p.ip)
+                cnt += 1
+                time.sleep(1)
             return peers[:max_list_size]
-            
+
     def download_piece(self, torrent_path: str, save_path: str, peer: tuple[str, int]) -> None:
         """
         指定した.torrentファイルからひとつのピースをダウンロードする。
@@ -203,7 +203,7 @@ class Client():
 
             # alertの管理を行う
             alerts = session.pop_alerts()
-           # for a in alerts:
+            # for a in alerts:
             #    if a.category() & lt.alert.category_t.error_notification:
             #        self.logger.warning(a)
 
@@ -326,11 +326,13 @@ def _save_prior_peer(peer: tuple[str, int], save_path: str) -> None:
             writer.writerow(peer)
 
 # 当該IPアドレスが指定した範囲内に存在するかを確認
+
+
 def _ip_in_range(ip):
     # 設定フォルダへのパスを指定
     if getattr(sys, 'frozen', False):
         SETTING_FOLDER = sys._MEIPASS
-    else:        
+    else:
         main_script_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
         parent_dir = os.path.dirname(main_script_dir)
         SETTING_FOLDER = os.path.join(parent_dir, "settings")
@@ -342,7 +344,8 @@ def _ip_in_range(ip):
         print(f"The IP address {ip} is invalid.")
         return False
 
-    ip_range_file = os.path.join(SETTING_FOLDER, 'ipv4.txt') if ip_obj.version == 4 else os.path.join(SETTING_FOLDER, 'ipv6.txt')
+    ip_range_file = os.path.join(SETTING_FOLDER, 'ipv4.txt') if ip_obj.version == 4 else os.path.join(
+        SETTING_FOLDER, 'ipv6.txt')
     if not os.path.exists(ip_range_file):
         return None
 
