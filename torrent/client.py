@@ -346,8 +346,6 @@ def _ip_in_range(ip) -> bool:
 
     ip_range_file = os.path.join(SETTING_FOLDER, 'ipv4.txt') if ip_obj.version == 4 else os.path.join(
         SETTING_FOLDER, 'ipv6.txt')
-    if not os.path.exists(ip_range_file):
-        return None
 
     if not os.path.exists(ip_range_file):
         return False
