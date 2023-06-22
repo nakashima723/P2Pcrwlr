@@ -328,7 +328,7 @@ def _save_prior_peer(peer: tuple[str, int], save_path: str) -> None:
 # 当該IPアドレスが指定した範囲内に存在するかを確認
 
 
-def _ip_in_range(ip):
+def _ip_in_range(ip) -> bool:
     # 設定フォルダへのパスを指定
     if getattr(sys, 'frozen', False):
         SETTING_FOLDER = sys._MEIPASS
