@@ -11,6 +11,7 @@ import urllib.parse
 import random
 import ipaddress
 
+
 class Client():
     def __init__(self) -> None:
         logging.basicConfig(level=logging.INFO)
@@ -81,8 +82,8 @@ class Client():
             while cnt < RETRY_COUNTER:
                 for p in handle.get_peer_info():
                     if (p.seed
-                                and p.ip not in peers
-                                and (_ip_in_range(p.ip[0]) == True) or (_ip_in_range(p.ip[0]) is None)
+                            and p.ip not in peers
+                            and (_ip_in_range(p.ip[0]) == True) or (_ip_in_range(p.ip[0]) is None)
                             ):
                         peers.append(p.ip)
                 cnt += 1
@@ -202,7 +203,7 @@ class Client():
 
             # alertの管理を行う
             alerts = session.pop_alerts()
-           # for a in alerts:
+            # for a in alerts:
             #    if a.category() & lt.alert.category_t.error_notification:
             #        self.logger.warning(a)
 
@@ -325,11 +326,13 @@ def _save_prior_peer(peer: tuple[str, int], save_path: str) -> None:
             writer.writerow(peer)
 
 # 当該IPアドレスが指定した範囲内に存在するかを確認
+
+
 def _ip_in_range(ip):
     # 設定フォルダへのパスを指定
     if getattr(sys, 'frozen', False):
         SETTING_FOLDER = sys._MEIPASS
-    else:        
+    else:
         main_script_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
         parent_dir = os.path.dirname(main_script_dir)
         SETTING_FOLDER = os.path.join(parent_dir, "settings")
@@ -341,7 +344,8 @@ def _ip_in_range(ip):
         print(f"The IP address {ip} is invalid.")
         return False
 
-    ip_range_file = os.path.join(SETTING_FOLDER, 'ipv4.txt') if ip_obj.version == 4 else os.path.join(SETTING_FOLDER, 'ipv6.txt')
+    ip_range_file = os.path.join(SETTING_FOLDER, 'ipv4.txt') if ip_obj.version == 4 else os.path.join(
+        SETTING_FOLDER, 'ipv6.txt')
     if not os.path.exists(ip_range_file):
         return None
 
