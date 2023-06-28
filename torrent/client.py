@@ -329,6 +329,14 @@ def _save_prior_peer(peer: tuple[str, int], save_path: str) -> None:
 
 
 def _ip_in_range(ip) -> bool:
+    """
+    指定されたIPアドレスが、設定ファイル（ipv4.txt, ipv6.txt）の範囲に収まっているかを返す。
+
+    Parameters
+    ----------
+    ip : str
+        判定対象のIPアドレス。
+    """
     try:
         ip_obj = ipaddress.ip_address(ip)
     except ValueError:
