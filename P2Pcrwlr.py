@@ -21,7 +21,7 @@ else:
 EVIDENCE_FOLDER = os.path.join(application_path, "evi")
 SETTING_FOLDER = os.path.join(application_path, "settings")
 SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
-PYTHON_FILE = "crawler/scraper.py"
+SCRAPER_FILE = os.path.join(application_path, "crawler/scraper.py")
 
 #設定ファイルが存在しないときは生成
 settings_manager = SettingsGenerator()
@@ -31,7 +31,7 @@ query_manager.make_query_json()
 r18query_manager = QueryGenerator("r18queries.json")
 r18query_manager.make_query_json()
 
-handler = TaskHandler('crawler/scraper.py')
+handler = TaskHandler(SCRAPER_FILE)
 handler.start_repeat_thread()
 
 def main():
@@ -58,14 +58,14 @@ def main():
     notebook = ttk.Notebook(window)
     notebook.pack(fill=tk.BOTH, expand=True)
 
-    tab1 = ttk.Frame(notebook)
-    notebook.add(tab1, text='巡回システム')
+    tab0 = ttk.Frame(notebook)
+    notebook.add(tab0, text='Torrentを収集')
 
-    tab2 = ttk.Frame(notebook)
-    notebook.add(tab2, text='設定')
+    tab5 = ttk.Frame(notebook)
+    notebook.add(tab5, text='設定')
     
     # メール通知の設定欄
-    mail_frame = tk.Frame(tab2)
+    mail_frame = tk.Frame(tab5)
     mail_frame.pack(fill=tk.X, pady=(30, 0))
 
     mail_label = tk.Label(mail_frame, text="通知先アドレス：", font=font)
@@ -74,7 +74,7 @@ def main():
     mail_entry = tk.Entry(mail_frame, font=font, insertwidth=3)
     mail_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 80), expand=True)
     
-    pass_frame = tk.Frame(tab2)
+    pass_frame = tk.Frame(tab5)
     pass_frame.pack(fill=tk.X, pady=(10, 0))
     
     pass_label = tk.Label(pass_frame, text="アプリパスワード：", font=font)
@@ -84,7 +84,7 @@ def main():
     pass_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 20), expand=True)
 
     # 巡回の間隔
-    interval_frame = tk.Frame(tab1)
+    interval_frame = tk.Frame(tab0)
     interval_frame.pack(pady=(10, 10))    
 
     interval_label = tk.Label(interval_frame, text="巡回の間隔",font=font)
@@ -152,7 +152,7 @@ def main():
     interval_menu.bind("<<ComboboxSelected>>", on_option_changed)
     interval_menu.pack(side=tk.LEFT, padx=(0, 10))
     
-    crawl_history_frame = tk.Frame(tab1)
+    crawl_history_frame = tk.Frame(tab0)
     crawl_history_frame.pack(pady=(10, 10))
 
     crawl_history = tk.Label(crawl_history_frame, textvariable=last_crawl_time_str, font=small_font)
@@ -180,7 +180,7 @@ def main():
     patrol_button.pack(side=tk.RIGHT, padx=(30, 0))
     
     # 新しい検索語を追加
-    keyword_entry_frame = tk.Frame(tab1)
+    keyword_entry_frame = tk.Frame(tab0)
     keyword_entry_frame.pack(fill=tk.X, pady=(10, 0))
 
     new_keyword_label = tk.Label(keyword_entry_frame, text="新しい検索語：", font=font)
@@ -192,7 +192,7 @@ def main():
     add_button = tk.Button(keyword_entry_frame, text="追加",font=font)
     add_button.pack(side=tk.LEFT, padx=(0, 100))
 
-    option_entry_frame = tk.Frame(tab1)
+    option_entry_frame = tk.Frame(tab0)
     option_entry_frame.pack(fill=tk.X, pady=(10, 5),)
 
     creator_label = tk.Label(option_entry_frame, text="作者：", font=small_font)
@@ -209,7 +209,7 @@ def main():
     publisher_entry = tk.Entry(option_entry_frame, font=font, insertwidth=3, width=entry_width)
     publisher_entry.pack(side=tk.LEFT, padx=(0, 100))
 
-    url_frame = tk.Frame(tab1)
+    url_frame = tk.Frame(tab0)
     url_frame.pack(fill=tk.X, pady=(10, 5),)
 
     url_label = tk.Label(url_frame, text="参考URL：", font=small_font)
@@ -219,7 +219,7 @@ def main():
     url_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 160), expand=True)
 
     # ラジオボタン
-    radio_frame = tk.Frame(tab1)
+    radio_frame = tk.Frame(tab0)
     radio_frame.pack(pady=(10, 5))
 
     radio_var = tk.StringVar()
@@ -232,11 +232,11 @@ def main():
     radio_adult.pack(side=tk.LEFT)
 
     # 空白
-    spacer = tk.Frame(tab1, height=30)
+    spacer = tk.Frame(tab0, height=30)
     spacer.pack(fill=tk.X, expand=False)
 
-    # tab1内に新しいタブを追加
-    nested_notebook = ttk.Notebook(tab1)
+    # tab0内に新しいタブを追加
+    nested_notebook = ttk.Notebook(tab0)
     nested_notebook.pack(fill=tk.BOTH, expand=True)
     
     crawl_history_tab = ttk.Frame(nested_notebook)
