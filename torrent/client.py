@@ -82,8 +82,8 @@ class Client():
             while cnt < RETRY_COUNTER:
                 for p in handle.get_peer_info():
                     if (p.seed
-                            and p.ip not in peers
-                            and (_ip_in_range(p.ip[0]) == True) or (_ip_in_range(p.ip[0]) is None)
+                                and p.ip not in peers
+                                and (_ip_in_range(p.ip[0]) == True) or (_ip_in_range(p.ip[0]) is None)
                             ):
                         peers.append(p.ip)
                 cnt += 1
@@ -328,7 +328,21 @@ def _save_prior_peer(peer: tuple[str, int], save_path: str) -> None:
 # 当該IPアドレスが指定した範囲内に存在するかを確認
 
 
-def _ip_in_range(ip):
+def _ip_in_range(ip) -> bool:
+    """
+    指定されたIPアドレスが、設定ファイル（ipv4.txt, ipv6.txt）の範囲に収まっているかを返す。
+
+    Parameters
+    ----------
+    ip : str
+        判定対象のIPアドレス。
+    """
+    try:
+        ip_obj = ipaddress.ip_address(ip)
+    except ValueError:
+        print(f"The IP address {ip} is invalid.")
+        return False
+
     # 設定フォルダへのパスを指定
     if getattr(sys, 'frozen', False):
         SETTING_FOLDER = sys._MEIPASS
@@ -338,20 +352,16 @@ def _ip_in_range(ip):
         SETTING_FOLDER = os.path.join(parent_dir, "settings")
 
     # IPv4なのかIPv6なのかを判定
-    try:
-        ip_obj = ipaddress.ip_address(ip)
-    except ValueError:
-        print(f"The IP address {ip} is invalid.")
-        return False
-
-    ip_range_file = os.path.join(SETTING_FOLDER, 'ipv4.txt') if ip_obj.version == 4 else os.path.join(
-        SETTING_FOLDER, 'ipv6.txt')
-    if not os.path.exists(ip_range_file):
-        return None
+    ip_range_file = ''
+    if ip_obj.version == 4:
+        ip_range_file = os.path.join(SETTING_FOLDER, 'ipv4.txt')
+    else:
+        ip_range_file = os.path.join(SETTING_FOLDER, 'ipv6.txt')
 
     if not os.path.exists(ip_range_file):
         return False
 
+    # ipがファイルの内容に含まれているかを判定
     with open(ip_range_file, 'r') as f:
         ip_ranges = f.readlines()
 
