@@ -473,7 +473,7 @@ def main():
     def on_bulk_add_button_click(age):
     # 1. ユーザーのPCから複数の.torrentファイルを選択するためのダイアログを開く
         torrent_files = filedialog.askopenfilenames(filetypes=[("Torrentファイルを選択して追加", "*.torrent")])        
-        torrent_folder = os.path.join(EVIDENCE_FOLDER, 'torrent')
+        torrent_folder = os.path.join(EVIDENCE_FOLDER, 'tor')
 
         if not torrent_files:
             # 6. torrentファイルが選択されていない場合は何もせずに戻る
