@@ -297,23 +297,22 @@ def main():
         for subdir_path in subdirs:
             # サブディレクトリがあるどうかをチェック
             if os.path.isdir(subdir_path):
-                if not os.path.isdir(subdir_path[0]) or os.path.isdir(subdir_path[1]) : 
-                    torrent_file_path = os.path.join(subdir_path, "source.torrent")
+                torrent_file_path = os.path.join(subdir_path, "source.torrent")
                     
-                    # source.torrent ファイルが存在するかチェック
-                    if os.path.exists(torrent_file_path):
-                        # Torrent オブジェクトを作成し、ファイル名を抽出
-                        torrent = Torrent.from_file(torrent_file_path)
-                        file_name = torrent.name
-                        split_string = subdir_path.replace("\\", "/").split("/")
-                        subdir_time = split_string[-1]
-                        date_parts = subdir_time.split('_')
-                        date_elements = date_parts[0].split('-')
-                        time_elements = date_parts[1].split('-')
-                        subdir_time = f"{date_elements[0]}-{date_elements[1]}-{date_elements[2]} {time_elements[0]}:{time_elements[1]}:{time_elements[2]}"                    
-                        list_name = file_name + " - " + subdir_time
-                        suspect_listbox.insert(tk.END, list_name)
-                        folder_names.append(torrent_file_path)
+                # source.torrent ファイルが存在するかチェック
+                if os.path.exists(torrent_file_path):
+                    # Torrent オブジェクトを作成し、ファイル名を抽出
+                    torrent = Torrent.from_file(torrent_file_path)
+                    file_name = torrent.name
+                    split_string = subdir_path.replace("\\", "/").split("/")
+                    subdir_time = split_string[-1]
+                    date_parts = subdir_time.split('_')
+                    date_elements = date_parts[0].split('-')
+                    time_elements = date_parts[1].split('-')
+                    subdir_time = f"{date_elements[0]}-{date_elements[1]}-{date_elements[2]} {time_elements[0]}:{time_elements[1]}:{time_elements[2]}"                    
+                    list_name = file_name + " - " + subdir_time
+                    suspect_listbox.insert(tk.END, list_name)
+                    folder_names.append(torrent_file_path)
     
         def on_select(event):
             selected_indices = suspect_listbox.curselection()
