@@ -4,6 +4,7 @@ from tkinter import ttk
 from tkinter import messagebox
 from tkinter import filedialog
 import os
+import re
 import shutil
 import sys
 import pathlib
@@ -296,7 +297,7 @@ def main():
         for subdir_path in subdirs:
             # サブディレクトリがあるどうかをチェック
             if os.path.isdir(subdir_path):
-                if not os.path.isdir(subdir_path[0]) or os.path.isdir(subdir_path[1]) :             
+                if not os.path.isdir(subdir_path[0]) or os.path.isdir(subdir_path[1]) : 
                     torrent_file_path = os.path.join(subdir_path, "source.torrent")
                     
                     # source.torrent ファイルが存在するかチェック
@@ -352,9 +353,13 @@ def main():
                 directory = os.path.dirname(torrent_file_path)
                 torrent_situation = extract_log_lines(directory)
 
+                match = re.search(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}', folder_names[index]) 
+                datetime_str = match.group().replace('_', ' ').replace('-', ':')                
+                dt = datetime.strptime(datetime_str, '%Y:%m:%d %H:%M:%S')
+
                 # トレントファイルに含まれる情報を表示
                 info_text.insert(tk.END, f"対象ファイル名：{torrent.name if torrent.name else '不明'}\n\n")            
-                info_text.insert(tk.END, f"torrent取得日時：{subdir_time}\n")     
+                info_text.insert(tk.END, f"torrent取得日時：{dt}\n")     
                 info_text.insert(tk.END, f"{torrent_situation}\n")
                 info_text.insert(tk.END, f"【torrentファイル内の情報】\n")
                 info_text.insert(tk.END, f"作成日時：{torrent.creation_date if torrent.creation_date else '不明'}\n")
