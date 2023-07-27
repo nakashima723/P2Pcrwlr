@@ -2,6 +2,10 @@ import ntplib
 from datetime import datetime, timezone, timedelta
 
 
+class TimeException(Exception):
+    """timeモジュール用の例外。"""
+
+
 def fetch_jst() -> datetime:
     """
     NTPサーバからタイムスタンプを取得し、JSTに変換して返却する。
@@ -29,7 +33,7 @@ def fetch_jst() -> datetime:
         except:
             continue
 
-    return datetime.now()
+    raise TimeException('利用可能なNTPサーバがありませんでした')
 
 
 def utc_to_jst(datetime_utc):
