@@ -1,0 +1,14 @@
+{
+    "python.formatting.provider": "black",
+    "python.linting.pylintEnabled": false,
+    "python.linting.flake8Enabled": true,
+    "python.linting.enabled": true,
+    "files.trimFinalNewlines": true,
+    "editor.formatOnSave": true,
+    "editor.formatOnType": true,
+    "editor.formatOnPaste": false,
+    "python.linting.flake8Args": [
+        "--max-line-length",
+        "100"
+    ]
+}
