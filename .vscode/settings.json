@@ -9,6 +9,8 @@
     "editor.formatOnPaste": false,
     "python.linting.flake8Args": [
         "--max-line-length",
-        "100"
+        "100",
+        "--extend-ignore",
+        "E203"
     ]
 }
