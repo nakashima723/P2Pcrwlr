@@ -72,7 +72,7 @@ def url_in_r18_site_urls(R18_QUERIES_FILE, url):
 
 def scraper(url, file_path):
     page = 1
-    while not page == False:
+    while bool(page):
         with file_lock:
             with open(file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -280,10 +280,7 @@ def scraper(url, file_path):
                                             )
                                             log_file.write(LOG)
                                         # 成人向け作品をマーク
-                                        if (
-                                            url_in_r18_site_urls(R18_QUERIES_FILE, url)
-                                            == True
-                                        ):
+                                        if url_in_r18_site_urls(R18_QUERIES_FILE, url):
                                             r18_file_path = os.path.join(
                                                 new_folder, ".r18"
                                             )

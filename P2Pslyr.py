@@ -346,7 +346,7 @@ def main():
                 for subdir in subdirs
                 if os.path.isfile(os.path.join(subdir, ".comlpleted"))
             ]
-        if selected_tab == None:
+        if selected_tab is None:
             subdirs = [
                 subdir
                 for subdir in subdirs
@@ -372,7 +372,14 @@ def main():
                     date_parts = subdir_time.split("_")
                     date_elements = date_parts[0].split("-")
                     time_elements = date_parts[1].split("-")
-                    subdir_time = f"{date_elements[0]}-{date_elements[1]}-{date_elements[2]} {time_elements[0]}:{time_elements[1]}:{time_elements[2]}"
+                    subdir_time = "{}-{}-{} {}:{}:{}".format(
+                        date_elements[0],
+                        date_elements[1],
+                        date_elements[2],
+                        time_elements[0],
+                        time_elements[1],
+                        time_elements[2],
+                    )
                     list_name = file_name + " - " + subdir_time
                     suspect_listbox.insert(tk.END, list_name)
                     folder_names.append(torrent_file_path)
@@ -442,7 +449,9 @@ def main():
                 )
                 info_text.insert(
                     tk.END,
-                    f"ファイルサイズ：{bytes_to_mb(torrent.total_size) if torrent.total_size else '不明'} MB\n",
+                    "ファイルサイズ：{} MB\n".format(
+                        bytes_to_mb(torrent.total_size) if torrent.total_size else "不明"
+                    ),
                 )
                 info_text.insert(
                     tk.END,
@@ -450,7 +459,17 @@ def main():
                 )
                 info_text.insert(
                     tk.END,
-                    f"トラッカー：{', '.join([url for sublist in torrent.announce_urls for url in sublist]) if torrent.announce_urls else '不明'}\n",
+                    "トラッカー：{}\n".format(
+                        ", ".join(
+                            [
+                                url
+                                for sublist in torrent.announce_urls
+                                for url in sublist
+                            ]
+                        )
+                        if torrent.announce_urls
+                        else "不明"
+                    ),
                 )
                 info_text.config(state=tk.DISABLED)
 
@@ -523,9 +542,7 @@ def main():
         target_folder = folder_list[num]
 
         if not os.path.isfile(os.path.join(target_folder, status)):
-            with open(
-                os.path.join(target_folder, status), "w", encoding="utf-8"
-            ):
+            with open(os.path.join(target_folder, status), "w", encoding="utf-8"):
                 pass
 
         if status == ".false":

@@ -92,7 +92,7 @@ class Client:
                     if (
                         p.seed
                         and p.ip not in peers
-                        and (_ip_in_range(p.ip[0]) == True)
+                        and _ip_in_range(p.ip[0])
                         or (_ip_in_range(p.ip[0]) is None)
                     ):
                         peers.append(p.ip)
