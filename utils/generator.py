@@ -4,9 +4,10 @@ import sys
 from pathlib import Path
 import threading
 
+
 class SettingsGenerator:
     def __init__(self):
-        if getattr(sys, 'frozen', False):
+        if getattr(sys, "frozen", False):
             # PyInstallerが使用する一時ディレクトリ
             self.application_path = sys._MEIPASS
         else:
@@ -21,32 +22,29 @@ class SettingsGenerator:
         self.make_setting_json()
 
     def make_setting_json(self):
-        if not os.path.exists(self.SETTING_FOLDER):    
+        if not os.path.exists(self.SETTING_FOLDER):
             os.makedirs(self.SETTING_FOLDER)
 
         if not os.path.exists(self.SETTING_FILE):
             data = {
                 "interval": 1800,
                 "peer_interval": 1800,
-                "last_crawl_time": "null",        
+                "last_crawl_time": "null",
                 "max_list_size": 50,
                 "fetch_loop_size": 5,
                 "mail_user": "null",
                 "mail_pass": "null",
-                "site_urls": [
-                    "https://nyaa.si/"
-                ],
-                "r18_site_urls": [
-                    "https://sukebei.nyaa.si/"
-                ]
+                "site_urls": ["https://nyaa.si/"],
+                "r18_site_urls": ["https://sukebei.nyaa.si/"],
             }
             with self.file_lock:
                 with open(self.SETTING_FILE, "w", encoding="utf-8") as f:
-                    json.dump(data, f, ensure_ascii=False, indent=4) 
+                    json.dump(data, f, ensure_ascii=False, indent=4)
+
 
 class QueryGenerator:
     def __init__(self, queries_file):
-        if getattr(sys, 'frozen', False):
+        if getattr(sys, "frozen", False):
             # PyInstallerが使用する一時ディレクトリ
             self.application_path = sys._MEIPASS
         else:

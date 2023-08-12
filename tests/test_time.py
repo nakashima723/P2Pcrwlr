@@ -7,7 +7,7 @@ import utils.time as ut
 class TestTime(TestCase):
     def test_ntp_exception(self):
         with self.assertRaises(ut.TimeException):
-            mock = MagicMock(side_effect=ntplib.NTPException('例外が発生することのテスト'))
+            mock = MagicMock(side_effect=ntplib.NTPException("例外が発生することのテスト"))
             ntplib.NTPClient.request = mock
 
             ut.fetch_jst()

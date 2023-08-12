@@ -4,7 +4,7 @@ from torrent.client import Client
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-if getattr(sys, 'frozen', False):
+if getattr(sys, "frozen", False):
     # PyInstallerが使用する一時ディレクトリ
     application_path = sys._MEIPASS
 else:
@@ -34,13 +34,13 @@ for folder in folder_list:
     source_file_path = os.path.join(folder, "source.torrent")
     # パスを「source_files」リストに追加
     source_files.append(source_file_path)
-print(str(source_files)) # ダウンロード対象にするファイルを表示
+print(str(source_files))  # ダウンロード対象にするファイルを表示
 
 max_list_size = 50
 
 client = Client()
 
-for i in range(len(source_files)):    
+for i in range(len(source_files)):
     client.download(source_files[i], folder_list[i])
     print("ピアの一覧を取得しています...")
     peers = client.fetch_peer_list(source_files[i], max_list_size)
