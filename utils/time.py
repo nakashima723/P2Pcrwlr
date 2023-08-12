@@ -16,7 +16,13 @@ def fetch_jst() -> datetime:
         JSTを表すdatetime。
     """
     # NTPサーバのリストを定義
-    ntp_servers = ['ntp.nict.jp', 'ntp.jst.mfeed.ad.jp', 'ntp.nifty.com', 'ntp1.jst.mfeed.ad.jp', 'ntp1.ocn.ne.jp']
+    ntp_servers = [
+        "ntp.nict.jp",
+        "ntp.jst.mfeed.ad.jp",
+        "ntp.nifty.com",
+        "ntp1.jst.mfeed.ad.jp",
+        "ntp1.ocn.ne.jp",
+    ]
 
     # NTPサーバからタイムスタンプを取得するクライアントを初期化
     ntp_client = ntplib.NTPClient()
@@ -26,14 +32,14 @@ def fetch_jst() -> datetime:
             response = ntp_client.request(ntp_server)
             timestamp = response.tx_time
             # UNIX時刻をJSTに変換する
-            jst = timezone(timedelta(hours=+9), 'JST')
+            jst = timezone(timedelta(hours=+9), "JST")
             jst_time = datetime.fromtimestamp(timestamp, jst)
 
             return jst_time
-        except:
+        except Exception:
             continue
 
-    raise TimeException('利用可能なNTPサーバがありませんでした')
+    raise TimeException("利用可能なNTPサーバがありませんでした")
 
 
 def utc_to_jst(datetime_utc):

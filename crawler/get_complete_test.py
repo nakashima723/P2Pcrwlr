@@ -7,21 +7,22 @@ from urllib.parse import urljoin, urlparse
 
 
 def get_info_hash(torrent_file):
-    with open(torrent_file, 'rb') as f:
+    with open(torrent_file, "rb") as f:
         torrent_data = bencodepy.decode(f.read())
-        
-    info = torrent_data[b'info']
+
+    info = torrent_data[b"info"]
     info_bencoded = bencodepy.encode(info)
     info_hash = hashlib.sha1(info_bencoded).hexdigest()
 
     return info_hash
 
+
 def save_webpage_as_html(site_url, output_file, folder_name):
     os.makedirs(folder_name, exist_ok=True)
-        
+
     uri = "?q="
     url = site_url + uri + info_hash
-    
+
     # URLからコンテンツを取得
     response = requests.get(url)
 
@@ -60,11 +61,14 @@ def save_webpage_as_html(site_url, output_file, folder_name):
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write(str(soup.prettify()))
         else:
-            print(f"エラー: Failed to fetch the content with status code {response.status_code}")
+            print(
+                f"エラー: Failed to fetch the content with status code {response.status_code}"
+            )
     else:
-        print("エラー: このファイルの情報は"+ site_url +"内に存在しません。")
+        print("エラー: このファイルの情報は" + site_url + "内に存在しません。")
 
-torrent_file = 'source.torrent'
+
+torrent_file = "source.torrent"
 info_hash = get_info_hash(torrent_file)
 print("Info hash: ", info_hash)
 

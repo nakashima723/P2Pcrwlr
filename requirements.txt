@@ -8,3 +8,5 @@ ntplib
 plyer
 setuptools
 mypy
+black
+flake8

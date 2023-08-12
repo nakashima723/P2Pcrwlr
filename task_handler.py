@@ -1,14 +1,14 @@
- #設定ファイル内のinterval値に応じて、指定したpythonファイルを繰り返し実行するモジュール
+# 設定ファイル内のinterval値に応じて、指定したpythonファイルを繰り返し実行するモジュール
 import json
 import os
 import signal
 import subprocess
 import threading
 import pathlib
-import utils.time as ut
 
 SETTING_FOLDER = os.path.join(pathlib.Path(__file__).parents[0], "settings")
 SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
+
 
 class TaskHandler:
     def __init__(self, task_file):
@@ -22,7 +22,10 @@ class TaskHandler:
         self.update_label_callback = callback
 
     def start_task(self):
-        self.process = subprocess.Popen(["python", self.task_file], creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
+        self.process = subprocess.Popen(
+            ["python", self.task_file],
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+        )
         with open(SETTING_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
             interval = data["interval"]
@@ -34,7 +37,7 @@ class TaskHandler:
 
     def stop_task(self):
         if self.process:
-            if os.name == 'nt':  # Windowsの場合
+            if os.name == "nt":  # Windowsの場合
                 self.process.send_signal(signal.CTRL_C_EVENT)
             else:  # それ以外のOSの場合
                 self.process.send_signal(signal.SIGINT)  # SIGINT シグナルを送信
