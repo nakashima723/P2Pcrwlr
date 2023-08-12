@@ -228,7 +228,7 @@ class Client:
             _print_download_status(torrent_handle.status(), self.logger)
 
             # alertの管理を行う
-            alerts = session.pop_alerts()
+            session.pop_alerts()
             # for a in alerts:
             #    if a.category() & lt.alert.category_t.error_notification:
             #        self.logger.warning(a)

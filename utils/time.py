@@ -36,7 +36,7 @@ def fetch_jst() -> datetime:
             jst_time = datetime.fromtimestamp(timestamp, jst)
 
             return jst_time
-        except:
+        except Exception:
             continue
 
     raise TimeException("利用可能なNTPサーバがありませんでした")

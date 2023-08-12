@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
@@ -10,7 +10,6 @@ import sys
 import pathlib
 import time
 from torrentool.api import Torrent
-from plyer import notification
 import utils.time as ut
 from pathlib import Path
 from utils.generator import SettingsGenerator
@@ -429,7 +428,7 @@ def main():
                 )
                 info_text.insert(tk.END, f"torrent取得日時：{dt}\n")
                 info_text.insert(tk.END, f"{torrent_situation}\n")
-                info_text.insert(tk.END, f"【torrentファイル内の情報】\n")
+                info_text.insert(tk.END, "【torrentファイル内の情報】\n")
                 info_text.insert(
                     tk.END,
                     f"作成日時：{torrent.creation_date if torrent.creation_date else '不明'}\n",
@@ -526,7 +525,7 @@ def main():
         if not os.path.isfile(os.path.join(target_folder, status)):
             with open(
                 os.path.join(target_folder, status), "w", encoding="utf-8"
-            ) as false_file:
+            ):
                 pass
 
         if status == ".false":
@@ -584,7 +583,7 @@ def main():
             "本当によろしいですか？"
         )
 
-        user_choice = messagebox.askyesno("警告", message)
+        messagebox.askyesno("警告", message)
 
     def on_bulk_add_button_click(age):
         # 1. ユーザーのPCから複数の.torrentファイルを選択するためのダイアログを開く
@@ -606,7 +605,7 @@ def main():
 
                 if age == "r18":
                     r18_file_path = os.path.join(folder_path, ".r18")
-                    with open(r18_file_path, "w") as f:
+                    with open(r18_file_path, "w"):
                         pass
 
                 # 3. 選択されたtorrentファイルを'folder_time'フォルダにコピーする

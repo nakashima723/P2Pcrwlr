@@ -144,7 +144,8 @@ def scraper(url, file_path):
                     # aタグのテキスト部分を取得
                     title_text = title_element.find("a").get_text()
 
-                    # titleタグのテキスト文字列に「input_str」が含まれる場合、対象の'data-timestamp' クラスを持つtd要素のtext_contentを抽出
+                    # titleタグのテキスト文字列に「input_str」が含まれる場合、
+                    # 対象の'data-timestamp' クラスを持つtd要素のtext_contentを抽出
                     # input_str から単語のリストを作成
                     words = input_str.split()
 
@@ -251,7 +252,7 @@ def scraper(url, file_path):
                                         print("新しく作成されたフォルダ：\n" + new_folder)
 
                                         new_file_name = os.path.join(
-                                            new_folder, f"source.torrent"
+                                            new_folder, "source.torrent"
                                         )
                                         # torrentファイルを新しいフォルダに移動
                                         shutil.move(temp_file_path, new_file_name)

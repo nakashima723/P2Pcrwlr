@@ -5,7 +5,6 @@ import signal
 import subprocess
 import threading
 import pathlib
-import utils.time as ut
 
 SETTING_FOLDER = os.path.join(pathlib.Path(__file__).parents[0], "settings")
 SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
