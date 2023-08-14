@@ -14,6 +14,11 @@ def fetch_jst() -> datetime:
     -------
     jst_time: datetime
         JSTを表すdatetime。
+
+    Raises
+    -------
+    TimeException
+        時刻が取得できなかった場合。
     """
     # NTPサーバのリストを定義
     ntp_servers = [
