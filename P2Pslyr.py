@@ -199,8 +199,11 @@ def main():
     button_frame2 = tk.Frame(tab2)
     button_frame2.pack(fill=tk.X, pady=(0, 5))
 
-    suspend_button = tk.Button(button_frame2, text="証拠採取を一時停止", font=font)
-    suspend_button.pack(side=tk.RIGHT, padx=(0, 10))
+    suspend_button = tk.Button(button_frame2, text="一時停止", font=small_font)
+    suspend_button.pack(side=tk.LEFT, padx=(10, 0))
+
+    complete_button = tk.Button(button_frame2, text="証拠採取を完了", font=font)
+    complete_button.pack(side=tk.RIGHT, padx=(0, 10))
 
     # 誤検出パネッドウィンドウの作成
     paned_window = ttk.PanedWindow(tab3, orient=tk.VERTICAL)
@@ -340,11 +343,11 @@ def main():
                 for subdir in subdirs
                 if os.path.isfile(os.path.join(subdir, ".process"))
             ]
-        if selected_tab == "completed":
+        if selected_tab == "complete":
             subdirs = [
                 subdir
                 for subdir in subdirs
-                if os.path.isfile(os.path.join(subdir, ".comlpleted"))
+                if os.path.isfile(os.path.join(subdir, ".complete"))
             ]
         if selected_tab is None:
             subdirs = [
@@ -483,7 +486,7 @@ def main():
 
     # 表示内容を更新
     def update():
-        names(complete_listbox, complete_text, restart_button, selected_tab="completed")
+        names(complete_listbox, complete_text, restart_button, selected_tab="complete")
         names(process_listbox, process_text, suspend_button, selected_tab="process")
         names(false_listbox, false_text, unmark_button, selected_tab="false")
         names(suspect_listbox, info_text, start_button, selected_tab=None)
@@ -515,50 +518,76 @@ def main():
 
         update()
 
-    def mark_folder(listbox, text, status):
-        # リストボックス「suspect_listbox」の選択された要素のインデックスを取得
+    def find_matching_folders(listbox):
+        # 日付を抽出
         selected_indices = listbox.curselection()
+        
+        if not selected_indices:
+            print("選択されている項目がありません。")
+            return []
 
-        if selected_indices:  # 選択された要素が存在する場合
-            index = selected_indices[0]
-            selected_text = listbox.get(index)
-        else:
-            print("選択されているファイルがありません。")
+        index = selected_indices[0]
+        selected_text = listbox.get(index)
 
-        num = selected_indices[0]
+        # 正規表現で末尾の日付形式を抜き出す
+        date_pattern = r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})$"
+        match = re.search(date_pattern, selected_text)
 
-        # num番目のフォルダを.falseファイルでマークする
+        if not match:
+            print("日付形式が見つかりませんでした。")
+            return []
+
+        date_str = match.group(1)
+        # この日付をフォルダ名形式に変換
+        folder_date_format = date_str.replace(":", "-").replace(" ", "_")
+
+        # フォルダ内のサブディレクトリを取得
         torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evi/tor")
         subdirs = [
             os.path.join(torrent_folder, folder)
             for folder in os.listdir(torrent_folder)
             if os.path.isdir(os.path.join(torrent_folder, folder))
         ]
-        folder_list = [
-            subdir
-            for subdir in subdirs
-            if not os.path.isfile(os.path.join(subdir, status))
-        ]
-        target_folder = folder_list[num]
 
-        if not os.path.isfile(os.path.join(target_folder, status)):
+        # 日付と一致するフォルダを抽出
+        matching_folders = [folder for folder in subdirs if folder_date_format in folder]
+
+        return matching_folders
+
+    def mark_folder(listbox, text, status):        
+        # 日付を抽出
+        selected_indices = listbox.curselection()
+        
+        if not selected_indices:
+            print("選択されている項目がありません。")
+            return []
+
+        index = selected_indices[0]
+        selected_text = listbox.get(index)
+
+        target_folder = find_matching_folders(listbox)[0]
+        
+        if not os.path.isfile(os.path.join(target_folder, status)):            
             with open(os.path.join(target_folder, status), "w", encoding="utf-8"):
-                pass
+                pass                  
 
         if status == ".false":
             tab_name = "を誤検出"
         if status == ".process":
             tab_name = "の証拠採取を開始し、採取状況"
+        if status == ".complete":
+            tab_name = "の証拠採取を完了し、完了"
+            os.remove(os.path.join(target_folder, ".process"))
 
         text.config(state=tk.NORMAL)
         text.delete(1.0, tk.END)
         text.insert(tk.END, "「" + selected_text + "」" + tab_name + "タブに移動しました。")
         text.config(state=tk.DISABLED)
-
+        
         update()
 
     def unmark_folder(listbox, text, status):
-        # リストボックス「false_listbox」の選択された要素のインデックスを取得
+        # リストボックスの選択された要素のインデックスを取得
         selected_indices = listbox.curselection()
 
         if selected_indices:  # 選択された要素が存在する場合
@@ -568,26 +597,23 @@ def main():
             print("選択されているファイルがありません。")
             return
 
-        num = selected_indices[0]
-
-        # num番目のフォルダの.falseファイルを削除する
-        torrent_folder = os.path.join(pathlib.Path(__file__).parents[0], "evi/tor")
-        subdirs = [
-            os.path.join(torrent_folder, folder)
-            for folder in os.listdir(torrent_folder)
-            if os.path.isdir(os.path.join(torrent_folder, folder))
-        ]
-        folder_list = [
-            subdir for subdir in subdirs if os.path.isfile(os.path.join(subdir, status))
-        ]
-        target_folder = folder_list[num]
+        # リストボックスの選択された要素のインデックスを取得
+        target_folder = find_matching_folders(listbox)[0]
 
         if os.path.isfile(os.path.join(target_folder, status)):
             os.remove(os.path.join(target_folder, status))
+            if status == ".complete":
+                with open(os.path.join(target_folder, ".process"), "w", encoding="utf-8"):
+                    pass          
+        
+        if status == ".complete":
+            tab_name = "採取状況"
+        else:
+            tab_name = "証拠採取の候補"
 
         text.config(state=tk.NORMAL)
         text.delete(1.0, tk.END)
-        text.insert(tk.END, "「" + selected_text + "」を証拠採取の候補タブに戻しました。")
+        text.insert(tk.END, "「" + selected_text + "」を" + tab_name + "タブに戻しました。")
         text.config(state=tk.DISABLED)
 
         update()
@@ -600,7 +626,7 @@ def main():
             "本当によろしいですか？"
         )
 
-        messagebox.askyesno("警告", message)
+        return messagebox.askyesno("警告", message)
 
     def on_bulk_add_button_click(age):
         # 1. ユーザーのPCから複数の.torrentファイルを選択するためのダイアログを開く
@@ -664,8 +690,8 @@ def main():
         update()
 
     def combined_commands():
-        start_picking()
-        mark_folder(suspect_listbox, info_text, ".process")
+        if start_picking():
+            mark_folder(suspect_listbox, info_text, ".process")
 
     start_button.config(command=combined_commands)
     mark_button.config(
@@ -676,6 +702,12 @@ def main():
     )
     suspend_button.config(
         command=lambda: unmark_folder(process_listbox, process_text, ".process")
+    )
+    complete_button.config(
+        command=lambda:mark_folder(process_listbox, process_text, ".complete")                         
+    )
+    restart_button.config(
+        command=lambda:unmark_folder(complete_listbox, complete_text, ".complete")                         
     )
     delete_button.config(command=delete_folder)
     bulk_add_button.config(command=lambda: on_bulk_add_button_click("all"))
