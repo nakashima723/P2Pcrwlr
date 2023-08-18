@@ -48,9 +48,8 @@ class BinaryMatcher:
         else:
             return False
 
-
-def get_file_size_in_kb(file_path):
-    # ファイルサイズをKB単位で取得
-    size_in_bytes = os.path.getsize(file_path)
-    size_in_kb = size_in_bytes // 1024
-    return size_in_kb
+    def get_file_size_in_kb(self, file_path):
+        # ファイルサイズをKB単位で取得
+        size_in_bytes = os.path.getsize(file_path)
+        size_in_kb = size_in_bytes // 1024
+        return size_in_kb
