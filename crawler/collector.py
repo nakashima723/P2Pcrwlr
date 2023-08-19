@@ -35,7 +35,6 @@ for folder in folder_list:
     source_file_path = os.path.join(folder, "source.torrent")
     # パスを「source_files」リストに追加
     source_files.append(source_file_path)
-print(str(source_files))  # ダウンロード対象にするファイルを表示
 
 # JSON ファイルを開き、データを読み込む
 with open(SETTING_FILE, 'r', encoding="utf-8") as file:

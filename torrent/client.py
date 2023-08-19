@@ -1,6 +1,7 @@
 import libtorrent as lt
 from datetime import datetime, timezone
 import os
+import requests
 import sys
 import time
 import tempfile
@@ -41,16 +42,19 @@ class Client:
             return
 
         # すでにDL対象のファイル・フォルダが存在する場合、そのサイズを取得
-        def get_directory_size(path: str) -> int:
-            total = 0
+        def get_size(path: str) -> int:
+            if os.path.isfile(path):  # パスが単一のファイルの場合
+                return os.path.getsize(path)
+            
+            total = 0  # パスがディレクトリの場合
             for dirpath, dirnames, filenames in os.walk(path):
                 for f in filenames:
                     fp = os.path.join(dirpath, f)
                     total += os.path.getsize(fp)
             return total
-
+            
         # 期待されるサイズと一致する場合、新規ダウンロードを行わない
-        if os.path.exists(target_file_path) and get_directory_size(target_file_path) == info.total_size():
+        if os.path.exists(target_file_path) and get_size(target_file_path) == info.total_size():
             self.logger.info("本体ファイルはダウンロード済み %s", target_file_path)
             return
 
@@ -101,15 +105,19 @@ class Client:
 
         peers: list[tuple[str, int]] = []
 
+        # _get_public_ips()を一度だけ呼び出し、結果を2つの変数に格納
+        ipv4, ipv6 = _get_public_ips()
+
         with tempfile.TemporaryDirectory() as tmpdir:
             handle = session.add_torrent({"ti": info, "save_path": tmpdir})
 
             cnt = 0
             while cnt < RETRY_COUNTER:
                 for p in handle.get_peer_info():
-                    if p.seed and p.ip not in peers:
+                    # p.ip[0]が自分自身の公開IPv4またはIPv6アドレスではないことを確認
+                    if p.seed and p.ip not in peers and p.ip[0] != ipv4 and p.ip[0] != ipv6:
                         if _ip_in_range(p.ip[0]) or (_ip_in_range(p.ip[0]) is None):
-                         peers.append(p.ip)
+                            peers.append(p.ip)
                 cnt += 1
                 time.sleep(1)
             return peers[:max_list_size]
@@ -200,7 +208,7 @@ class Client:
                         ),
                     )
 
-                    unique_file_path = get_unique_filename(file_path)
+                    unique_file_path = _get_unique_filename(file_path)
                     _write_piece_to_file(a.buffer, unique_file_path)
 
                     _write_peer_log(
@@ -429,8 +437,21 @@ def _ip_in_range(ip) -> bool:
             return True
     return False
 
+def _get_public_ips() -> tuple[str, str]:
+    ipv4 = None
+    ipv6 = None
+    try:
+        # For IPv4
+        response_ipv4 = requests.get("https://api.ipify.org?format=json")
+        ipv4 = response_ipv4.json().get("ip")
+        # For IPv6
+        response_ipv6 = requests.get("https://api6.ipify.org?format=json")
+        ipv6 = response_ipv6.json().get("ip")
+    except:
+        pass
+    return ipv4, ipv6
 
-def get_unique_filename(path):
+def _get_unique_filename(path):
     """指定されたパスのファイルが存在する場合、連番を追加して新しいパスを返す。"""
     if not os.path.exists(path):
         return path
