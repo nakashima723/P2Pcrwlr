@@ -427,8 +427,8 @@ def _ip_in_range(ip) -> bool:
             <= ipaddress.ip_network(ip_range, strict=False).broadcast_address
         ):
             return True
-        else:
-            return False
+    return False
+
 
 def get_unique_filename(path):
     """指定されたパスのファイルが存在する場合、連番を追加して新しいパスを返す。"""
