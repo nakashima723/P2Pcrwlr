@@ -174,16 +174,16 @@ class Client:
                         peer[0].replace(":", "-") if ":" in peer[0] else peer[0]
                     )
 
-                    _write_piece_to_file(
-                        a.buffer,
-                        os.path.join(
-                            save_path,
-                            f"{peer_modified}_{str(peer[1])}",
-                            "{:05}_{}_{}_{}.bin".format(
-                                piece_index, peer_modified, peer[1], info.name()
-                            ),
+                    file_path = os.path.join(
+                        save_path,
+                        f"{peer_modified}_{str(peer[1])}",
+                        "{:05}_{}_{}_{}.bin".format(
+                            piece_index, peer_modified, peer[1], info.info_hash()
                         ),
                     )
+
+                    unique_file_path = get_unique_filename(file_path)
+                    _write_piece_to_file(a.buffer, unique_file_path)
 
                     _write_peer_log(
                         info,
@@ -193,7 +193,7 @@ class Client:
                             save_path,
                             f"{peer_modified}_{str(peer[1])}",
                             "{}_{}_{}.log".format(
-                                peer_modified, str(peer[1]), info.name()
+                                peer_modified, str(peer[1]), info.info_hash()
                             ),
                         ),
                     )
@@ -406,3 +406,14 @@ def _ip_in_range(ip) -> bool:
             return True
         else:
             return False
+
+def get_unique_filename(path):
+    """指定されたパスのファイルが存在する場合、連番を追加して新しいパスを返す。"""
+    if not os.path.exists(path):
+        return path
+    else:
+        base, ext = os.path.splitext(path)
+        counter = 1
+        while os.path.exists(f"{base}_{counter}{ext}"):
+            counter += 1
+        return f"{base}_{counter}{ext}"
