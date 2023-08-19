@@ -5,7 +5,7 @@ import os
 import re
 import shutil
 import sys
-from datetime import datetime
+from datetime import datetime,timezone
 from pathlib import Path
 import time
 
@@ -142,8 +142,11 @@ def main():
             interval_var.set(option)
             break
 
-    if data["last_crawl_time"] is not None and data["last_crawl_time"] != "null":
-        jst = ut.fetch_jst()
+    if data["last_crawl_time"] is not None and data["last_crawl_time"] != "null":        
+        try:
+            jst = ut.fetch_jst()
+        except ut.TimeException:
+            jst = datetime.now(timezone.jst)
         time_str = jst.strftime("%Y年%m月%d日 %H時%M分%S秒")
     else:
         time_str = "未登録"
@@ -316,7 +319,7 @@ def main():
     sizegrip.lift(aboveThis=history_frame)
 
     all_age_tab = ttk.Frame(nested_notebook)
-    nested_notebook.add(all_age_tab, text="全年齢")
+    nested_notebook.add(all_age_tab, text="検索語（全年齢）")
 
     button_frame = tk.Frame(all_age_tab)
     button_frame.pack(fill=tk.X, pady=(0, 5))
@@ -352,7 +355,7 @@ def main():
     style.configure("Treeview", font=small_font)
 
     r18_tab = ttk.Frame(nested_notebook)
-    nested_notebook.add(r18_tab, text="成人向け")
+    nested_notebook.add(r18_tab, text="検索語（成人向け）")
 
     # リストボックスを含むフレーム
     r18_button_frame = tk.Frame(r18_tab)
@@ -1054,6 +1057,27 @@ def main():
                 datetime_str = match.group().replace("_", " ").replace("-", ":")
                 dt = datetime.strptime(datetime_str, "%Y:%m:%d %H:%M:%S")
 
+                # 取得済みのピア数を表示
+                def peer_counter(directory):
+                    # peer.csvのパスを組み立てる
+                    peer_csv_path = os.path.join(directory, "peer.csv")
+
+                    # ファイルが存在しない場合は0を返す
+                    if not os.path.exists(peer_csv_path):
+                        return 0
+
+                    # 行数をカウントする
+                    with open(peer_csv_path, 'r') as file:
+                        count = sum(1 for line in file)
+
+                    # ファイルが0行の場合は0を返す
+                    if count == 0:
+                        return 0
+
+                    return count
+                
+                info_text.insert(tk.END, f"【採取済みピア数：{peer_counter(directory)}】\n\n")
+                
                 # トレントファイルに含まれる情報を表示
                 info_text.insert(
                     tk.END, f"対象ファイル名：{torrent.name if torrent.name else '不明'}\n\n"
@@ -1291,8 +1315,12 @@ def main():
         if not is_info_hash_duplicate(EVIDENCE_FOLDER, torrent_files):
             for torrent_file in torrent_files:
                 # 2. 'folder_time'という名前の新しいフォルダを'EVIDENCE_FOLDER'内に作成する
-                folder_time = ut.fetch_jst().strftime("%Y-%m-%d_%H-%M-%S")
-
+                # フォルダ名に使う現在日時を取得
+                try:
+                    folder_time = ut.fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
+                except ut.TimeException:
+                    folder_time = datetime.now(timezone.jst).strftime('%Y-%m-%d_%H-%M-%S')
+                print("NTPサーバーから現在時刻を取得できませんでした。フォルダ名はローカルのシステム時刻を参照しており、正確な生成時刻を示していない可能性があります。")
                 folder_path = os.path.join(torrent_folder, folder_time)
                 os.makedirs(folder_path, exist_ok=True)
 

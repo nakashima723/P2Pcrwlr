@@ -83,7 +83,10 @@ def scraper(url, file_path):
             with file_lock:
                 with open(SETTING_FILE, "r+", encoding="utf-8") as f:
                     data = json.load(f)
-                    data["last_crawl_time"] = ut.fetch_jst().timestamp()
+                    try:
+                        data["last_crawl_time"] = ut.fetch_jst().timestamp()
+                    except ut.TimeException:
+                        data["last_crawl_time"] = datetime.now(timezone.jst).timestamp()
                     f.seek(0)
                     json.dump(data, f, ensure_ascii=False, indent=4)
                     f.truncate()
@@ -98,7 +101,10 @@ def scraper(url, file_path):
         ):
             last_crawl_time = date_data["last_crawl_time"]
         else:
-            last_crawl_time = ut.fetch_jst().timestamp()
+            try:
+                data["last_crawl_time"] = ut.fetch_jst().timestamp()
+            except ut.TimeException:
+                data["last_crawl_time"] = datetime.now(timezone.jst).timestamp()
 
         if page > 1:
             url = url.split("?")[0] + "?p=" + str(page)
@@ -238,9 +244,11 @@ def scraper(url, file_path):
                                         log_file.write(torrent_url + "\n")
 
                                     # フォルダ名に使う現在日時を取得
-                                    folder_time = ut.fetch_jst().strftime(
-                                        "%Y-%m-%d_%H-%M-%S"
-                                    )
+                                    try:
+                                        folder_time = ut.fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
+                                    except ut.TimeException:
+                                        folder_time = datetime.now(timezone.jst).strftime('%Y-%m-%d_%H-%M-%S')
+                                    print("NTPサーバーから現在時刻を取得できませんでした。フォルダ名はローカルのシステム時刻を参照しており、正確な生成時刻を示していない可能性があります。")
                                     # 新しいフォルダを作成
                                     new_folder = os.path.join(
                                         EVIDENCE_FILE_PATH, "tor", f"{folder_time}"
@@ -299,7 +307,10 @@ def scraper(url, file_path):
                 with file_lock:
                     with open(SETTING_FILE, "r+", encoding="utf-8") as f:
                         data = json.load(f)
-                        data["last_crawl_time"] = ut.fetch_jst().timestamp()
+                        try:
+                            data["last_crawl_time"] = ut.fetch_jst().timestamp()
+                        except ut.TimeException:
+                            data["last_crawl_time"] = datetime.now(timezone.jst).timestamp()
                         f.seek(0)
                         json.dump(data, f, ensure_ascii=False, indent=4)
                         f.truncate()

@@ -1,4 +1,5 @@
 import libtorrent as lt
+from datetime import datetime, timezone
 import os
 import sys
 import time
@@ -70,7 +71,7 @@ class Client:
             % (
                 handle.info_hash(),
                 info.total_size(),
-                ut.fetch_jst().strftime("%Y-%m-%d %H:%M:%S"),
+                datetime.now(timezone.jst).strftime("%Y-%m-%d %H:%M:%S"),
             )
         )
 
@@ -308,6 +309,7 @@ def _write_piece_to_file(piece: bytes, save_path: str) -> None:
 def _write_peer_log(
     torrent_info, peer: tuple[str, int], piece_index: int, save_path: str
 ) -> None:
+    
     """
     ピアごとのピースのダウンロードログを、指定されたファイルに書き込む。
     指定されたファイルがまだ存在しない場合は新規作成してヘッダーを書き込む。
@@ -324,27 +326,31 @@ def _write_peer_log(
         ダウンロードするピースのindex。
     save_path : str
         ログを書き込むファイルのパス。
-    """
-    if not os.path.exists(save_path):
-        # ファイルが存在しない場合は作成してヘッダーを書き込み
-        with open(save_path, "w") as f:
-            peer_modified = peer[0].replace(":", "-") if ":" in peer[0] else peer[0]
-            f.write(
-                "{}_{}_{}\n".format(peer_modified, str(peer[1]), torrent_info.name())
-            )
-            f.write("ファイルハッシュ: {}\n".format(torrent_info.info_hash()))
-            f.write(
-                "証拠収集開始時刻: {}\n".format(ut.fetch_jst().strftime("%Y-%m-%d %H:%M:%S"))
-            )
-            f.write("---\n")
+    """  
 
-    with open(save_path, "a") as f:
-        f.write(
-            "piece{} 完了時刻: {}\n".format(
-                piece_index,
-                ut.fetch_jst().strftime("%Y-%m-%d %H:%M:%S"),
-            )
-        )
+    def get_jst_str():
+        try:
+            jst = ut.fetch_jst()
+        except ut.TimeException:
+            jst = None
+
+        if jst is None:
+            return "エラー NTPサーバーから時刻を取得できませんでした。"
+        
+        return jst.strftime("%Y-%m-%d %H:%M:%S")
+
+    peer_modified = peer[0].replace(":", "-") if ":" in peer[0] else peer[0]
+    file_mode = "w" if not os.path.exists(save_path) else "a"
+    
+    with open(save_path, file_mode) as f:
+        if file_mode == "w":
+            # 新規ファイルの場合はヘッダーを書き込み
+            f.write(f"{peer_modified}_{peer[1]}_{torrent_info.name()}\n")
+            f.write(f"ファイルハッシュ: {torrent_info.info_hash()}\n")
+            f.write(f"証拠収集開始時刻: {get_jst_str()}\n")
+            f.write("---\n")
+        
+        f.write(f"piece{piece_index} 完了時刻: {get_jst_str()}\n")
 
 
 def _save_prior_peer(peer: tuple[str, int], save_path: str) -> None:
