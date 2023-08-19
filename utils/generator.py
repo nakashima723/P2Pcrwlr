@@ -31,7 +31,6 @@ class SettingsGenerator:
                 "peer_interval": 1800,
                 "last_crawl_time": "null",
                 "max_list_size": 50,
-                "fetch_loop_size": 5,
                 "mail_user": "null",
                 "mail_pass": "null",
                 "site_urls": ["https://nyaa.si/"],

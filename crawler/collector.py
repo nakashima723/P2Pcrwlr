@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 from torrent.client import Client
@@ -36,7 +37,10 @@ for folder in folder_list:
     source_files.append(source_file_path)
 print(str(source_files))  # ダウンロード対象にするファイルを表示
 
-max_list_size = 50
+# JSON ファイルを開き、データを読み込む
+with open(SETTING_FILE, 'r', encoding="utf-8") as file:
+    settings = json.load(file)
+    max_list_size = settings.get('max_list_size')
 
 client = Client()
 

@@ -31,9 +31,26 @@ class Client:
         info = lt.torrent_info(torrent_path)
         target_file_path = os.path.join(save_path, info.name())
 
-        # すでに本体ファイルが存在する場合はダウンロードを行わない
-        if os.path.exists(target_file_path):
-            self.logger.info("本体ファイルダウンロード済み: %s", target_file_path)
+         # .download_skip ファイルのパスを組み立てる
+        skip_file_path = os.path.join(save_path, ".download_skip")
+
+        # .download_skip ファイルが存在する場合、ダウンロードを行わない
+        if os.path.exists(skip_file_path):
+            self.logger.info("本体ファイルのダウンロードをスキップ: %s", target_file_path)
+            return
+
+        # すでにDL対象のファイル・フォルダが存在する場合、そのサイズを取得
+        def get_directory_size(path: str) -> int:
+            total = 0
+            for dirpath, dirnames, filenames in os.walk(path):
+                for f in filenames:
+                    fp = os.path.join(dirpath, f)
+                    total += os.path.getsize(fp)
+            return total
+
+        # 期待されるサイズと一致する場合、新規ダウンロードを行わない
+        if os.path.exists(target_file_path) and get_directory_size(target_file_path) == info.total_size():
+            self.logger.info("本体ファイルはダウンロード済み %s", target_file_path)
             return
 
         session = lt.session({"listen_interfaces": "0.0.0.0:6881,[::]:6881"})
