@@ -86,7 +86,7 @@ def scraper(url, file_path):
                     try:
                         data["last_crawl_time"] = ut.fetch_jst().timestamp()
                     except ut.TimeException:
-                        data["last_crawl_time"] = datetime.now(timezone.jst).timestamp()
+                        data["last_crawl_time"] = ut.utc_to_jst(datetime.now()).timestamp()
                     f.seek(0)
                     json.dump(data, f, ensure_ascii=False, indent=4)
                     f.truncate()
@@ -104,7 +104,7 @@ def scraper(url, file_path):
             try:
                 data["last_crawl_time"] = ut.fetch_jst().timestamp()
             except ut.TimeException:
-                data["last_crawl_time"] = datetime.now(timezone.jst).timestamp()
+                data["last_crawl_time"] = ut.utc_to_jst(datetime.now()).timestamp()
 
         if page > 1:
             url = url.split("?")[0] + "?p=" + str(page)
@@ -247,7 +247,7 @@ def scraper(url, file_path):
                                     try:
                                         folder_time = ut.fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
                                     except ut.TimeException:
-                                        folder_time = datetime.now(timezone.jst).strftime('%Y-%m-%d_%H-%M-%S')
+                                        folder_time = ut.utc_to_jst(datetime.now()).strftime('%Y-%m-%d_%H-%M-%S')
                                     print("NTPサーバーから現在時刻を取得できませんでした。フォルダ名はローカルのシステム時刻を参照しており、正確な生成時刻を示していない可能性があります。")
                                     # 新しいフォルダを作成
                                     new_folder = os.path.join(
@@ -310,7 +310,7 @@ def scraper(url, file_path):
                         try:
                             data["last_crawl_time"] = ut.fetch_jst().timestamp()
                         except ut.TimeException:
-                            data["last_crawl_time"] = datetime.now(timezone.jst).timestamp()
+                            data["last_crawl_time"] = ut.utc_to_jst(datetime.now()).timestamp()
                         f.seek(0)
                         json.dump(data, f, ensure_ascii=False, indent=4)
                         f.truncate()

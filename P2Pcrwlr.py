@@ -146,7 +146,7 @@ def main():
         try:
             jst = ut.fetch_jst()
         except ut.TimeException:
-            jst = datetime.now(timezone.jst)
+            jst = ut.utc_to_jst(datetime.now())
         time_str = jst.strftime("%Y年%m月%d日 %H時%M分%S秒")
     else:
         time_str = "未登録"
@@ -1319,7 +1319,7 @@ def main():
                 try:
                     folder_time = ut.fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
                 except ut.TimeException:
-                    folder_time = datetime.now(timezone.jst).strftime('%Y-%m-%d_%H-%M-%S')
+                    folder_time = ut.utc_to_jst(datetime.now()).strftime('%Y-%m-%d_%H-%M-%S')
                 print("NTPサーバーから現在時刻を取得できませんでした。フォルダ名はローカルのシステム時刻を参照しており、正確な生成時刻を示していない可能性があります。")
                 folder_path = os.path.join(torrent_folder, folder_time)
                 os.makedirs(folder_path, exist_ok=True)

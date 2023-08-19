@@ -71,7 +71,7 @@ class Client:
             % (
                 handle.info_hash(),
                 info.total_size(),
-                datetime.now(timezone.jst).strftime("%Y-%m-%d %H:%M:%S"),
+                ut.utc_to_jst(datetime.now()).strftime("%Y-%m-%d %H:%M:%S"),
             )
         )
 
