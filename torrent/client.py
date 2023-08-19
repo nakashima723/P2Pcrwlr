@@ -89,13 +89,9 @@ class Client:
             cnt = 0
             while cnt < RETRY_COUNTER:
                 for p in handle.get_peer_info():
-                    if (
-                        p.seed
-                        and p.ip not in peers
-                        and _ip_in_range(p.ip[0])
-                        or (_ip_in_range(p.ip[0]) is None)
-                    ):
-                        peers.append(p.ip)
+                    if p.seed and p.ip not in peers:
+                        if _ip_in_range(p.ip[0]) or (_ip_in_range(p.ip[0]) is None):
+                         peers.append(p.ip)
                 cnt += 1
                 time.sleep(1)
             return peers[:max_list_size]
@@ -394,7 +390,7 @@ def _ip_in_range(ip) -> bool:
         ip_range_file = os.path.join(SETTING_FOLDER, "ipv6.txt")
 
     if not os.path.exists(ip_range_file):
-        return False
+        return None
 
     # ipがファイルの内容に含まれているかを判定
     with open(ip_range_file, "r") as f:
@@ -408,4 +404,5 @@ def _ip_in_range(ip) -> bool:
             <= ipaddress.ip_network(ip_range, strict=False).broadcast_address
         ):
             return True
-    return False
+        else:
+            return False
