@@ -5,7 +5,7 @@ import os
 import re
 import shutil
 import sys
-from datetime import datetime,timezone
+from datetime import datetime
 from pathlib import Path
 import time
 
@@ -15,7 +15,7 @@ from tkinter import filedialog, messagebox, ttk
 from torrentool.api import Torrent
 
 # 独自モジュール
-from task_handler import TaskHandler
+from utils.task_handler import TaskHandler
 import utils.time as ut
 from utils.generator import SettingsGenerator, QueryGenerator
 
