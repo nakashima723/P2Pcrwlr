@@ -194,6 +194,11 @@ class Client:
             alerts = session.pop_alerts()
             for a in alerts:
                 if isinstance(a, lt.read_piece_alert):
+                    # a.bufferのサイズが0の場合、保存とログの記録をスキップ
+                    if len(a.buffer) == 0:
+                        self.logger.warning("Downloaded piece size is 0, skipping.")
+                        continue  # ループの次のイテレーションに進む
+
                     self.logger.info("piece read")
                     _save_prior_peer(peer, os.path.join(save_path, "peer.csv"))
                     peer_modified = (
