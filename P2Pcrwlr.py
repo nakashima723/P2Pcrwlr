@@ -30,6 +30,7 @@ EVIDENCE_FOLDER = os.path.join(application_path, "evi")
 SETTING_FOLDER = os.path.join(application_path, "settings")
 SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
 SCRAPER_FILE = os.path.join(application_path, "crawler/scraper.py")
+COLLECTOR_FILE = os.path.join(application_path, "crawler/collector.py")
 
 # 設定ファイルが存在しないときは生成
 settings_manager = SettingsGenerator()
@@ -39,7 +40,9 @@ query_manager.make_query_json()
 r18query_manager = QueryGenerator("r18queries.json")
 r18query_manager.make_query_json()
 
-handler = TaskHandler(SCRAPER_FILE)
+task_files = [SCRAPER_FILE, COLLECTOR_FILE]
+
+handler = TaskHandler(task_files)
 handler.start_repeat_thread()
 
 
@@ -114,8 +117,11 @@ def main():
     interval_options = [
         ("10秒", 10),
         ("30秒", 30),
+        ("1分", 60),
         ("3分", 180),
+        ("5分", 300),
         ("10分", 600),
+        ("20分", 1200),
         ("30分", 1800),
         ("1時間", 3600),
         ("2時間", 7200),
@@ -1310,7 +1316,7 @@ def main():
         torrent_folder = os.path.join(EVIDENCE_FOLDER, "tor")
 
         if not torrent_files:
-            # 6. torrentファイルが選択されていない場合は何もせずに戻る
+            # torrentファイルが選択されていない場合は何もせずに戻る
             return
         if not is_info_hash_duplicate(EVIDENCE_FOLDER, torrent_files):
             for torrent_file in torrent_files:

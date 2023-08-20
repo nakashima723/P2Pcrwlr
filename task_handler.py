@@ -11,9 +11,13 @@ SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
 
 
 class TaskHandler:
-    def __init__(self, task_file):
-        self.task_file = task_file
-        self.process = None
+    def __init__(self, task_files):
+        # task_filesがリストでない場合、リストとして処理するための変換
+        if not isinstance(task_files, list):
+            task_files = [task_files]
+
+        self.task_files = task_files
+        self.processes = []
         self.stop_event = threading.Event()
         self.repeat_thread = threading.Thread(target=self.repeat_function)
         self.update_label_callback = None
@@ -22,13 +26,20 @@ class TaskHandler:
         self.update_label_callback = callback
 
     def start_task(self):
-        self.process = subprocess.Popen(
-            ["python", self.task_file],
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
-        )
+        # すべてのタスクを開始
+        for task_file in self.task_files:
+            process = subprocess.Popen(
+                ["python", task_file],
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+            )
+            self.processes.append(process)
+
+        # 設定ファイルからインターバルを取得
         with open(SETTING_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
             interval = data["interval"]
+
+        # インターバル中にタスクを実行
         for _ in range(interval):
             if self.stop_event.wait(timeout=1):  # 1秒待機、stop_event がセットされたら中断
                 break
@@ -36,13 +47,14 @@ class TaskHandler:
                 self.update_label_callback()  # タスクの実行中にコールバックを呼び出す
 
     def stop_task(self):
-        if self.process:
-            if os.name == "nt":  # Windowsの場合
-                self.process.send_signal(signal.CTRL_C_EVENT)
-            else:  # それ以外のOSの場合
-                self.process.send_signal(signal.SIGINT)  # SIGINT シグナルを送信
-            self.process.wait()
-            self.process = None
+        for process in self.processes:
+            if process:
+                if os.name == "nt":  # Windowsの場合
+                    process.send_signal(signal.CTRL_C_EVENT)
+                else:  # それ以外のOSの場合
+                    process.send_signal(signal.SIGINT)  # SIGINT シグナルを送信
+                process.wait()
+        self.processes = []
 
     def repeat_function(self):
         while not self.stop_event.is_set():
