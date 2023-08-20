@@ -15,6 +15,7 @@ from tkinter import filedialog, messagebox, ttk
 from torrentool.api import Torrent
 
 # 独自モジュール
+from utils.binary_matcher import PeerBinaryMatcher
 from utils.task_handler import TaskHandler
 import utils.time as ut
 from utils.generator import SettingsGenerator, QueryGenerator
@@ -1236,6 +1237,8 @@ def main():
             tab_name = "の証拠採取を開始し、採取中"
         if status == ".complete":
             tab_name = "の証拠採取を完了し、完了一覧"
+            peer_matcher = PeerBinaryMatcher(target_folder)
+            peer_matcher.binary_match()
             os.remove(os.path.join(target_folder, ".process"))
 
         text.config(state=tk.NORMAL)
