@@ -1,5 +1,6 @@
 import libtorrent as lt
 from datetime import datetime, timezone
+import hashlib
 import os
 import requests
 import sys
@@ -200,7 +201,20 @@ class Client:
                         continue  # ループの次のイテレーションに進む
 
                     self.logger.info("piece read")
-                    _save_prior_peer(peer, os.path.join(save_path, "peer.csv"))
+
+                    # ダウンロードしたピースのハッシュを計算
+                    downloaded_piece_hash = _calculate_piece_hash(a.buffer)
+
+                    # 元の.torrentファイルのハッシュを取得
+                    original_piece_hash = info.hash_for_piece(piece_index)
+
+                    # 二つのハッシュを比較
+                    if downloaded_piece_hash != original_piece_hash:
+                        self.logger.warning("ダウンロードしたピースのハッシュが一致しません。ピースが破損している可能性があります。")
+                        continue  # ダメージを受けたピースの後の処理をスキップ
+
+                    self.logger.info("piece read")
+                    _save_peer(peer, os.path.join(save_path, "peer.csv"))
                     peer_modified = (
                         peer[0].replace(":", "-") if ":" in peer[0] else peer[0]
                     )
@@ -238,41 +252,39 @@ class Client:
         Parameters
         ----------
         session : session
-            https://www.libtorrent.org/reference-Session.html#session
+            libtorrentのsessionオブジェクト。
         torrent_handle : torrent_handle
-            https://www.libtorrent.org/reference-Torrent_Handle.html#torrent_handle
+            libtorrentのtorrent_handleオブジェクト。
         piece_index : int
             ダウンロードするピースのindex。
         max_retries : int
             ピアからのダウンロードが進行しない場合に、リトライを試みる回数。
         """
         retry_counter = 0
+
+        # 直近の進行状況を0として初期化
         recent_progress = 0
 
         while not torrent_handle.status().pieces[piece_index]:
             # torrent_handle.status().piecesの戻り値はboolの配列なので、この条件で判定できる
-
-            _print_download_status(torrent_handle.status(), self.logger)
-
-            # alertの管理を行う
-            session.pop_alerts()
-            # for a in alerts:
-            #    if a.category() & lt.alert.category_t.error_notification:
-            #        self.logger.warning(a)
-
+            
+            # 進行状況を取得
             current_progress = torrent_handle.status().progress_ppm
 
+            # 進行状況が前回のチェックから変わらなかった場合、リトライカウンターを増加
             if current_progress <= recent_progress:
-                # この場合、ダウンロードが進行していないと見なす
                 retry_counter += 1
 
+            # リトライ回数が最大を超えた場合、警告を表示してループを終了
             if retry_counter >= max_retries:
-                self.logger.warning("Max retries exceeded")
+                self.logger.warning("ダウンロードが進行しないまま、最大リトライ回数を超えました。")
                 break
 
+            # 今回の進行状況を保存
             recent_progress = current_progress
 
-            time.sleep(1)
+            # 短い間隔で待機
+            time.sleep(3)
 
 
 def _print_download_status(torrent_status, logger: logging.Logger) -> None:
@@ -299,6 +311,24 @@ def _print_download_status(torrent_status, logger: logging.Logger) -> None:
             torrent_status.num_peers,
         )
     )
+
+def _calculate_piece_hash(piece_data: bytes) -> bytes:
+    """
+    ピースのデータからSHA-1ハッシュを計算する。
+
+    Parameters
+    ----------
+    piece_data : bytes
+        ピースのデータ。
+
+    Returns
+    -------
+    bytes
+        計算されたSHA-1ハッシュ。
+    """
+    sha1 = hashlib.sha1()
+    sha1.update(piece_data)
+    return sha1.digest()
 
 
 def _write_piece_to_file(piece: bytes, save_path: str) -> None:
@@ -366,9 +396,9 @@ def _write_peer_log(
         f.write(f"piece{piece_index} 完了時刻: {get_jst_str()}\n")
 
 
-def _save_prior_peer(peer: tuple[str, int], save_path: str) -> None:
+def _save_peer(peer: tuple[str, int], save_path: str) -> None:
     """
-    ピアを優先接続の対象としてファイルに記録する。
+    ピアの一覧をファイルに記録する。
 
     Parameters
     ----------
