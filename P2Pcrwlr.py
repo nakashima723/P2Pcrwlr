@@ -4,6 +4,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -54,7 +55,11 @@ def main():
 
     def on_window_close():
         handler.stop_event.set()  # スレッドを停止
-        handler.stop_task()  # サブプロセスを停止
+
+        # handlerが管理する各サブプロセスに対してstop_with_timeoutを呼び出す
+        for process in handler.processes:
+            handler.stop_with_timeout(process)
+
         window.quit()  # ウィンドウを閉じる
 
     # フォント設定

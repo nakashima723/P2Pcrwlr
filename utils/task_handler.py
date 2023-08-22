@@ -72,6 +72,20 @@ class TaskHandler:
     def stop_repeat_thread(self):
         self.stop_event.set()
 
+    def stop_with_timeout(self, process, timeout=3):
+        try:
+            process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            if os.name == "nt":  # Windowsの場合
+                process.terminate()
+            else:  # Unix系のOSの場合
+                process.send_signal(signal.SIGKILL)  # SIGKILLで強制終了
+
+    def stop_task(self):
+        for process in self.processes:
+            self.stop_with_timeout(process)
+        self.processes = []
+
     def restart_task(self):
         if self.repeat_thread:
             self.stop_task()
