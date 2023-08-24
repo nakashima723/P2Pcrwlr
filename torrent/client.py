@@ -1,5 +1,5 @@
 import libtorrent as lt
-from datetime import datetime, timezone
+from datetime import datetime
 import hashlib
 import os
 import requests
@@ -12,6 +12,7 @@ import csv
 import socket
 import urllib.parse
 import random
+from requests.exceptions import RequestException
 import ipaddress
 
 
@@ -34,7 +35,7 @@ class Client:
         info = lt.torrent_info(torrent_path)
         target_file_path = os.path.join(save_path, info.name())
 
-         # .download_skip ファイルのパスを組み立てる
+        # .download_skip ファイルのパスを組み立てる
         skip_file_path = os.path.join(save_path, ".download_skip")
 
         # .download_skip ファイルが存在する場合、ダウンロードを行わない
@@ -99,7 +100,7 @@ class Client:
         peers : list of (str, int)
             ピアのリスト。
         """
-        RETRY_COUNTER = 10
+        RETRY_COUNTER = 5
 
         session = lt.session({"listen_interfaces": "0.0.0.0:6881,[::]:6881"})
         info = lt.torrent_info(torrent_path)
@@ -120,7 +121,8 @@ class Client:
                         if _ip_in_range(p.ip[0]) or (_ip_in_range(p.ip[0]) is None):
                             peers.append(p.ip)
                 cnt += 1
-                time.sleep(1)
+                time.sleep(2)
+            random.shuffle(peers) 
             return peers[:max_list_size]
 
     def download_piece(
@@ -197,7 +199,7 @@ class Client:
                 if isinstance(a, lt.read_piece_alert):
                     # a.bufferのサイズが0の場合、保存とログの記録をスキップ
                     if len(a.buffer) == 0:
-                        self.logger.warning("Downloaded piece size is 0, skipping.")
+                        self.logger.warning("ピースのサイズが0のため、ピース処理をスキップします。")
                         continue  # ループの次のイテレーションに進む
 
                     self.logger.info("piece read")
@@ -210,8 +212,8 @@ class Client:
 
                     # 二つのハッシュを比較
                     if downloaded_piece_hash != original_piece_hash:
-                        self.logger.warning("ダウンロードしたピースのハッシュが一致しません。ピースが破損している可能性があります。")
-                        continue  # ダメージを受けたピースの後の処理をスキップ
+                        self.logger.warning("ピースのハッシュが一致しないため、ピース処理をスキップします。")
+                        continue 
 
                     self.logger.info("piece read")
                     _save_peer(peer, os.path.join(save_path, "peer.csv"))
@@ -274,7 +276,7 @@ class Client:
             # 進行状況が前回のチェックから変わらなかった場合、リトライカウンターを増加
             if current_progress <= recent_progress:
                 retry_counter += 1
-
+                
             # リトライ回数が最大を超えた場合、警告を表示してループを終了
             if retry_counter >= max_retries:
                 self.logger.warning("ダウンロードが進行しないまま、最大リトライ回数を超えました。")
@@ -284,7 +286,7 @@ class Client:
             recent_progress = current_progress
 
             # 短い間隔で待機
-            time.sleep(3)
+            time.sleep(1)
 
 
 def _print_download_status(torrent_status, logger: logging.Logger) -> None:
@@ -311,6 +313,7 @@ def _print_download_status(torrent_status, logger: logging.Logger) -> None:
             torrent_status.num_peers,
         )
     )
+
 
 def _calculate_piece_hash(piece_data: bytes) -> bytes:
     """
@@ -472,6 +475,7 @@ def _ip_in_range(ip) -> bool:
             return True
     return False
 
+
 def _get_public_ips() -> tuple[str, str]:
     ipv4 = None
     ipv6 = None
@@ -482,9 +486,10 @@ def _get_public_ips() -> tuple[str, str]:
         # For IPv6
         response_ipv6 = requests.get("https://api6.ipify.org?format=json")
         ipv6 = response_ipv6.json().get("ip")
-    except:
+    except RequestException:
         pass
     return ipv4, ipv6
+
 
 def _get_unique_filename(path):
     """指定されたパスのファイルが存在する場合、連番を追加して新しいパスを返す。"""
