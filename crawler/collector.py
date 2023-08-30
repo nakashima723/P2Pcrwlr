@@ -47,7 +47,7 @@ for i in range(len(source_files)):
     client.download(source_files[i], folder_list[i])
     print("ピアの一覧を取得しています...")
     peers = client.fetch_peer_list(source_files[i], max_list_size)
-    print("peers: " + str(peers))
+    print("採取対象ピア数: " + str(len(peers)))
 
     def process_peer(peer):
         client.download_piece(source_files[i], folder_list[i], peer)
@@ -55,5 +55,6 @@ for i in range(len(source_files)):
     if peers:
         with ThreadPoolExecutor(max_workers=10) as executor:
             executor.map(process_peer, peers)
+        print("ピース収集が完了しました。")
     else:
         print("対象となるピアがありませんでした。")
