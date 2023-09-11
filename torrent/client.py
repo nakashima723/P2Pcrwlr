@@ -1,6 +1,5 @@
 import libtorrent as lt
 from datetime import datetime
-import hashlib
 import os
 import requests
 import sys
@@ -12,8 +11,8 @@ import csv
 import socket
 import urllib.parse
 import random
-from requests.exceptions import RequestException
 import ipaddress
+from requests.exceptions import RequestException
 
 
 class Client:
@@ -47,14 +46,14 @@ class Client:
         def get_size(path: str) -> int:
             if os.path.isfile(path):  # パスが単一のファイルの場合
                 return os.path.getsize(path)
-            
+
             total = 0  # パスがディレクトリの場合
             for dirpath, dirnames, filenames in os.walk(path):
                 for f in filenames:
                     fp = os.path.join(dirpath, f)
                     total += os.path.getsize(fp)
             return total
-            
+
         # 期待されるサイズと一致する場合、新規ダウンロードを行わない
         if os.path.exists(target_file_path) and get_size(target_file_path) == info.total_size():
             self.logger.info("本体ファイルはダウンロード済み %s", target_file_path)
@@ -100,7 +99,7 @@ class Client:
         peers : list of (str, int)
             ピアのリスト。
         """
-        RETRY_COUNTER = 5
+        RETRY_COUNTER = 10
 
         session = lt.session({"listen_interfaces": "0.0.0.0:6881,[::]:6881"})
         info = lt.torrent_info(torrent_path)
@@ -121,28 +120,24 @@ class Client:
                         if _ip_in_range(p.ip[0]) or (_ip_in_range(p.ip[0]) is None):
                             peers.append(p.ip)
                 cnt += 1
-                time.sleep(2)
-            random.shuffle(peers) 
+                time.sleep(1)
             return peers[:max_list_size]
 
-    def download_piece(
-        self, torrent_path: str, save_path: str, peer: tuple[str, int]
-    ) -> None:
+    def setup_session(self, torrent_path: str) -> tuple:
         """
-        指定した.torrentファイルからひとつのピースをダウンロードする。
+        torrentファイルと関連する初期設定を行う。
 
         Parameters
         ----------
         torrent_path : str
             .torrentファイルへのパス。
-        save_path : str
-            ピースを保存するディレクトリのパス。
-            この引数で指定したディレクトリの直下に'IP_ポート番号'フォルダが作成され、その中にピースが保存される。
-        piece_index : int
-            ダウンロードしたいピースのindex。
-        peer : (str, int)
-            ピースをダウンロードするピア。
+
+        Returns
+        -------
+        tuple:
+            セッション、トレント情報、IPフィルタのタプル。
         """
+        # 基本のセッションとIPフィルタを定義
         session = lt.session({"listen_interfaces": "0.0.0.0:6881,[::]:6881"})
 
         # torrentファイルを読み込む
@@ -151,13 +146,11 @@ class Client:
         # トラッカーの一覧を取得
         trackers = info.trackers()
 
-        # 指定されたピアのみからダウンロードするために、ipフィルタを作成する
+        # IPフィルタを作成
         ip_filter = lt.ip_filter()
-
-        # まずすべてのアドレスを禁止してから、引数で指定したアドレスとトラッカーのアドレスのみ許可する
+        # すべてのアドレスを禁止
         ip_filter.add_rule("0.0.0.0", "255.255.255.255", 1)
         ip_filter.add_rule("::", "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", 1)
-        ip_filter.add_rule(peer[0], peer[0], 0)
 
         # 各トラッカーのIPアドレスを取得し、許可リストに追加
         for tracker in trackers:
@@ -171,122 +164,101 @@ class Client:
                     tracker_ip = sockaddr[0]
                     ip_filter.add_rule(tracker_ip, tracker_ip, 0)
             except socket.gaierror:
-                # ホスト名を解決できない場合、スキップする
+                # ホスト名を解決できない場合、スキップ
                 pass
 
-        session.set_ip_filter(ip_filter)
+        return session, info, ip_filter
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            handle = session.add_torrent({"ti": info, "save_path": tmpdir})
-
-            # 全てのピースからランダムに1つ選ぶ
-            piece_index = random.randint(0, info.num_pieces() - 1)
-
-            # 指定したindexのみpriorityを非ゼロにする。
-            # その他はpriority=0にする（ダウンロードしない）。
-            pp = [0] * info.num_pieces()
-            pp[piece_index] = 1
-            handle.prioritize_pieces(pp)
-
-            self.__wait_for_piece_download(session, handle, piece_index, 10)
-
-            handle.read_piece(piece_index)
-
-            # msで指定する
-            session.wait_for_alert(1000)
-            alerts = session.pop_alerts()
-            for a in alerts:
-                if isinstance(a, lt.read_piece_alert):
-                    # a.bufferのサイズが0の場合、保存とログの記録をスキップ
-                    if len(a.buffer) == 0:
-                        self.logger.warning("ピースのサイズが0のため、ピース処理をスキップします。")
-                        continue  # ループの次のイテレーションに進む
-
-                    self.logger.info("piece read")
-
-                    # ダウンロードしたピースのハッシュを計算
-                    downloaded_piece_hash = _calculate_piece_hash(a.buffer)
-
-                    # 元の.torrentファイルのハッシュを取得
-                    original_piece_hash = info.hash_for_piece(piece_index)
-
-                    # 二つのハッシュを比較
-                    if downloaded_piece_hash != original_piece_hash:
-                        self.logger.warning("ピースのハッシュが一致しないため、ピース処理をスキップします。")
-                        continue 
-
-                    self.logger.info("piece read")
-                    _save_peer(peer, os.path.join(save_path, "peer.csv"))
-                    peer_modified = (
-                        peer[0].replace(":", "-") if ":" in peer[0] else peer[0]
-                    )
-
-                    file_path = os.path.join(
-                        save_path,
-                        f"{peer_modified}_{str(peer[1])}",
-                        "{:05}_{}_{}_{}.bin".format(
-                            piece_index, peer_modified, peer[1], info.info_hash()
-                        ),
-                    )
-
-                    unique_file_path = _get_unique_filename(file_path)
-                    _write_piece_to_file(a.buffer, unique_file_path)
-
-                    _write_peer_log(
-                        info,
-                        peer,
-                        piece_index,
-                        os.path.join(
-                            save_path,
-                            f"{peer_modified}_{str(peer[1])}",
-                            "{}_{}_{}.log".format(
-                                peer_modified, str(peer[1]), info.info_hash()
-                            ),
-                        ),
-                    )
-
-    def __wait_for_piece_download(
-        self, session, torrent_handle, piece_index: int, max_retries: int
-    ):
+    def download_piece(
+            self, session, info, ip_filter, save_path: str, peer: tuple[str, int]
+            ) -> None:
         """
-        ピースのダウンロードが完了するまで待機する。
+        指定したピアからピースをダウンロードする。
 
         Parameters
         ----------
-        session : session
-            libtorrentのsessionオブジェクト。
-        torrent_handle : torrent_handle
-            libtorrentのtorrent_handleオブジェクト。
-        piece_index : int
-            ダウンロードするピースのindex。
-        max_retries : int
-            ピアからのダウンロードが進行しない場合に、リトライを試みる回数。
+        session : lt.session
+            ダウンロード用のセッション。
+        info : lt.torrent_info
+            トレント情報。
+        ip_filter : lt.ip_filter
+            IPフィルタ。
+        save_path : str
+            ピースを保存するディレクトリのパス。
+        peer : tuple[str, int]
+            ピースをダウンロードするピア。
         """
-        retry_counter = 0
+        # 指定されたピアのみからダウンロード
+        ip_filter.add_rule(peer[0], peer[0], 0)
+        session.set_ip_filter(ip_filter)
 
-        # 直近の進行状況を0として初期化
-        recent_progress = 0
+        # Debug log
+        self.logger.debug(f"IP Filter added for peer: {peer[0]}")
 
-        while not torrent_handle.status().pieces[piece_index]:
-            # torrent_handle.status().piecesの戻り値はboolの配列なので、この条件で判定できる
-            
-            # 進行状況を取得
-            current_progress = torrent_handle.status().progress_ppm
+        handle = session.add_torrent({"ti": info, "save_path": save_path})
 
-            # 進行状況が前回のチェックから変わらなかった場合、リトライカウンターを増加
-            if current_progress <= recent_progress:
-                retry_counter += 1
-                
-            # リトライ回数が最大を超えた場合、警告を表示してループを終了
-            if retry_counter >= max_retries:
-                self.logger.warning("ダウンロードが進行しないまま、最大リトライ回数を超えました。")
-                break
+        # Debug log
+        self.logger.debug(f"Torrent handle status: {handle.status()}")
 
-            # 今回の進行状況を保存
-            recent_progress = current_progress
+        # 全てのピースからランダムに1つ選ぶ
+        piece_index = random.randint(0, info.num_pieces() - 1)
 
-            # 短い間隔で待機
-            time.sleep(1)
+        # 指定したindexのみpriorityを非ゼロにする
+        pp = [0] * info.num_pieces()
+        pp[piece_index] = 1
+        handle.prioritize_pieces(pp)
+
+        a = handle.read_piece(piece_index)
+
+        for _ in range(10):  # 10回リトライ
+            alerts = session.pop_alerts()
+            for a in alerts:
+                if isinstance(a, lt.read_piece_alert):
+                    # ピースのデータを取得
+                    a = a.buffer
+                    break
+            else:
+                time.sleep(1)  # 1秒待機して再度アラートを確認
+                continue
+            break
+        else:
+            print("read_piece_alert が受信されませんでした。")
+            return
+
+        # pieceのサイズが0であれば、以降の処理を行わない
+        if a is None or len(a) == 0:
+            print("ピースサイズが0だったため、以降の処理をスキップしました。")
+            return
+
+        print("ピース" + str(piece_index) + "を" + str(peer[0]) + "からダウンロード成功。")
+        peer_modified = (
+            peer[0].replace(":", "-") if ":" in peer[0] else peer[0]
+        )
+
+        file_path = os.path.join(
+            save_path,
+            f"{peer_modified}_{str(peer[1])}",
+            "{:05}_{}_{}_{}.bin".format(
+                piece_index, peer_modified, peer[1], info.info_hash()
+            ),
+        )
+
+        _save_peer(peer, os.path.join(save_path, "peer.csv"))
+        unique_file_path = _get_unique_filename(file_path)
+        _write_piece_to_file(a, unique_file_path)
+
+        _write_peer_log(
+            info,
+            peer,
+            piece_index,
+            os.path.join(
+                save_path,
+                f"{peer_modified}_{str(peer[1])}",
+                "{}_{}_{}.log".format(
+                    peer_modified, str(peer[1]), info.info_hash()
+                ),
+            ),
+        )
 
 
 def _print_download_status(torrent_status, logger: logging.Logger) -> None:
@@ -315,25 +287,6 @@ def _print_download_status(torrent_status, logger: logging.Logger) -> None:
     )
 
 
-def _calculate_piece_hash(piece_data: bytes) -> bytes:
-    """
-    ピースのデータからSHA-1ハッシュを計算する。
-
-    Parameters
-    ----------
-    piece_data : bytes
-        ピースのデータ。
-
-    Returns
-    -------
-    bytes
-        計算されたSHA-1ハッシュ。
-    """
-    sha1 = hashlib.sha1()
-    sha1.update(piece_data)
-    return sha1.digest()
-
-
 def _write_piece_to_file(piece: bytes, save_path: str) -> None:
     """
     ピースを指定されたパスに書き込む.
@@ -345,7 +298,7 @@ def _write_piece_to_file(piece: bytes, save_path: str) -> None:
 
     save_path : str
         保存先ファイルのパス。
-    """
+    """    
     dir = os.path.dirname(save_path)
     os.makedirs(dir, exist_ok=True)
     with open(save_path, "wb") as f:
@@ -355,7 +308,7 @@ def _write_piece_to_file(piece: bytes, save_path: str) -> None:
 def _write_peer_log(
     torrent_info, peer: tuple[str, int], piece_index: int, save_path: str
 ) -> None:
-    
+
     """
     ピアごとのピースのダウンロードログを、指定されたファイルに書き込む。
     指定されたファイルがまだ存在しない場合は新規作成してヘッダーを書き込む。
@@ -382,12 +335,12 @@ def _write_peer_log(
 
         if jst is None:
             return "エラー NTPサーバーから時刻を取得できませんでした。"
-        
+
         return jst.strftime("%Y-%m-%d %H:%M:%S")
 
     peer_modified = peer[0].replace(":", "-") if ":" in peer[0] else peer[0]
     file_mode = "w" if not os.path.exists(save_path) else "a"
-    
+
     with open(save_path, file_mode) as f:
         if file_mode == "w":
             # 新規ファイルの場合はヘッダーを書き込み
@@ -395,7 +348,7 @@ def _write_peer_log(
             f.write(f"ファイルハッシュ: {torrent_info.info_hash()}\n")
             f.write(f"証拠収集開始時刻: {get_jst_str()}\n")
             f.write("---\n")
-        
+
         f.write(f"piece{piece_index} 完了時刻: {get_jst_str()}\n")
 
 
@@ -426,8 +379,6 @@ def _save_peer(peer: tuple[str, int], save_path: str) -> None:
 
 
 # 当該IPアドレスが指定した範囲内に存在するかを確認
-
-
 def _ip_in_range(ip) -> bool:
     """
     指定されたIPアドレスが、設定ファイル（ipv4.txt, ipv6.txt）の範囲に収まっているかを返す。
