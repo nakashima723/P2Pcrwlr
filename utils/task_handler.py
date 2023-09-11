@@ -52,16 +52,6 @@ class TaskHandler:
             if self.update_label_callback:
                 self.update_label_callback()  # タスクの実行中にコールバックを呼び出す
 
-    def stop_task(self):
-        for process in self.processes:
-            if process:
-                if os.name == "nt":  # Windowsの場合
-                    process.send_signal(signal.CTRL_C_EVENT)
-                else:  # それ以外のOSの場合
-                    process.send_signal(signal.SIGINT)  # SIGINT シグナルを送信
-                process.wait()
-        self.processes = []
-
     def repeat_function(self):
         while not self.stop_event.is_set():
             self.start_task()
@@ -82,9 +72,11 @@ class TaskHandler:
                 process.send_signal(signal.SIGKILL)  # SIGKILLで強制終了
 
     def stop_task(self):
+        self.stop_event.set()  # スレッドを停止
+
+        # handlerが管理する各サブプロセスに対してstop_with_timeoutを呼び出す
         for process in self.processes:
             self.stop_with_timeout(process)
-        self.processes = []
 
     def restart_task(self):
         if self.repeat_thread:
