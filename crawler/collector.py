@@ -2,8 +2,8 @@ import json
 import os
 import sys
 from torrent.client import Client
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+import time
 
 if getattr(sys, "frozen", False):
     # PyInstallerが使用する一時ディレクトリ
@@ -49,12 +49,12 @@ for i in range(len(source_files)):
     peers = client.fetch_peer_list(source_files[i], max_list_size)
     print("採取対象ピア数: " + str(len(peers)))
 
-    def process_peer(peer):
-        client.download_piece(source_files[i], folder_list[i], peer)
+    session, info, ip_filter = client.setup_session(source_files[i])
 
     if peers:
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            executor.map(process_peer, peers)
+        for peer in peers:
+            client.download_piece(session, info, ip_filter, folder_list[i], peer)
+            time.sleep(1)
         print("ピース収集が完了しました。")
     else:
         print("対象となるピアがありませんでした。")
