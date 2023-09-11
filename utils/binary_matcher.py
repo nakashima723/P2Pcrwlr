@@ -75,7 +75,7 @@ class PeerBinaryMatcher:
                 return decoded[b'info'][b'name'].decode('utf-8', errors='replace')
         return None
 
-    def binary_match(self):
+    def binary_match(self):        
         mismatched_files = []  # 不一致だったファイル名を格納するリスト
 
         if not os.path.exists(self.source_torrent_path):
@@ -94,6 +94,8 @@ class PeerBinaryMatcher:
                        and "_" in item]
 
         matcher = BinaryMatcher(self.folder, None)  # 先にインスタンスを作成
+        
+        print("バイナリマッチを実行中...（計" + str(len(all_folders)) + "件）")
 
         for folder in all_folders:
             if folder == dl_target:
@@ -125,6 +127,9 @@ class PeerBinaryMatcher:
                 os.rename(os.path.join(current_peer_folder, bin_file), new_name)
 
         print("バイナリマッチによる検証が完了しました。")
+        
+        if not mismatched_files:
+            print("\nすべてのピースが元ファイルの内容と一致しました。")
 
         if mismatched_files:
             print("\n不一致だったファイル:")
