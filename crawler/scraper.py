@@ -247,8 +247,13 @@ def scraper(url, file_path):
                                     try:
                                         folder_time = ut.fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
                                     except ut.TimeException:
-                                        folder_time = ut.utc_to_jst(datetime.now()).strftime('%Y-%m-%d_%H-%M-%S')
-                                    print("NTPサーバーから現在時刻を取得できませんでした。フォルダ名はローカルのシステム時刻を参照しており、正確な生成時刻を示していない可能性があります。")
+                                        # 現在のエポックタイムを取得
+                                        current_time = time.time()
+
+                                        # エポックタイムから datetime オブジェクトを構築し、UTCタイムゾーン情報を付与
+                                        current_datetime = datetime.fromtimestamp(current_time, timezone.utc)
+                                        folder_time = ut.utc_to_jst(current_datetime).strftime('%Y-%m-%d_%H-%M-%S')
+                                        print("フォルダ生成：NTPサーバーから現在時刻を取得できませんでした。フォルダ名はローカルのシステム時刻を参照しており、正確な生成時刻を示していない可能性があります。")
                                     # 新しいフォルダを作成
                                     new_folder = os.path.join(
                                         EVIDENCE_FILE_PATH, "tor", f"{folder_time}"
