@@ -4,7 +4,6 @@ import json
 import os
 import re
 import shutil
-import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -1334,7 +1333,7 @@ def main():
                     folder_time = ut.fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
                 except ut.TimeException:
                     folder_time = ut.utc_to_jst(datetime.now()).strftime('%Y-%m-%d_%H-%M-%S')
-                print("NTPサーバーから現在時刻を取得できませんでした。フォルダ名はローカルのシステム時刻を参照しており、正確な生成時刻を示していない可能性があります。")
+                    print("NTPサーバーから現在時刻を取得できませんでした。フォルダ名はローカルのシステム時刻を参照しており、正確な生成時刻を示していない可能性があります。")
                 folder_path = os.path.join(torrent_folder, folder_time)
                 os.makedirs(folder_path, exist_ok=True)
 
