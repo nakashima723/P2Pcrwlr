@@ -125,7 +125,7 @@ def scraper(url, file_path):
         for keyword in keywords:
             input_str = process_query(keyword)
 
-            # 'data-timestamp' クラスを持つtd要素を探索
+            # ページ末尾の'data-timestamp' クラスを持つtd要素を探索
             data_timestamp_elements = soup.find_all(
                 "td", attrs={"data-timestamp": True}
             )
@@ -138,34 +138,36 @@ def scraper(url, file_path):
                 print("リストが存在しませんでした。URLや、HTMLの取得方法が間違っている可能性があります。")
                 break
 
-            target_elements = []
-            target_index = []
+            timestamp_elements = []
+            torrent_urls = []
 
-            # すべてのtr要素を探索
-            for row in soup.find_all("tr"):
-                title_element = row.find("td", colspan="2")
-                data_timestamp_element = row.find("td", attrs={"data-timestamp": True})
+            words = input_str.split()
 
-                if title_element and data_timestamp_element:
-                    # aタグのテキスト部分を取得
-                    title_text = title_element.find("a").get_text()
+            for td in soup.find_all('td', colspan="2"):
+                a_tags = td.find_all('a', title=True)  # 全てのaタグを取得する
 
-                    # titleタグのテキスト文字列に「input_str」が含まれる場合、
-                    # 対象の'data-timestamp' クラスを持つtd要素のtext_contentを抽出
-                    # input_str から単語のリストを作成
-                    words = input_str.split()
+                # 各aタグを確認し、条件に合致するものが1つでもあるかを判定
+                condition_met = any(all(word in a.get_text() for word in words) for a in a_tags)
 
-                    # すべての単語が title_text に含まれているかどうか判定
-                    if all(word in title_text for word in words):
-                        target_elements.append(data_timestamp_element.get_text())
-                        target_index.append(
-                            data_timestamp_elements.index(data_timestamp_element)
-                        )
+                if condition_met:
+                    # 同じ<tr>タグの中のdata-timestampを探す
+                    parent_row = td.find_parent('tr')
+                    timestamp_td = parent_row.find('td', {'data-timestamp': True})
+                    if timestamp_td:
+                        timestamp_elements.append(timestamp_td['data-timestamp'])
 
-            if not len(target_elements) == 0:
-                if len(target_elements) > 10:
-                    target_elements = target_elements[:10]
-                    target_index = target_index[:10]
+                    # td内の最初のaタグを用いて、torrentのURLを生成
+                    first_a_tag = a_tags[0]
+                    href_value = first_a_tag['href']
+                    href = href_value.split("#")[0]
+                    modified_href = href.replace('/view', 'download') + ".torrent"
+                    modified_url = url.split('?')[0]
+                    full_url = modified_url + modified_href
+                    torrent_urls.append(full_url)
+
+            if not len(timestamp_elements) == 0:
+                if len(timestamp_elements) > 10:
+                    timestamp_elements = timestamp_elements[:10]
                     print(
                         "「"
                         + input_str
@@ -175,11 +177,9 @@ def scraper(url, file_path):
 
                 latest_dates = []
 
-                for element in target_elements:
-                    timestamp_str = datetime.strptime(
-                        element, "%Y-%m-%d %H:%M"
-                    ).replace(tzinfo=timezone.utc)
-
+                for element in timestamp_elements:                            
+                    timestamp_int = int(element)
+                    timestamp_str = datetime.fromtimestamp(timestamp_int).replace(tzinfo=timezone.utc)
                     if not is_within_days(timestamp_str):
                         break
                     else:
@@ -189,7 +189,7 @@ def scraper(url, file_path):
                         )  # サイト上でアップされた時刻
                         latest_dates.append(formatted_date)
 
-                print("7日以内にアップロードされたファイル:" + str(len(latest_dates)) + "件")
+                print("新たにアップロードされたファイル:" + str(len(latest_dates)) + "件")
 
                 # evidenceフォルダが存在しない場合は作成
                 if not os.path.exists(EVIDENCE_FILE_PATH):
@@ -198,14 +198,7 @@ def scraper(url, file_path):
                 if not os.path.exists(torrent_folder):
                     os.makedirs(torrent_folder)
 
-                for index in target_index:
-                    # .torrentで終わるaタグを探す
-                    torrent_links = [
-                        a["href"]
-                        for a in soup.find_all("a")
-                        if "href" in a.attrs and a["href"].endswith(".torrent")
-                    ]
-
+                for index, torrent_url in enumerate(torrent_urls):
                     # これまで取得したtorrentファイルを確認
                     logfile_name = input_str + ".log"
                     TORRENT_LOG_FOLDER = os.path.join(SETTING_FOLDER, "torrent_log")
@@ -224,7 +217,6 @@ def scraper(url, file_path):
                     with file_lock:
                         with open(logfile_path, "r+", encoding="utf-8") as log_file:
                             content = log_file.read()
-                            torrent_url = urljoin(url, torrent_links[index])
 
                             # まだ存在しないファイルだった場合、新規にtorrentファイルをダウンロード
                             if torrent_url not in content:
@@ -233,6 +225,9 @@ def scraper(url, file_path):
                                 # index番目のリンク先URLからファイルを取得
                                 torrent_file = requests.get(torrent_url)
                                 time.sleep(1)
+                                if torrent_file.status_code != 200:
+                                    print(f"トレントファイルを {torrent_url} からダウンロードすることができませんでした。 Status code: {torrent_file.status_code}")
+                                    continue  # 次のURLへスキップ
 
                                 # ファイルがtorrentであることを確認し、ファイル名を取得
                                 if torrent_url.endswith(".torrent"):

@@ -3,11 +3,13 @@ from utils.binary_matcher import BinaryMatcher
 import tkinter as tk
 from tkinter import filedialog
 
+
 def select_folder(title=None):
     root = tk.Tk()
     root.withdraw()  # メインウィンドウを非表示にする
     folder_path = filedialog.askdirectory(title=title)  # フォルダ選択ダイアログを表示
     return folder_path
+
 
 # 検証したいDL対象ファイル本体と、DL元になったtorrentファイルが存在するフォルダの選択
 source_folder = select_folder("検証したいDL対象ファイル本体と、DL元になったtorrentファイルが存在するフォルダを選択")
@@ -25,7 +27,7 @@ print("バイナリマッチを試行中……")
 for piece_folder in piece_folders_list:
     # 各ピースフォルダに対してBinaryMatcherのインスタンスを作成
     matcher = BinaryMatcher(source_folder, piece_folder)
-    
+
     bin_files = [f for f in os.listdir(piece_folder) if f.endswith('.bin') and os.path.isfile(os.path.join(piece_folder, f))]
     for bin_file in bin_files:
         result = matcher.binary_match(bin_file)

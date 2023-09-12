@@ -15,7 +15,7 @@ EVIDENCE_FOLDER = os.path.join(application_path, "evi")
 SETTING_FOLDER = os.path.join(application_path, "settings")
 SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
 
-folder_list = []  # 「.process」ファイルを含むフォルダパスのリスト
+folder_list = []  # 「.process」ファイルを含む証拠フォルダパスのリスト
 
 # フォルダ内のすべてのサブフォルダをチェック
 for root, dirs, files in os.walk(EVIDENCE_FOLDER):
@@ -27,7 +27,7 @@ for root, dirs, files in os.walk(EVIDENCE_FOLDER):
             folder_list.append(root)
             break
 
-source_files = []  # 「source.torrent」ファイルへのパスを格納するリスト
+source_files = []  # ダウンロード対象とする「source.torrent」ファイルへのパスを格納するリスト
 
 # 「folder_list」内の各フォルダパスを取得
 for folder in folder_list:
@@ -44,17 +44,22 @@ with open(SETTING_FILE, 'r', encoding="utf-8") as file:
 client = Client()
 
 for i in range(len(source_files)):
+    # 本体ファイルをダウンロード
     client.download(source_files[i], folder_list[i])
+
+    # ピースの収集対象とするピアの一覧を取得
     print("ピアの一覧を取得しています...")
     peers = client.fetch_peer_list(source_files[i], max_list_size)
     print("採取対象ピア数: " + str(len(peers)))
 
+    # 日本国内からのみダウンロードするなどの設定行ったセッションを作成
     session, info, ip_filter = client.setup_session(source_files[i])
 
+    # 取得した各ピアにピースダウンロードを実行
     if peers:
         for peer in peers:
             client.download_piece(session, info, ip_filter, folder_list[i], peer)
             time.sleep(1)
-        print("ピース収集が完了しました。")
+        print("ピース収集が完了しました。")        
     else:
         print("対象となるピアがありませんでした。")
