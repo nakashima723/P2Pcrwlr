@@ -1,18 +1,23 @@
-import libtorrent as lt
-from datetime import datetime
-import os
-import requests
-import sys
-import time
-import tempfile
-import logging
-import utils.time as ut
+# 標準ライブラリ
 import csv
-import socket
-import urllib.parse
-import random
+import datetime
 import ipaddress
+import logging
+import os
+import random
+import socket
+import sys
+import tempfile
+import time
+import urllib.parse
+
+# サードパーティライブラリ
+import libtorrent as lt
+import requests
 from requests.exceptions import RequestException
+
+# 独自モジュール
+import utils.time as ut
 
 
 class Client:
@@ -60,6 +65,7 @@ class Client:
             return
 
         session = lt.session({"listen_interfaces": "0.0.0.0:6881,[::]:6881"})
+        print("本体ファイル" + target_file_path + "のダウンロードを行います。")
 
         info = lt.torrent_info(torrent_path)
         handle = session.add_torrent({"ti": info, "save_path": save_path})
@@ -125,7 +131,7 @@ class Client:
 
     def setup_session(self, torrent_path: str) -> tuple:
         """
-        torrentファイルと関連する初期設定を行う。
+        ピースダウンロード用に、torrentファイルと関連する初期設定を行う。
 
         Parameters
         ----------
@@ -166,7 +172,6 @@ class Client:
             except socket.gaierror:
                 # ホスト名を解決できない場合、スキップ
                 pass
-
         return session, info, ip_filter
 
     def download_piece(
@@ -196,7 +201,7 @@ class Client:
         self.logger.debug(f"IP Filter added for peer: {peer[0]}")
 
         handle = session.add_torrent({"ti": info, "save_path": save_path})
-
+        
         # Debug log
         self.logger.debug(f"Torrent handle status: {handle.status()}")
 
@@ -391,7 +396,7 @@ def _ip_in_range(ip) -> bool:
     try:
         ip_obj = ipaddress.ip_address(ip)
     except ValueError:
-        print(f"The IP address {ip} is invalid.")
+        print(f" {ip} はIPアドレスとして不正な形式です。")
         return False
 
     # 設定フォルダへのパスを指定
