@@ -1,6 +1,7 @@
 # 標準ライブラリ
 import csv
 import json
+import glob
 import os
 import re
 import shutil
@@ -77,7 +78,7 @@ def main():
 
     tab0 = ttk.Frame(notebook)
     notebook.add(tab0, text="Torrent収集") 
-    
+
     tab1 = ttk.Frame(notebook)
     notebook.add(tab1, text="証拠採取を開始")
 
@@ -85,11 +86,11 @@ def main():
     notebook.add(tab2, text="採取中")
 
     tab3 = ttk.Frame(notebook)
-    notebook.add(tab3, text="誤検出")
+    notebook.add(tab3, text="完了一覧")
 
     tab4 = ttk.Frame(notebook)
-    notebook.add(tab4, text="完了一覧")
-    
+    notebook.add(tab4, text="誤検出")
+
     tab5 = ttk.Frame(notebook)
     notebook.add(tab5, text="設定")
 
@@ -111,6 +112,9 @@ def main():
 
     pass_entry = tk.Entry(pass_frame, font=font, insertwidth=3)
     pass_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 20), expand=True)
+
+    text_widget = tk.Text(tab5)
+    text_widget.pack(pady=20, padx=20, fill=tk.BOTH, expand=True)
 
     # 巡回の間隔
     interval_frame = tk.Frame(tab0)
@@ -722,7 +726,7 @@ def main():
     # クエリ追加ボタンのコマンドを設定
     add_button.config(command=save_data)
 
-#ここからピースダウンロード関連
+# ここからピースダウンロード関連
     # パネッドウィンドウの作成
     paned_window = ttk.PanedWindow(tab1, orient=tk.VERTICAL)
     paned_window.pack(fill=tk.BOTH, expand=True)
@@ -843,6 +847,9 @@ def main():
 
     complete_button = tk.Button(button_frame2, text="証拠採取を完了", font=font)
     complete_button.pack(side=tk.RIGHT, padx=(0, 10))
+    
+    refresh_button2 = tk.Button(button_frame2, text="更新", font=small_font)
+    refresh_button2.pack(side=tk.RIGHT, padx=(0, 10))
 
     # 誤検出パネッドウィンドウの作成
     paned_window = ttk.PanedWindow(tab3, orient=tk.VERTICAL)
@@ -953,6 +960,9 @@ def main():
 
     restart_button = tk.Button(complete_button_frame, text="追加の証拠採取を行う", font=font)
     restart_button.pack(side=tk.RIGHT, padx=(0, 10))
+
+    refresh_button3 = tk.Button(complete_button_frame, text="更新", font=small_font)
+    refresh_button3.pack(side=tk.RIGHT, padx=(0, 10))
 
     def names(suspect_listbox, info_text, start_button, selected_tab=None):
         # torrentファイルに対応するフォルダ名を格納する配列
@@ -1077,18 +1087,25 @@ def main():
                     if not os.path.exists(peer_csv_path):
                         return 0
 
-                    # 行数をカウントする
+                    # 1列目の要素をリスト化する
                     with open(peer_csv_path, 'r') as file:
-                        count = sum(1 for line in file)
+                        reader = csv.reader(file)
+                        first_column_elements = [row[0] for row in reader if row]
 
-                    # ファイルが0行の場合は0を返す
-                    if count == 0:
-                        return 0
+                    # 重複を削除
+                    unique_elements = set(first_column_elements)
 
-                    return count
-                
-                info_text.insert(tk.END, f"【採取済みピア数：{peer_counter(directory)}】\n\n")
-                
+                    return len(unique_elements)
+
+                def count_bin_files(directory):
+                    # サブフォルダ内のすべての .bin ファイルのパスを取得
+                    bin_files = glob.glob(os.path.join(directory, "*", "*.bin"))
+
+                    return len(bin_files)
+
+                info_text.insert(tk.END, f"【 採取済みピア数：{peer_counter(directory)} 】　")
+                info_text.insert(tk.END, f"【 ピース数：{count_bin_files(directory)} 】\n\n")
+
                 # トレントファイルに含まれる情報を表示
                 info_text.insert(
                     tk.END, f"対象ファイル名：{torrent.name if torrent.name else '不明'}\n\n"
@@ -1151,14 +1168,13 @@ def main():
     def delete_folder():
         # 1. リストボックス「false_listbox」の選択された要素のインデックスを取得
         selected_indices = false_listbox.curselection()
-        
+
         # 選択された要素が存在しない場合、処理を終了
         if not selected_indices:
             return
 
         num = selected_indices[0]        
         selected_text = false_listbox.get(num)
-
 
         # 2. num番目のフォルダを削除
         torrent_folder = os.path.join(Path(__file__).parents[0], "evi/tor")
@@ -1185,7 +1201,7 @@ def main():
     def find_matching_folders(listbox):
         # 日付を抽出
         selected_indices = listbox.curselection()
-        
+
         if not selected_indices:
             print("選択されている項目がありません。")
             return []
@@ -1221,7 +1237,7 @@ def main():
     def mark_folder(listbox, text, status):        
         # 日付を抽出
         selected_indices = listbox.curselection()
-        
+
         if not selected_indices:
             print("選択されている項目がありません。")
             return []
@@ -1230,7 +1246,7 @@ def main():
         selected_text = listbox.get(index)
 
         target_folder = find_matching_folders(listbox)[0]
-        
+
         if not os.path.isfile(os.path.join(target_folder, status)):            
             with open(os.path.join(target_folder, status), "w", encoding="utf-8"):
                 pass                  
@@ -1249,7 +1265,7 @@ def main():
         text.delete(1.0, tk.END)
         text.insert(tk.END, "「" + selected_text + "」" + tab_name + "タブに移動しました。")
         text.config(state=tk.DISABLED)
-        
+
         update()
 
     def unmark_folder(listbox, text, status):
@@ -1271,7 +1287,7 @@ def main():
             if status == ".complete":
                 with open(os.path.join(target_folder, ".process"), "w", encoding="utf-8"):
                     pass          
-        
+
         if status == ".complete":
             tab_name = "採取中"
         else:
@@ -1293,7 +1309,7 @@ def main():
         )
 
         return messagebox.askyesno("警告", message)
-    
+
     def is_info_hash_duplicate(torrent_folder, torrent_files):
         # あらかじめtorrent_filesのinfo_hashを取得してリストに格納
         new_info_hashes = []
@@ -1404,6 +1420,8 @@ def main():
     bulk_add_button.config(command=lambda: on_bulk_add_button_click("all"))
     r18_bulk_add_button.config(command=lambda: on_bulk_add_button_click("r18"))
     refresh_button.config(command=update)
+    refresh_button2.config(command=update)
+    refresh_button3.config(command=update)
 
     update()
 
