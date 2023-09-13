@@ -111,10 +111,15 @@ def main():
     pass_label.pack(side=tk.LEFT, padx=(80, 10))
 
     pass_entry = tk.Entry(pass_frame, font=font, insertwidth=3)
-    pass_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 20), expand=True)
+    pass_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 20),  expand=True)
+    
+    piece_interval_frame = tk.Frame(tab5)
+    piece_interval_frame.pack(pady=(40, 10))
 
-    text_widget = tk.Text(tab5)
-    text_widget.pack(pady=20, padx=20, fill=tk.BOTH, expand=True)
+    piece_interval_label = tk.Label(piece_interval_frame, text="ピース収集の間隔：", font=font)
+    piece_interval_label.pack(side=tk.LEFT, padx=(0, 10))
+
+    piece_interval_var = tk.StringVar()
 
     # 巡回の間隔
     interval_frame = tk.Frame(tab0)
@@ -123,9 +128,7 @@ def main():
     interval_label = tk.Label(interval_frame, text="巡回の間隔", font=font)
     interval_label.pack(side=tk.LEFT, padx=(50, 10))
 
-    interval_options = [
-        ("10秒", 10),
-        ("30秒", 30),
+    options_list = [
         ("1分", 60),
         ("3分", 180),
         ("5分", 300),
@@ -138,26 +141,36 @@ def main():
         ("6時間", 21600),
     ]
 
+    interval_options = options_list[:]
+    piece_interval_options = options_list[:]
+
     interval_var = tk.StringVar()
 
     # intervalとメール設定の値を設定ファイルから読み込み
     with open(SETTING_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    target_value = data["interval"]
     mail_user = data["mail_user"]
-    mail_pass = data["mail_pass"]
+    mail_pass = data["mail_pass"]    
+
+    interval_value = data["interval"]
+    piece_interval_value = data["piece_interval"]
 
     # メール設定欄に、現在の設定ファイルの値を設定
     mail_entry.insert(0, mail_user)
     pass_entry.insert(0, mail_pass)
 
     for option, value in interval_options:
-        if value == target_value:
+        if value == interval_value:
             interval_var.set(option)
             break
 
-    if data["last_crawl_time"] is not None and data["last_crawl_time"] != "null":        
+    for option, value in piece_interval_options:
+        if value == piece_interval_value:
+            piece_interval_var.set(option)
+            break
+
+    if data["last_crawl_time"] is not None and data["last_crawl_time"] != "null":
         try:
             jst = ut.fetch_jst()
         except ut.TimeException:
@@ -169,9 +182,9 @@ def main():
     last_crawl_time_str = tk.StringVar()
     last_crawl_time_str.set("最後に巡回した日時：" + str(time_str))
 
-    def on_option_changed(event):
-        selected_option = interval_var.get()
-        for option, value in interval_options:
+    def on_option_changed(event, var, options):
+        selected_option = var.get()
+        for option, value in options:
             if selected_option == option:
                 # JSONファイルを読み込む
                 with open(SETTING_FILE, "r", encoding="utf-8") as f:
@@ -194,8 +207,18 @@ def main():
         width=6,
         font=font,
     )
-    interval_menu.bind("<<ComboboxSelected>>", on_option_changed)
+
+    piece_interval_menu = ttk.Combobox(
+        piece_interval_frame,
+        textvariable=piece_interval_var,
+        values=[option for option, value in piece_interval_options],
+        width=6,
+        font=font,
+    )
+
+    interval_menu.bind("<<ComboboxSelected>>", lambda event, var=interval_var, options=interval_options: on_option_changed(event, var, options))
     interval_menu.pack(side=tk.LEFT, padx=(0, 10))
+    piece_interval_menu.pack(side=tk.LEFT, padx=(0, 10))
 
     crawl_history_frame = tk.Frame(tab0)
     crawl_history_frame.pack(pady=(10, 10))
@@ -790,8 +813,8 @@ def main():
     start_button.config(state=tk.DISABLED)
     start_button.pack(side=tk.RIGHT, padx=(0, 10))
 
-    refresh_button = tk.Button(button_frame, text="更新", font=small_font)
-    refresh_button.pack(side=tk.RIGHT, padx=(0, 10))
+    refresh_button1 = tk.Button(button_frame, text="更新", font=small_font)
+    refresh_button1.pack(side=tk.RIGHT, padx=(0, 10))
 
     # 採集状況パネッドウィンドウの作成
     paned_window = ttk.PanedWindow(tab2, orient=tk.VERTICAL)
@@ -852,7 +875,7 @@ def main():
     refresh_button2.pack(side=tk.RIGHT, padx=(0, 10))
 
     # 誤検出パネッドウィンドウの作成
-    paned_window = ttk.PanedWindow(tab3, orient=tk.VERTICAL)
+    paned_window = ttk.PanedWindow(tab4, orient=tk.VERTICAL)
     paned_window.pack(fill=tk.BOTH, expand=True)
 
     # 誤検出リストボックスを含むフレーム
@@ -899,7 +922,7 @@ def main():
     false_text.config(yscrollcommand=false_scrollbar.set, state=tk.DISABLED)
 
     # 誤検出タブの編集用ボタン
-    false_button_frame = tk.Frame(tab3)
+    false_button_frame = tk.Frame(tab4)
     false_button_frame.pack(fill=tk.X, pady=(0, 5))
 
     delete_button = tk.Button(false_button_frame, text="削除", font=small_font)
@@ -907,9 +930,12 @@ def main():
 
     unmark_button = tk.Button(false_button_frame, text="証拠採取の候補にもどす", font=font)
     unmark_button.pack(side=tk.RIGHT, padx=(0, 10))
+    
+    refresh_button3 = tk.Button(false_button_frame, text="更新", font=small_font)
+    refresh_button3.pack(side=tk.RIGHT, padx=(0, 10))
 
     # 完了パネッドウィンドウの作成
-    paned_window = ttk.PanedWindow(tab4, orient=tk.VERTICAL)
+    paned_window = ttk.PanedWindow(tab3, orient=tk.VERTICAL)
     paned_window.pack(fill=tk.BOTH, expand=True)
 
     # 完了リストボックスを含むフレーム
@@ -955,14 +981,14 @@ def main():
     complete_text.config(yscrollcommand=complete_scrollbar.set, state=tk.DISABLED)
 
     # 完了タブの編集用ボタン
-    complete_button_frame = tk.Frame(tab4)
+    complete_button_frame = tk.Frame(tab3)
     complete_button_frame.pack(fill=tk.X, pady=(0, 5))
 
     restart_button = tk.Button(complete_button_frame, text="追加の証拠採取を行う", font=font)
     restart_button.pack(side=tk.RIGHT, padx=(0, 10))
 
-    refresh_button3 = tk.Button(complete_button_frame, text="更新", font=small_font)
-    refresh_button3.pack(side=tk.RIGHT, padx=(0, 10))
+    refresh_button4 = tk.Button(complete_button_frame, text="更新", font=small_font)
+    refresh_button4.pack(side=tk.RIGHT, padx=(0, 10))
 
     def names(suspect_listbox, info_text, start_button, selected_tab=None):
         # torrentファイルに対応するフォルダ名を格納する配列
@@ -1419,9 +1445,10 @@ def main():
     delete_button.config(command=delete_folder)
     bulk_add_button.config(command=lambda: on_bulk_add_button_click("all"))
     r18_bulk_add_button.config(command=lambda: on_bulk_add_button_click("r18"))
-    refresh_button.config(command=update)
-    refresh_button2.config(command=update)
-    refresh_button3.config(command=update)
+
+    refresh_buttons = [refresh_button1, refresh_button2, refresh_button3, refresh_button4]
+    for button in refresh_buttons:
+        button.config(command=update)
 
     update()
 
