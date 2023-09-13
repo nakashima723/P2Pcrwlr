@@ -1,6 +1,7 @@
 # 標準ライブラリ
 import csv
 import datetime
+import hashlib
 import ipaddress
 import logging
 import os
@@ -234,8 +235,20 @@ class Client:
         if a is None or len(a) == 0:
             print("ピースサイズが0だったため、以降の処理をスキップしました。")
             return
+        
+        # ダウンロードしたピースのハッシュを計算
+        downloaded_piece_hash = _calculate_piece_hash(a)
 
-        print("ピース" + str(piece_index) + "を" + str(peer[0]) + "からダウンロード成功。")
+        # 元の.torrentファイルのハッシュを取得
+        original_piece_hash = info.hash_for_piece(piece_index)
+
+        # 二つのハッシュを比較
+        if downloaded_piece_hash != original_piece_hash:
+            self.logger.warning("ダウンロードしたピースのハッシュが一致しません。ピースが破損している可能性があります。")
+            return  # ダメージを受けたピースの後の処理をスキップ
+        else:
+            print("ピース" + str(piece_index) + "を" + str(peer[0]) + "からダウンロード成功。")
+
         peer_modified = (
             peer[0].replace(":", "-") if ":" in peer[0] else peer[0]
         )
@@ -290,6 +303,23 @@ def _print_download_status(torrent_status, logger: logging.Logger) -> None:
             torrent_status.num_peers,
         )
     )
+
+
+def _calculate_piece_hash(piece_data: bytes) -> bytes:
+    """
+    ピースのデータからSHA-1ハッシュを計算する。
+    Parameters
+    ----------
+    piece_data : bytes
+        ピースのデータ。
+    Returns
+    -------
+    bytes
+        計算されたSHA-1ハッシュ。
+    """
+    sha1 = hashlib.sha1()
+    sha1.update(piece_data)
+    return sha1.digest()
 
 
 def _write_piece_to_file(piece: bytes, save_path: str) -> None:
