@@ -146,6 +146,9 @@ class Client:
         """
         # 基本のセッションとIPフィルタを定義
         session = lt.session({"listen_interfaces": "0.0.0.0:6881,[::]:6881"})
+        
+        #アップロード量を0に設定
+        session.set_upload_rate_limit(0)
 
         # torrentファイルを読み込む
         info = lt.torrent_info(torrent_path)
@@ -413,8 +416,7 @@ def _save_peer(peer: tuple[str, int], save_path: str) -> None:
             writer.writerow(peer)
 
 
-# 当該IPアドレスが指定した範囲内に存在するかを確認
-def _ip_in_range(ip) -> bool:
+def _ip_in_range(ip: str) -> bool:
     """
     指定されたIPアドレスが、設定ファイル（ipv4.txt, ipv6.txt）の範囲に収まっているかを返す。
 
@@ -437,12 +439,8 @@ def _ip_in_range(ip) -> bool:
         parent_dir = os.path.dirname(main_script_dir)
         SETTING_FOLDER = os.path.join(parent_dir, "settings")
 
-    # IPv4なのかIPv6なのかを判定
-    ip_range_file = ""
-    if ip_obj.version == 4:
-        ip_range_file = os.path.join(SETTING_FOLDER, "ipv4.txt")
-    else:
-        ip_range_file = os.path.join(SETTING_FOLDER, "ipv6.txt")
+    # IPv4なのかIPv6なのかを判定して、適切な範囲ファイルを取得
+    ip_range_file = os.path.join(SETTING_FOLDER, "ipv4.txt" if ip_obj.version == 4 else "ipv6.txt")
 
     if not os.path.exists(ip_range_file):
         return None
@@ -453,27 +451,38 @@ def _ip_in_range(ip) -> bool:
 
     for ip_range in ip_ranges:
         ip_range = ip_range.strip()
-        if (
-            ipaddress.ip_network(ip_range, strict=False).network_address
-            <= ip_obj
-            <= ipaddress.ip_network(ip_range, strict=False).broadcast_address
-        ):
+        # IPアドレスが指定された範囲内にあるかどうかをチェック
+        if ip_obj in ipaddress.ip_network(ip_range, strict=False):
             return True
     return False
 
 
 def _get_public_ips() -> tuple[str, str]:
-    ipv4 = None
-    ipv6 = None
+    """
+    現在のIPv4とIPv6アドレスを取得する。
+
+    Returns
+    -------
+    tuple:
+        現在のIPv4, IPv6アドレスのタプル。
+    """
+    ipv4, ipv6 = None, None
+    # IPv4アドレスの取得
     try:
-        # For IPv4
         response_ipv4 = requests.get("https://api.ipify.org?format=json")
+        response_ipv4.raise_for_status()
         ipv4 = response_ipv4.json().get("ip")
-        # For IPv6
+    except RequestException as e:
+        print(f"IPv4の取得に失敗しました: {e}")
+
+    # IPv6アドレスの取得
+    try:
         response_ipv6 = requests.get("https://api6.ipify.org?format=json")
+        response_ipv6.raise_for_status()
         ipv6 = response_ipv6.json().get("ip")
-    except RequestException:
-        pass
+    except RequestException as e:
+        print(f"IPv6の取得に失敗しました: {e}")
+
     return ipv4, ipv6
 
 
