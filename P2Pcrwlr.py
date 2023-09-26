@@ -77,7 +77,7 @@ def main():
     notebook.pack(fill=tk.BOTH, expand=True)
 
     tab0 = ttk.Frame(notebook)
-    notebook.add(tab0, text="Torrent収集") 
+    notebook.add(tab0, text="Torrent収集")
 
     tab1 = ttk.Frame(notebook)
     notebook.add(tab1, text="証拠採取を開始")
@@ -111,8 +111,8 @@ def main():
     pass_label.pack(side=tk.LEFT, padx=(80, 10))
 
     pass_entry = tk.Entry(pass_frame, font=font, insertwidth=3)
-    pass_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 20),  expand=True)
-    
+    pass_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 20), expand=True)
+
     piece_interval_frame = tk.Frame(tab5)
     piece_interval_frame.pack(pady=(40, 10))
 
@@ -151,7 +151,7 @@ def main():
         data = json.load(f)
 
     mail_user = data["mail_user"]
-    mail_pass = data["mail_pass"]    
+    mail_pass = data["mail_pass"]
 
     interval_value = data["interval"]
     piece_interval_value = data["piece_interval"]
@@ -216,7 +216,12 @@ def main():
         font=font,
     )
 
-    interval_menu.bind("<<ComboboxSelected>>", lambda event, var=interval_var, options=interval_options: on_option_changed(event, var, options))
+    interval_menu.bind(
+        "<<ComboboxSelected>>",
+        lambda event, var=interval_var, options=interval_options: on_option_changed(
+            event, var, options
+        ),
+    )
     interval_menu.pack(side=tk.LEFT, padx=(0, 10))
     piece_interval_menu.pack(side=tk.LEFT, padx=(0, 10))
 
@@ -749,7 +754,7 @@ def main():
     # クエリ追加ボタンのコマンドを設定
     add_button.config(command=save_data)
 
-# ここからピースダウンロード関連
+    # ここからピースダウンロード関連
     # パネッドウィンドウの作成
     paned_window = ttk.PanedWindow(tab1, orient=tk.VERTICAL)
     paned_window.pack(fill=tk.BOTH, expand=True)
@@ -870,7 +875,7 @@ def main():
 
     complete_button = tk.Button(button_frame2, text="証拠採取を完了", font=font)
     complete_button.pack(side=tk.RIGHT, padx=(0, 10))
-    
+
     refresh_button2 = tk.Button(button_frame2, text="更新", font=small_font)
     refresh_button2.pack(side=tk.RIGHT, padx=(0, 10))
 
@@ -930,7 +935,7 @@ def main():
 
     unmark_button = tk.Button(false_button_frame, text="証拠採取の候補にもどす", font=font)
     unmark_button.pack(side=tk.RIGHT, padx=(0, 10))
-    
+
     refresh_button3 = tk.Button(false_button_frame, text="更新", font=small_font)
     refresh_button3.pack(side=tk.RIGHT, padx=(0, 10))
 
@@ -1114,7 +1119,7 @@ def main():
                         return 0
 
                     # 1列目の要素をリスト化する
-                    with open(peer_csv_path, 'r') as file:
+                    with open(peer_csv_path, "r") as file:
                         reader = csv.reader(file)
                         first_column_elements = [row[0] for row in reader if row]
 
@@ -1199,7 +1204,7 @@ def main():
         if not selected_indices:
             return
 
-        num = selected_indices[0]        
+        num = selected_indices[0]
         selected_text = false_listbox.get(num)
 
         # 2. num番目のフォルダを削除
@@ -1256,11 +1261,13 @@ def main():
         ]
 
         # 日付と一致するフォルダを抽出
-        matching_folders = [folder for folder in subdirs if folder_date_format in folder]
+        matching_folders = [
+            folder for folder in subdirs if folder_date_format in folder
+        ]
 
         return matching_folders
 
-    def mark_folder(listbox, text, status):        
+    def mark_folder(listbox, text, status):
         # 日付を抽出
         selected_indices = listbox.curselection()
 
@@ -1273,9 +1280,9 @@ def main():
 
         target_folder = find_matching_folders(listbox)[0]
 
-        if not os.path.isfile(os.path.join(target_folder, status)):            
+        if not os.path.isfile(os.path.join(target_folder, status)):
             with open(os.path.join(target_folder, status), "w", encoding="utf-8"):
-                pass                  
+                pass
 
         if status == ".false":
             tab_name = "を誤検出"
@@ -1309,8 +1316,10 @@ def main():
         if os.path.isfile(os.path.join(target_folder, status)):
             os.remove(os.path.join(target_folder, status))
             if status == ".complete":
-                with open(os.path.join(target_folder, ".process"), "w", encoding="utf-8"):
-                    pass          
+                with open(
+                    os.path.join(target_folder, ".process"), "w", encoding="utf-8"
+                ):
+                    pass
 
         if status == ".complete":
             tab_name = "採取中"
@@ -1351,7 +1360,9 @@ def main():
 
                     # 既存のトレントのinfo_hashと、new_info_hashesリスト内の全てのinfo_hashを比較する
                     if existing_info_hash in new_info_hashes:
-                        print(f"すでに存在しているtorrentファイルです: {torrent_files[new_info_hashes.index(existing_info_hash)]}")
+                        print(
+                            f"すでに存在しているtorrentファイルです: {torrent_files[new_info_hashes.index(existing_info_hash)]}"
+                        )
                         return True
         return False
 
@@ -1370,10 +1381,14 @@ def main():
                 # 2. 'folder_time'という名前の新しいフォルダを'EVIDENCE_FOLDER'内に作成する
                 # フォルダ名に使う現在日時を取得
                 try:
-                    folder_time = ut.fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
+                    folder_time = ut.fetch_jst().strftime("%Y-%m-%d_%H-%M-%S")
                 except ut.TimeException:
-                    folder_time = ut.utc_to_jst(datetime.now()).strftime('%Y-%m-%d_%H-%M-%S')
-                    print("NTPサーバーから現在時刻を取得できませんでした。フォルダ名はローカルのシステム時刻を参照しており、正確な生成時刻を示していない可能性があります。")
+                    folder_time = ut.utc_to_jst(datetime.now()).strftime(
+                        "%Y-%m-%d_%H-%M-%S"
+                    )
+                    print(
+                        "NTPサーバーから現在時刻を取得できませんでした。フォルダ名はローカルのシステム時刻を参照しており、正確な生成時刻を示していない可能性があります。"
+                    )
                 folder_path = os.path.join(torrent_folder, folder_time)
                 os.makedirs(folder_path, exist_ok=True)
 
@@ -1435,16 +1450,21 @@ def main():
         command=lambda: unmark_folder(process_listbox, process_text, ".process")
     )
     complete_button.config(
-        command=lambda:mark_folder(process_listbox, process_text, ".complete")                         
+        command=lambda: mark_folder(process_listbox, process_text, ".complete")
     )
     restart_button.config(
-        command=lambda:unmark_folder(complete_listbox, complete_text, ".complete")                         
+        command=lambda: unmark_folder(complete_listbox, complete_text, ".complete")
     )
     delete_button.config(command=delete_folder)
     bulk_add_button.config(command=lambda: on_bulk_add_button_click("all"))
     r18_bulk_add_button.config(command=lambda: on_bulk_add_button_click("r18"))
 
-    refresh_buttons = [refresh_button1, refresh_button2, refresh_button3, refresh_button4]
+    refresh_buttons = [
+        refresh_button1,
+        refresh_button2,
+        refresh_button3,
+        refresh_button4,
+    ]
     for button in refresh_buttons:
         button.config(command=update)
 

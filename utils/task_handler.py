@@ -16,6 +16,7 @@ else:
 SETTING_FOLDER = os.path.join(application_path, "settings")
 SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
 
+
 class TaskHandler:
     def __init__(self, task_files):
         # task_filesがリストでない場合、リストとして処理するための変換

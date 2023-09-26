@@ -37,9 +37,9 @@ for folder in folder_list:
     source_files.append(source_file_path)
 
 # JSON ファイルを開き、データを読み込む
-with open(SETTING_FILE, 'r', encoding="utf-8") as file:
+with open(SETTING_FILE, "r", encoding="utf-8") as file:
     settings = json.load(file)
-    max_list_size = settings.get('max_list_size')
+    max_list_size = settings.get("max_list_size")
 
 client = Client()
 
@@ -60,6 +60,6 @@ for i in range(len(source_files)):
         for peer in peers:
             client.download_piece(session, info, ip_filter, folder_list[i], peer)
             time.sleep(1)
-        print("ピース収集が完了しました。")        
+        print("ピース収集が完了しました。")
     else:
         print("対象となるピアがありませんでした。")
