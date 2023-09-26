@@ -61,7 +61,10 @@ class Client:
             return total
 
         # 期待されるサイズと一致する場合、新規ダウンロードを行わない
-        if os.path.exists(target_file_path) and get_size(target_file_path) == info.total_size():
+        if (
+            os.path.exists(target_file_path)
+            and get_size(target_file_path) == info.total_size()
+        ):
             self.logger.info("本体ファイルはダウンロード済み %s", target_file_path)
             return
 
@@ -123,7 +126,12 @@ class Client:
             while cnt < RETRY_COUNTER:
                 for p in handle.get_peer_info():
                     # p.ip[0]が自分自身の公開IPv4またはIPv6アドレスではないことを確認
-                    if p.seed and p.ip not in peers and p.ip[0] != ipv4 and p.ip[0] != ipv6:
+                    if (
+                        p.seed
+                        and p.ip not in peers
+                        and p.ip[0] != ipv4
+                        and p.ip[0] != ipv6
+                    ):
                         if _ip_in_range(p.ip[0]) or (_ip_in_range(p.ip[0]) is None):
                             peers.append(p.ip)
                 cnt += 1
@@ -146,8 +154,8 @@ class Client:
         """
         # 基本のセッションとIPフィルタを定義
         session = lt.session({"listen_interfaces": "0.0.0.0:6881,[::]:6881"})
-        
-        #アップロード量を0に設定
+
+        # アップロード量を0に設定
         session.set_upload_rate_limit(0)
 
         # torrentファイルを読み込む
@@ -179,8 +187,8 @@ class Client:
         return session, info, ip_filter
 
     def download_piece(
-            self, session, info, ip_filter, save_path: str, peer: tuple[str, int]
-            ) -> None:
+        self, session, info, ip_filter, save_path: str, peer: tuple[str, int]
+    ) -> None:
         """
         指定したピアからピースをダウンロードする。
 
@@ -205,7 +213,7 @@ class Client:
         self.logger.debug(f"IP Filter added for peer: {peer[0]}")
 
         handle = session.add_torrent({"ti": info, "save_path": save_path})
-        
+
         # Debug log
         self.logger.debug(f"Torrent handle status: {handle.status()}")
 
@@ -238,7 +246,7 @@ class Client:
         if a is None or len(a) == 0:
             print("ピースサイズが0だったため、以降の処理をスキップしました。")
             return
-        
+
         # ダウンロードしたピースのハッシュを計算
         downloaded_piece_hash = _calculate_piece_hash(a)
 
@@ -252,9 +260,7 @@ class Client:
         else:
             print("ピース" + str(piece_index) + "を" + str(peer[0]) + "からダウンロード成功。")
 
-        peer_modified = (
-            peer[0].replace(":", "-") if ":" in peer[0] else peer[0]
-        )
+        peer_modified = peer[0].replace(":", "-") if ":" in peer[0] else peer[0]
 
         file_path = os.path.join(
             save_path,
@@ -275,9 +281,7 @@ class Client:
             os.path.join(
                 save_path,
                 f"{peer_modified}_{str(peer[1])}",
-                "{}_{}_{}.log".format(
-                    peer_modified, str(peer[1]), info.info_hash()
-                ),
+                "{}_{}_{}.log".format(peer_modified, str(peer[1]), info.info_hash()),
             ),
         )
 
@@ -336,7 +340,7 @@ def _write_piece_to_file(piece: bytes, save_path: str) -> None:
 
     save_path : str
         保存先ファイルのパス。
-    """    
+    """
     dir = os.path.dirname(save_path)
     os.makedirs(dir, exist_ok=True)
     with open(save_path, "wb") as f:
@@ -346,7 +350,6 @@ def _write_piece_to_file(piece: bytes, save_path: str) -> None:
 def _write_peer_log(
     torrent_info, peer: tuple[str, int], piece_index: int, save_path: str
 ) -> None:
-
     """
     ピアごとのピースのダウンロードログを、指定されたファイルに書き込む。
     指定されたファイルがまだ存在しない場合は新規作成してヘッダーを書き込む。
@@ -363,7 +366,7 @@ def _write_peer_log(
         ダウンロードするピースのindex。
     save_path : str
         ログを書き込むファイルのパス。
-    """  
+    """
 
     def get_jst_str():
         try:
@@ -440,7 +443,9 @@ def _ip_in_range(ip: str) -> bool:
         SETTING_FOLDER = os.path.join(parent_dir, "settings")
 
     # IPv4なのかIPv6なのかを判定して、適切な範囲ファイルを取得
-    ip_range_file = os.path.join(SETTING_FOLDER, "ipv4.txt" if ip_obj.version == 4 else "ipv6.txt")
+    ip_range_file = os.path.join(
+        SETTING_FOLDER, "ipv4.txt" if ip_obj.version == 4 else "ipv6.txt"
+    )
 
     if not os.path.exists(ip_range_file):
         return None

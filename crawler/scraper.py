@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta, timezone
 import urllib.request
-from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from torrentool.api import Torrent
 import pathlib
@@ -86,7 +85,9 @@ def scraper(url, file_path):
                     try:
                         data["last_crawl_time"] = ut.fetch_jst().timestamp()
                     except ut.TimeException:
-                        data["last_crawl_time"] = ut.utc_to_jst(datetime.now()).timestamp()
+                        data["last_crawl_time"] = ut.utc_to_jst(
+                            datetime.now()
+                        ).timestamp()
                     f.seek(0)
                     json.dump(data, f, ensure_ascii=False, indent=4)
                     f.truncate()
@@ -143,25 +144,27 @@ def scraper(url, file_path):
 
             words = input_str.split()
 
-            for td in soup.find_all('td', colspan="2"):
-                a_tags = td.find_all('a', title=True)  # 全てのaタグを取得する
+            for td in soup.find_all("td", colspan="2"):
+                a_tags = td.find_all("a", title=True)  # 全てのaタグを取得する
 
                 # 各aタグを確認し、条件に合致するものが1つでもあるかを判定
-                condition_met = any(all(word in a.get_text() for word in words) for a in a_tags)
+                condition_met = any(
+                    all(word in a.get_text() for word in words) for a in a_tags
+                )
 
                 if condition_met:
                     # 同じ<tr>タグの中のdata-timestampを探す
-                    parent_row = td.find_parent('tr')
-                    timestamp_td = parent_row.find('td', {'data-timestamp': True})
+                    parent_row = td.find_parent("tr")
+                    timestamp_td = parent_row.find("td", {"data-timestamp": True})
                     if timestamp_td:
-                        timestamp_elements.append(timestamp_td['data-timestamp'])
+                        timestamp_elements.append(timestamp_td["data-timestamp"])
 
                     # td内の最初のaタグを用いて、torrentのURLを生成
                     first_a_tag = a_tags[0]
-                    href_value = first_a_tag['href']
+                    href_value = first_a_tag["href"]
                     href = href_value.split("#")[0]
-                    modified_href = href.replace('/view', 'download') + ".torrent"
-                    modified_url = url.split('?')[0]
+                    modified_href = href.replace("/view", "download") + ".torrent"
+                    modified_url = url.split("?")[0]
                     full_url = modified_url + modified_href
                     torrent_urls.append(full_url)
 
@@ -177,9 +180,11 @@ def scraper(url, file_path):
 
                 latest_dates = []
 
-                for element in timestamp_elements:                            
+                for element in timestamp_elements:
                     timestamp_int = int(element)
-                    timestamp_str = datetime.fromtimestamp(timestamp_int).replace(tzinfo=timezone.utc)
+                    timestamp_str = datetime.fromtimestamp(timestamp_int).replace(
+                        tzinfo=timezone.utc
+                    )
                     if not is_within_days(timestamp_str):
                         break
                     else:
@@ -226,7 +231,9 @@ def scraper(url, file_path):
                                 torrent_file = requests.get(torrent_url)
                                 time.sleep(1)
                                 if torrent_file.status_code != 200:
-                                    print(f"トレントファイルを {torrent_url} からダウンロードすることができませんでした。 Status code: {torrent_file.status_code}")
+                                    print(
+                                        f"トレントファイルを {torrent_url} からダウンロードすることができませんでした。 Status code: {torrent_file.status_code}"
+                                    )
                                     continue  # 次のURLへスキップ
 
                                 # ファイルがtorrentであることを確認し、ファイル名を取得
@@ -240,15 +247,23 @@ def scraper(url, file_path):
 
                                     # フォルダ名に使う現在日時を取得
                                     try:
-                                        folder_time = ut.fetch_jst().strftime('%Y-%m-%d_%H-%M-%S')
+                                        folder_time = ut.fetch_jst().strftime(
+                                            "%Y-%m-%d_%H-%M-%S"
+                                        )
                                     except ut.TimeException:
                                         # 現在のエポックタイムを取得
                                         current_time = time.time()
 
                                         # エポックタイムから datetime オブジェクトを構築し、UTCタイムゾーン情報を付与
-                                        current_datetime = datetime.fromtimestamp(current_time, timezone.utc)
-                                        folder_time = ut.utc_to_jst(current_datetime).strftime('%Y-%m-%d_%H-%M-%S')
-                                        print("フォルダ生成：NTPサーバーから現在時刻を取得できませんでした。フォルダ名はローカルのシステム時刻を参照しており、正確な生成時刻を示していない可能性があります。")
+                                        current_datetime = datetime.fromtimestamp(
+                                            current_time, timezone.utc
+                                        )
+                                        folder_time = ut.utc_to_jst(
+                                            current_datetime
+                                        ).strftime("%Y-%m-%d_%H-%M-%S")
+                                        print(
+                                            "フォルダ生成：NTPサーバーから現在時刻を取得できませんでした。フォルダ名はローカルのシステム時刻を参照しており、正確な生成時刻を示していない可能性があります。"
+                                        )
                                     # 新しいフォルダを作成
                                     new_folder = os.path.join(
                                         EVIDENCE_FILE_PATH, "tor", f"{folder_time}"
@@ -310,7 +325,9 @@ def scraper(url, file_path):
                         try:
                             data["last_crawl_time"] = ut.fetch_jst().timestamp()
                         except ut.TimeException:
-                            data["last_crawl_time"] = ut.utc_to_jst(datetime.now()).timestamp()
+                            data["last_crawl_time"] = ut.utc_to_jst(
+                                datetime.now()
+                            ).timestamp()
                         f.seek(0)
                         json.dump(data, f, ensure_ascii=False, indent=4)
                         f.truncate()
