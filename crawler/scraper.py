@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta, timezone
 import urllib.request
-from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from torrentool.api import Torrent
 import pathlib
