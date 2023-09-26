@@ -1283,8 +1283,6 @@ def main():
             tab_name = "の証拠採取を開始し、採取中"
         if status == ".complete":
             tab_name = "の証拠採取を完了し、完了一覧"
-            peer_matcher = PeerBinaryMatcher(target_folder)
-            peer_matcher.binary_match()
             os.remove(os.path.join(target_folder, ".process"))
 
         text.config(state=tk.NORMAL)
