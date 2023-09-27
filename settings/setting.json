@@ -1,0 +1,14 @@
+{
+    "interval": 1800,
+    "piece_interval": 1800,
+    "last_crawl_time": 1695814780.50394,
+    "max_list_size": 50,
+    "mail_user": "yokoshima723@gmail.com",
+    "mail_pass": "",
+    "site_urls": [
+        "https://nyaa.si/"
+    ],
+    "r18_site_urls": [
+        "https://sukebei.nyaa.si/"
+    ]
+}
