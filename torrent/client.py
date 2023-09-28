@@ -205,6 +205,7 @@ class Client:
         peer : tuple[str, int]
             ピースをダウンロードするピア。
         """
+
         # 指定されたピアのみからダウンロード
         ip_filter.add_rule(peer[0], peer[0], 0)
         session.set_ip_filter(ip_filter)
@@ -241,6 +242,9 @@ class Client:
         else:
             print("read_piece_alert が受信されませんでした。")
             return
+
+        # ダウンロードが完了した瞬間のタイムスタンプを記録
+        download_completed_timestamp = _get_jst_str()
 
         # pieceのサイズが0であれば、以降の処理を行わない
         if a is None or len(a) == 0:
@@ -283,7 +287,26 @@ class Client:
                 f"{peer_modified}_{str(peer[1])}",
                 "{}_{}_{}.log".format(peer_modified, str(peer[1]), info.info_hash()),
             ),
+            download_completed_timestamp
         )
+
+
+def _get_jst_str():
+    try:
+        jst = ut.fetch_jst()
+    except ut.TimeException:
+        jst = None
+
+    if jst is None:
+        return "エラー NTPサーバーから時刻を取得できませんでした。"
+
+    # ミリ秒を計算
+    milliseconds = jst.microsecond // 1000
+
+    # 年、月、日、時間、分、秒をフォーマットし、ミリ秒を追加
+    formatted_time = jst.strftime("%Y-%m-%d %H:%M:%S") + f".{milliseconds:03d}"
+
+    return formatted_time
 
 
 def _print_download_status(torrent_status, logger: logging.Logger) -> None:
@@ -348,7 +371,7 @@ def _write_piece_to_file(piece: bytes, save_path: str) -> None:
 
 
 def _write_peer_log(
-    torrent_info, peer: tuple[str, int], piece_index: int, save_path: str
+    torrent_info, peer: tuple[str, int], piece_index: int, save_path: str, completed_timestamp: str
 ) -> None:
     """
     ピアごとのピースのダウンロードログを、指定されたファイルに書き込む。
@@ -368,29 +391,27 @@ def _write_peer_log(
         ログを書き込むファイルのパス。
     """
 
-    def get_jst_str():
+    def get_remote_host(ip_address):
         try:
-            jst = ut.fetch_jst()
-        except ut.TimeException:
-            jst = None
+            host_name, _, _ = socket.gethostbyaddr(ip_address)
+            return host_name
+        except socket.herror:
+            return None
 
-        if jst is None:
-            return "エラー NTPサーバーから時刻を取得できませんでした。"
-
-        return jst.strftime("%Y-%m-%d %H:%M:%S")
-
-    peer_modified = peer[0].replace(":", "-") if ":" in peer[0] else peer[0]
     file_mode = "w" if not os.path.exists(save_path) else "a"
 
     with open(save_path, file_mode) as f:
         if file_mode == "w":
             # 新規ファイルの場合はヘッダーを書き込み
-            f.write(f"{peer_modified}_{peer[1]}_{torrent_info.name()}\n")
+            f.write(f"IPアドレス：{peer[0]}\n")
+            f.write(f"ポート番号：{peer[1]}\n")
+            f.write(f"リモートホスト：{get_remote_host(peer[0])}\n")
+            f.write(f"ファイル名：{torrent_info.name()}\n")
             f.write(f"ファイルハッシュ: {torrent_info.info_hash()}\n")
-            f.write(f"証拠収集開始時刻: {get_jst_str()}\n")
+            f.write(f"証拠収集開始時刻: {completed_timestamp}\n")
             f.write("---\n")
 
-        f.write(f"piece{piece_index} 完了時刻: {get_jst_str()}\n")
+        f.write(f"piece{piece_index} 完了時刻: {completed_timestamp}\n")
 
 
 def _save_peer(peer: tuple[str, int], save_path: str) -> None:
