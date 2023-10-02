@@ -1,25 +1,43 @@
-from Crypto.PublicKey import ECC
-from Crypto.Signature import eddsa
-from Crypto.Hash import SHA512
+from pgpy.constants import (
+    PubKeyAlgorithm,
+    KeyFlags,
+    HashAlgorithm,
+    SymmetricKeyAlgorithm,
+    CompressionAlgorithm,
+    KeyServerPreferences,
+    EllipticCurveOID,
+)
+from pgpy import PGPKey, PGPMessage, PGPUID
 
 
-def generate_key_pair() -> tuple[ECC.EccKey, ECC.EccKey]:
-    private_key = ECC.generate(curve="ed25519")
-    return (private_key, private_key.public_key())
+def generate_key_pair(name: str, email: str) -> tuple[PGPKey, PGPKey]:
+    # 秘密鍵の生成 (EdDSA)
+    key = PGPKey.new(PubKeyAlgorithm.EdDSA, EllipticCurveOID.Ed25519)
+
+    uid = PGPUID.new(name, email=email)
+    key.add_uid(
+        uid,
+        usage={KeyFlags.Certify, KeyFlags.Sign},
+        hashes=[
+            HashAlgorithm.SHA512,
+            HashAlgorithm.SHA384,
+            HashAlgorithm.SHA256,
+            HashAlgorithm.SHA224,
+        ],
+        ciphers=[
+            SymmetricKeyAlgorithm.AES256,
+            SymmetricKeyAlgorithm.AES192,
+            SymmetricKeyAlgorithm.AES128,
+        ],
+        compressions=[CompressionAlgorithm.Uncompressed],
+        keyserver_flags=[KeyServerPreferences.NoModify],
+    )
+    return (key, key.pubkey)
 
 
-def sign(private_key, text):
-    h = SHA512.new(text.encode("utf-8"))
-    signer = eddsa.new(private_key, "rfc8032")
-    signature = signer.sign(h)
-    return signature
+def sign(content: str, key: PGPKey) -> PGPMessage:
+    message = PGPMessage.new(content)
+    print(message)
+    message |= key.sign(message, hash=HashAlgorithm.SHA256)
 
-
-def verify(public_key, text, signature):
-    h = SHA512.new(text.encode("utf-8"))
-    verifier = eddsa.new(public_key, "rfc8032")
-    try:
-        verifier.verify(h, signature)
-        return True
-    except ValueError:
-        return False
+    return message
