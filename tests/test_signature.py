@@ -29,6 +29,17 @@ class TestSignature(TestCase):
         with open(os.path.join(TEST_DIR, "public_key.asc"), "w") as f:
             f.write(str(public_key))
 
+    def test_sign_file(self):
+        TEST_DIR = os.path.join(pathlib.Path(__file__).parent, "testdata", "sign")
+        private_key, public_key = es.generate_key_pair(
+            "John Doe", "john.doe@example.com"
+        )
+
+        es.sign_file(
+            os.path.join(TEST_DIR, "sample.txt"),
+            os.path.join(TEST_DIR, "private_key.asc"),
+        )
+
 
 if __name__ == "__main__":
     main()
