@@ -33,8 +33,9 @@ def sign_file(
 
     signed_data = private_key.sign(file_data)
 
-    # TODO: 引数からファイル名を読み取って出力する署名のファイル名を動的に設定
-    with open("sample_signed.txt", "w") as f:
+    folder = os.path.dirname(file_path)
+    filename = os.path.basename(file_path)
+    with open(os.path.join(folder, filename + ".sig"), "w") as f:
         f.write(str(signed_data))
 
 
@@ -65,7 +66,6 @@ def generate_key_pair(name: str, email: str) -> tuple[PGPKey, PGPKey]:
 
 def sign(content: str, key: PGPKey) -> PGPMessage:
     message = PGPMessage.new(content)
-    print(message)
     message |= key.sign(message, hash=HashAlgorithm.SHA256)
 
     return message
