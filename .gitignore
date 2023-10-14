@@ -185,3 +185,4 @@ cython_debug/
 
 # encryption
 *.asc
+*.sig
