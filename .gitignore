@@ -15,8 +15,11 @@
 *.png
 *.csv
 *.bin
+*.json
+*.txt
+*.zip
 *.false
-*.completed
+*.complete
 *.process
 *.r18
 
