@@ -112,19 +112,11 @@ def main():
     pass_entry = tk.Entry(pass_frame, font=font, insertwidth=3)
     pass_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 20), expand=True)
 
-    piece_interval_frame = tk.Frame(tab5)
-    piece_interval_frame.pack(pady=(40, 10))
-
-    piece_interval_label = tk.Label(piece_interval_frame, text="ピース収集の間隔：", font=font)
-    piece_interval_label.pack(side=tk.LEFT, padx=(0, 10))
-
-    piece_interval_var = tk.StringVar()
-
     # 巡回の間隔
     interval_frame = tk.Frame(tab0)
     interval_frame.pack(pady=(10, 10))
 
-    interval_label = tk.Label(interval_frame, text="巡回の間隔", font=font)
+    interval_label = tk.Label(interval_frame, text="巡回の間隔　Torrent/ピース", font=font)
     interval_label.pack(side=tk.LEFT, padx=(50, 10))
 
     options_list = [
@@ -143,7 +135,8 @@ def main():
     interval_options = options_list[:]
     piece_interval_options = options_list[:]
 
-    interval_var = tk.StringVar()
+    interval_var = tk.StringVar()    
+    piece_interval_var = tk.StringVar()
 
     # intervalとメール設定の値を設定ファイルから読み込み
     with open(SETTING_FILE, "r", encoding="utf-8") as f:
@@ -181,7 +174,7 @@ def main():
     last_crawl_time_str = tk.StringVar()
     last_crawl_time_str.set("最後に巡回した日時：" + str(time_str))
 
-    def on_option_changed(event, var, options):
+    def on_option_changed(event, var, options, key):
         selected_option = var.get()
         for option, value in options:
             if selected_option == option:
@@ -189,8 +182,8 @@ def main():
                 with open(SETTING_FILE, "r", encoding="utf-8") as f:
                     data = json.load(f)
 
-                # intervalの値を更新
-                data["interval"] = value
+                # interval or piece_intervalの値を更新
+                data[key] = value
 
                 # ファイルを書き込みモードで開いて、更新されたデータを書き込む
                 with open(SETTING_FILE, "w", encoding="utf-8") as f:
@@ -208,19 +201,27 @@ def main():
     )
 
     piece_interval_menu = ttk.Combobox(
-        piece_interval_frame,
+        interval_frame,
         textvariable=piece_interval_var,
         values=[option for option, value in piece_interval_options],
         width=6,
         font=font,
     )
-
+    
     interval_menu.bind(
         "<<ComboboxSelected>>",
         lambda event, var=interval_var, options=interval_options: on_option_changed(
-            event, var, options
+            event, var, options, "interval"
         ),
     )
+
+    piece_interval_menu.bind(
+        "<<ComboboxSelected>>",
+        lambda event, var=piece_interval_var, options=piece_interval_options: on_option_changed(
+            event, var, options, "piece_interval"
+        ),
+    )
+
     interval_menu.pack(side=tk.LEFT, padx=(0, 10))
     piece_interval_menu.pack(side=tk.LEFT, padx=(0, 10))
 
@@ -337,29 +338,7 @@ def main():
     nested_notebook = ttk.Notebook(tab0)
     nested_notebook.pack(fill=tk.BOTH, expand=True)
 
-    crawl_history_tab = ttk.Frame(nested_notebook)
-    nested_notebook.add(crawl_history_tab, text="履歴")
-
-    # 検出履歴を含むフレーム
-    history_frame = tk.Frame(crawl_history_tab)
-    history_frame.pack(fill=tk.BOTH, padx=(10, 10), pady=(0, 10), expand=True)
-
-    # 検出履歴
-    crawl_history = tk.Text(history_frame, width=-1, height=7, font=small_font)
-    crawl_history.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-    # スクロールバー
-    scrollbar = tk.Scrollbar(
-        history_frame, orient=tk.VERTICAL, command=crawl_history.yview
-    )
-    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-    crawl_history.config(yscrollcommand=scrollbar.set)
-
-    # サイズ変更用ウィジェット
-    sizegrip = ttk.Sizegrip(crawl_history_tab)
-    sizegrip.pack(side=tk.BOTTOM, anchor=tk.SE)
-    sizegrip.lift(aboveThis=history_frame)
-
+    #全年齢の検索語タブ
     all_age_tab = ttk.Frame(nested_notebook)
     nested_notebook.add(all_age_tab, text="検索語（全年齢）")
 
@@ -396,6 +375,7 @@ def main():
     style = ttk.Style()
     style.configure("Treeview", font=small_font)
 
+    #成人向けの検索語タブ
     r18_tab = ttk.Frame(nested_notebook)
     nested_notebook.add(r18_tab, text="検索語（成人向け）")
 
@@ -439,6 +419,29 @@ def main():
     style = ttk.Style()
     style.configure("Treeview", font=small_font)
     style.configure("Treeview.Heading", font=tiny_font)
+
+    crawl_history_tab = ttk.Frame(nested_notebook)
+    nested_notebook.add(crawl_history_tab, text="履歴")
+
+    # 検出履歴を含むフレーム
+    history_frame = tk.Frame(crawl_history_tab)
+    history_frame.pack(fill=tk.BOTH, padx=(10, 10), pady=(0, 10), expand=True)
+
+    # 検出履歴
+    crawl_history = tk.Text(history_frame, width=-1, height=7, font=small_font)
+    crawl_history.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+    # スクロールバー
+    scrollbar = tk.Scrollbar(
+        history_frame, orient=tk.VERTICAL, command=crawl_history.yview
+    )
+    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+    crawl_history.config(yscrollcommand=scrollbar.set)
+
+    # サイズ変更用ウィジェット
+    sizegrip = ttk.Sizegrip(crawl_history_tab)
+    sizegrip.pack(side=tk.BOTTOM, anchor=tk.SE)
+    sizegrip.lift(aboveThis=history_frame)
 
     # カラムの設定
     def treeview_set(treeview):
