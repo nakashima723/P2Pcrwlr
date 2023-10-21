@@ -10,3 +10,5 @@ setuptools
 mypy
 black
 flake8
+pycryptodome
+pgpy
