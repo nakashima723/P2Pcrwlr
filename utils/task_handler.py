@@ -53,6 +53,8 @@ class TaskHandler:
                 interval = data["interval"]
             elif file_name == "collector.py":  # elifを使用して条件を修正
                 interval = data["piece_interval"]
+            elif file_name == "fetch_ip_list.py":  # elifを使用して条件を修正
+                interval = 86400
             else:
                 interval = data["interval"]  # デフォルトのインターバルを使用
 
