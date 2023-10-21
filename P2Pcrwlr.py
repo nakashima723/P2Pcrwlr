@@ -56,7 +56,7 @@ def main():
         handler.stop_event.set()  # スレッドを停止
 
         # handlerが管理する各サブプロセスに対してstop_with_timeoutを呼び出す
-        for process in handler.processes:
+        for process, _ in handler.processes:  # タプルを展開し、processオブジェクトのみを取得
             handler.stop_with_timeout(process)
 
         window.quit()  # ウィンドウを閉じる

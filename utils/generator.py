@@ -28,6 +28,7 @@ class SettingsGenerator:
         if not os.path.exists(self.SETTING_FILE):
             data = {
                 "interval": 1800,
+                "piece_interval": 3600,
                 "last_crawl_time": "null",
                 "max_list_size": 50,
                 "mail_user": "null",
