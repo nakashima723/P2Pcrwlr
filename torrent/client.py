@@ -244,7 +244,7 @@ class Client:
             return
 
         # ダウンロードが完了した瞬間のタイムスタンプを記録
-        download_completed_timestamp = _get_jst_str()
+        download_completed_timestamp = ut.get_jst_str()
 
         # pieceのサイズが0であれば、以降の処理を行わない
         if a is None or len(a) == 0:
@@ -289,24 +289,6 @@ class Client:
             ),
             download_completed_timestamp
         )
-
-
-def _get_jst_str():
-    try:
-        jst = ut.fetch_jst()
-    except ut.TimeException:
-        jst = None
-
-    if jst is None:
-        return "エラー NTPサーバーから時刻を取得できませんでした。"
-
-    # ミリ秒を計算
-    milliseconds = jst.microsecond // 1000
-
-    # 年、月、日、時間、分、秒をフォーマットし、ミリ秒を追加
-    formatted_time = jst.strftime("%Y-%m-%d %H:%M:%S") + f".{milliseconds:03d}"
-
-    return formatted_time
 
 
 def _print_download_status(torrent_status, logger: logging.Logger) -> None:

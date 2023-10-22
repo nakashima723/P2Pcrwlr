@@ -47,7 +47,25 @@ def fetch_jst() -> datetime:
     raise TimeException("利用可能なNTPサーバがありませんでした")
 
 
-def utc_to_jst(datetime_utc):
+def get_jst_str() -> str:
+    try:
+        jst = fetch_jst()
+    except TimeException:
+        jst = None
+
+    if jst is None:
+        return "エラー NTPサーバーから時刻を取得できませんでした。"
+
+    # ミリ秒を計算
+    milliseconds = jst.microsecond // 1000
+
+    # 年、月、日、時間、分、秒をフォーマットし、ミリ秒を追加
+    formatted_time = jst.strftime("%Y-%m-%d %H:%M:%S") + f".{milliseconds:03d}"
+
+    return formatted_time
+
+
+def utc_to_jst(datetime_utc) -> datetime:
     # UTCをJSTに変換
     utc = timezone.utc
     jst = timezone(timedelta(hours=9))
