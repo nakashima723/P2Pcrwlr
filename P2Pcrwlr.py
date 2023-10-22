@@ -33,6 +33,7 @@ SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
 SCRAPER_FILE = os.path.join(application_path, "crawler/scraper.py")
 COLLECTOR_FILE = os.path.join(application_path, "crawler/collector.py")
 FETCH_IP_FILE = os.path.join(application_path, "crawler/fetch_ip_list.py")
+COMPLETE_EVIDENCE_FILE = os.path.join(application_path, "crawler/get_complete_evidence.py")
 
 # 設定ファイルが存在しないときは生成
 settings_manager = SettingsGenerator()
@@ -42,7 +43,7 @@ query_manager.make_query_json()
 r18query_manager = QueryGenerator("r18queries.json")
 r18query_manager.make_query_json()
 
-task_files = [FETCH_IP_FILE, SCRAPER_FILE, COLLECTOR_FILE]
+task_files = [FETCH_IP_FILE, SCRAPER_FILE, COLLECTOR_FILE, COMPLETE_EVIDENCE_FILE]
 
 handler = TaskHandler(task_files)
 handler.start_repeat_thread()
@@ -1425,6 +1426,7 @@ def main():
                         + folder_time
                         + "\nファイルハッシュ："
                         + torrent.info_hash
+                        + "\n"
                     )
                     log_file.write(LOG)
                 time.sleep(1)
