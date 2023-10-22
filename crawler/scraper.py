@@ -300,6 +300,7 @@ def scraper(url, file_path):
                                                 + folder_time
                                                 + "\nファイルハッシュ："
                                                 + torrent.info_hash
+                                                + "\n"
                                             )
                                             log_file.write(LOG)
                                         # 成人向け作品をマーク
