@@ -80,7 +80,7 @@ def process_data(data):
     return ipv4_output, ipv6_output
 
 
-def update_data_and_settings():
+def update_data_and_settings(settings, fetched_unix_timestamp):
     # 新しいデータを取得し、整理する
     try:
         with urllib.request.urlopen(url) as response:
@@ -113,38 +113,39 @@ def update_data_and_settings():
         print("IPアドレス範囲のデータを更新しました。")
 
 
-try:
-    # HTTPSリクエストを送信し、ヘッダーを取得
-    with urllib.request.urlopen(url) as response:
-        last_modified = response.headers.get("Last-Modified")
+def execute():
+    try:
+        # HTTPSリクエストを送信し、ヘッダーを取得
+        with urllib.request.urlopen(url) as response:
+            last_modified = response.headers.get("Last-Modified")
 
-    if last_modified:
-        # 'Last-Modified'ヘッダーの日付をUNIXタイムコードに変換
-        last_modified_datetime = parsedate_to_datetime(last_modified)
-        fetched_unix_timestamp = int(last_modified_datetime.timestamp())
+        if last_modified:
+            # 'Last-Modified'ヘッダーの日付をUNIXタイムコードに変換
+            last_modified_datetime = parsedate_to_datetime(last_modified)
+            fetched_unix_timestamp = int(last_modified_datetime.timestamp())
 
-        # setting.jsonファイルを読み込む
-        if os.path.exists(SETTING_FILE):
-            with open(SETTING_FILE, "r", encoding="utf-8") as file:
-                settings = json.load(file)
+            # setting.jsonファイルを読み込む
+            if os.path.exists(SETTING_FILE):
+                with open(SETTING_FILE, "r", encoding="utf-8") as file:
+                    settings = json.load(file)
 
-            # 'ip_last_modified'項目を比較する
-            existing_unix_timestamp = settings.get("ip_last_modified")
-            if existing_unix_timestamp:
-                if fetched_unix_timestamp > existing_unix_timestamp:
-                    update_data_and_settings()
-                elif fetched_unix_timestamp == existing_unix_timestamp:
-                    print("IPアドレス一覧の更新はありませんでした。")
+                # 'ip_last_modified'項目を比較する
+                existing_unix_timestamp = settings.get("ip_last_modified")
+                if existing_unix_timestamp:
+                    if fetched_unix_timestamp > existing_unix_timestamp:
+                        update_data_and_settings(settings, fetched_unix_timestamp)
+                    elif fetched_unix_timestamp == existing_unix_timestamp:
+                        print("IPアドレス一覧の更新はありませんでした。")
+                    else:
+                        print("エラー: setting.json内のIPアドレス更新日時のほうが新しい状態です。")
                 else:
-                    print("エラー: setting.json内のIPアドレス更新日時のほうが新しい状態です。")
+                    print("新たにIPアドレス一覧を取得しています...")
+                    update_data_and_settings(settings, fetched_unix_timestamp)
             else:
-                print("新たにIPアドレス一覧を取得しています...")
-                update_data_and_settings()
+                print(f"エラー: {SETTING_FILE}が存在しません。")
+
         else:
-            print(f"エラー: {SETTING_FILE}が存在しません。")
+            print('エラー: このURLでは"Last-Modified"ヘッダーは利用できません。')
 
-    else:
-        print('エラー: このURLでは"Last-Modified"ヘッダーは利用できません。')
-
-except Exception as e:
-    print(f"エラーが発生しました: {e}")
+    except Exception as e:
+        print(f"エラーが発生しました: {e}")
