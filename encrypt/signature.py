@@ -17,6 +17,20 @@ def save_key(
     comment: str = "",
     email: str = "",
 ):
+    """
+    指定されたフォルダにPGP鍵（秘密鍵と公開鍵のペア）を作成する。
+
+    Parameters
+    ----------
+    save_folder : str | os.PathLike[str]
+        PGP鍵を保存するフォルダのパス。
+    name: str
+        PGP鍵のユーザIDを構成するための、作成者の名前。
+    comment: str
+        PGP鍵のユーザIDに付与するコメント。
+    email: str
+        PGP鍵のユーザIDを構成するためのメールアドレス。
+    """
     private_key, public_key = generate_key_pair(name, comment, email)
     with open(os.path.join(save_folder, "private_key.asc"), "w") as f:
         f.write(str(private_key))
@@ -28,6 +42,16 @@ def save_key(
 def sign_file(
     file_path: str | os.PathLike[str], private_key_path: str | os.PathLike[str]
 ):
+    """
+    指定されたファイルに、指定した秘密鍵で署名する。
+
+    Parameters
+    ----------
+    file_path: str
+        署名対象のファイルのパス。
+    private_key_path: str
+        署名に用いる秘密鍵ファイルのパス。
+    """
     with open(private_key_path, "r") as f:
         private_key_data = f.read()
 
@@ -45,6 +69,23 @@ def sign_file(
 
 
 def generate_key_pair(name: str, comment: str, email: str) -> tuple[PGPKey, PGPKey]:
+    """
+    与えられた引数からPGP鍵（秘密鍵と公開鍵のペア）を返す。
+
+    Parameters
+    ----------
+    name: str
+        PGP鍵のユーザIDを構成するための、作成者の名前。
+    comment: str
+        PGP鍵のユーザIDに付与するコメント。
+    email: str
+        PGP鍵のユーザIDを構成するためのメールアドレス。
+
+    Returns
+    ----------
+    tuple[PGPKey, PGPKey]
+        PGP公開鍵と秘密鍵の組。
+    """
     # 秘密鍵の生成 (EdDSA)
     key = PGPKey.new(PubKeyAlgorithm.EdDSA, EllipticCurveOID.Ed25519)
 
@@ -70,6 +111,21 @@ def generate_key_pair(name: str, comment: str, email: str) -> tuple[PGPKey, PGPK
 
 
 def sign(content: str, key: PGPKey) -> PGPMessage:
+    """
+    与えられた文字列に、与えられたPGP鍵によって署名し、署名されたPGPMessageを返却する。
+
+    Parameters
+    ----------
+    content : str
+        署名対象の文字列。
+    key: PGPKey
+        署名に用いるPGP鍵。
+
+    Returns
+    ----------
+    PGPMessage
+        署名が付与されたPGPMessage。
+    """
     message = PGPMessage.new(content)
     message |= key.sign(message, hash=HashAlgorithm.SHA256)
 
