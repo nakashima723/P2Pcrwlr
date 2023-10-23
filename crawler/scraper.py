@@ -2,7 +2,6 @@ from datetime import datetime, timedelta, timezone
 import urllib.request
 from bs4 import BeautifulSoup
 from torrentool.api import Torrent
-import pathlib
 import shutil
 import os
 import requests
@@ -15,6 +14,16 @@ from plyer import notification
 import smtplib
 from email.message import EmailMessage
 import utils.time as ut
+from utils.config import Config
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+con = Config(base_path=current_dir, level=1)
+
+EVI_FOLDER = con.EVI_FOLDER
+SETTING_FOLDER = con.SETTING_FOLDER
+SETTING_FILE = con.SETTING_FILE
+QUERIES_FILE = con.QUERIES_FILE
+R18_QUERIES_FILE = con.R18_QUERIES_FILE
 
 file_lock = threading.Lock()
 new_file = []
@@ -46,15 +55,6 @@ def process_query(query):
     query = " ".join(query.split())
 
     return query
-
-
-# pathlib.Path(__file__)でこのファイルの場所を取得し、parents[1] で一階層上を指定する。
-# "../"を利用するのと比べて、コードを実行するディレクトリに関係なくevidenceフォルダの位置を決めることができる。
-EVIDENCE_FILE_PATH = os.path.join(pathlib.Path(__file__).parents[1], "evi")
-SETTING_FOLDER = os.path.join(pathlib.Path(__file__).parents[1], "settings")
-QUERIES_FILE = os.path.join(SETTING_FOLDER, "queries.json")
-R18_QUERIES_FILE = os.path.join(SETTING_FOLDER, "r18queries.json")
-SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
 
 
 def url_in_r18_site_urls(R18_QUERIES_FILE, url):
@@ -197,9 +197,9 @@ def scraper(url, file_path):
                 print("新たにアップロードされたファイル:" + str(len(latest_dates)) + "件")
 
                 # evidenceフォルダが存在しない場合は作成
-                if not os.path.exists(EVIDENCE_FILE_PATH):
-                    os.makedirs(EVIDENCE_FILE_PATH)
-                torrent_folder = os.path.join(EVIDENCE_FILE_PATH, "tor")
+                if not os.path.exists(EVI_FOLDER):
+                    os.makedirs(EVI_FOLDER)
+                torrent_folder = os.path.join(EVI_FOLDER, "tor")
                 if not os.path.exists(torrent_folder):
                     os.makedirs(torrent_folder)
 
@@ -266,7 +266,7 @@ def scraper(url, file_path):
                                         )
                                     # 新しいフォルダを作成
                                     new_folder = os.path.join(
-                                        EVIDENCE_FILE_PATH, "tor", f"{folder_time}"
+                                        EVI_FOLDER, "tor", f"{folder_time}"
                                     )
                                     if not os.path.exists(
                                         new_folder

@@ -1,20 +1,17 @@
 # 設定ファイル内のinterval値に応じて、指定したpythonファイルを繰り返し実行するモジュール
 import json
 import os
-import sys
 import signal
 import subprocess
 import threading
-from pathlib import Path
+from utils.config import Config
 
-if getattr(sys, "frozen", False):
-    # PyInstallerが使用する一時ディレクトリ
-    application_path = sys._MEIPASS
-else:
-    application_path = Path(__file__).resolve().parent.parent
+current_dir = os.path.dirname(os.path.abspath(__file__))
+con = Config(base_path=current_dir, level=1)
 
-SETTING_FOLDER = os.path.join(application_path, "settings")
-SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
+EVI_FOLDER = con.EVI_FOLDER
+SETTING_FOLDER = con.SETTING_FOLDER
+SETTING_FILE = con.SETTING_FILE
 
 
 class TaskHandler:

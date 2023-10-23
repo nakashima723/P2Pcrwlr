@@ -5,7 +5,6 @@ import glob
 import os
 import re
 import shutil
-import sys
 from datetime import datetime
 from pathlib import Path
 import time
@@ -19,21 +18,18 @@ from torrentool.api import Torrent
 from utils.task_handler import TaskHandler
 import utils.time as ut
 from utils.generator import SettingsGenerator, QueryGenerator
+from utils.config import Config
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+con = Config(base_path=current_dir, level=0)
 
-if getattr(sys, "frozen", False):
-    # PyInstallerが使用する一時ディレクトリ
-    application_path = sys._MEIPASS
-else:
-    application_path = Path(__file__).resolve().parent
-
-EVIDENCE_FOLDER = os.path.join(application_path, "evi")
-SETTING_FOLDER = os.path.join(application_path, "settings")
-SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
-SCRAPER_FILE = os.path.join(application_path, "crawler/scraper.py")
-COLLECTOR_FILE = os.path.join(application_path, "crawler/collector.py")
-FETCH_IP_FILE = os.path.join(application_path, "crawler/fetch_ip_list.py")
-COMPLETE_EVIDENCE_FILE = os.path.join(application_path, "crawler/get_complete_evidence.py")
+EVI_FOLDER = con.EVI_FOLDER
+SETTING_FOLDER = con.SETTING_FOLDER
+SETTING_FILE = con.SETTING_FILE
+SCRAPER_FILE = con.SCRAPER_FILE
+COLLECTOR_FILE = con.COLLECTOR_FILE
+FETCH_IP_FILE = con.FETCH_IP_FILE
+COMPLETE_EVI_FILE = con.COMPLETE_EVI_FILE
 
 # 設定ファイルが存在しないときは生成
 settings_manager = SettingsGenerator()
@@ -43,7 +39,7 @@ query_manager.make_query_json()
 r18query_manager = QueryGenerator("r18queries.json")
 r18query_manager.make_query_json()
 
-task_files = [FETCH_IP_FILE, SCRAPER_FILE, COLLECTOR_FILE, COMPLETE_EVIDENCE_FILE]
+task_files = [FETCH_IP_FILE, SCRAPER_FILE, COLLECTOR_FILE, COMPLETE_EVI_FILE]
 
 handler = TaskHandler(task_files)
 handler.start_repeat_thread()
@@ -340,7 +336,7 @@ def main():
     nested_notebook = ttk.Notebook(tab0)
     nested_notebook.pack(fill=tk.BOTH, expand=True)
 
-    #全年齢の検索語タブ
+    # 全年齢の検索語タブ
     all_age_tab = ttk.Frame(nested_notebook)
     nested_notebook.add(all_age_tab, text="検索語（全年齢）")
 
@@ -377,7 +373,7 @@ def main():
     style = ttk.Style()
     style.configure("Treeview", font=small_font)
 
-    #成人向けの検索語タブ
+    # 成人向けの検索語タブ
     r18_tab = ttk.Frame(nested_notebook)
     nested_notebook.add(r18_tab, text="検索語（成人向け）")
 
@@ -793,9 +789,6 @@ def main():
         info_text_frame, wrap=tk.WORD, width=-1, height=7, font=small_font
     )
     info_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-    info_text.insert(
-        tk.END, "ここに選択したtorrentファイルの情報が表示されます。\n\n表示内容を見て、証拠採取を開始するかどうか決めてください。"
-    )
 
     # 候補テキストエリアのスクロールバー
     info_scrollbar = tk.Scrollbar(
@@ -803,27 +796,6 @@ def main():
     )
     info_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
     info_text.config(yscrollcommand=info_scrollbar.set, state=tk.DISABLED)
-
-    # 編集用ボタン
-    button_frame = tk.Frame(tab1)
-    button_frame.pack(fill=tk.X, pady=(0, 5))
-
-    bulk_add_button = tk.Button(button_frame, text="全年齢で追加", font=small_font)
-    bulk_add_button.pack(side=tk.LEFT, padx=(10, 10))
-
-    r18_bulk_add_button = tk.Button(button_frame, text="R18で追加", font=small_font)
-    r18_bulk_add_button.pack(side=tk.LEFT, padx=(0, 10))
-
-    # 選択したtorrentファイルから、証拠フォルダを生成するアクション
-    mark_button = tk.Button(button_frame, text="誤検出としてマーク", font=small_font)
-    mark_button.pack(side=tk.LEFT, padx=(0, 10))
-
-    start_button = tk.Button(button_frame, text="証拠採取を開始", font=font)
-    start_button.config(state=tk.DISABLED)
-    start_button.pack(side=tk.RIGHT, padx=(0, 10))
-
-    refresh_button1 = tk.Button(button_frame, text="更新", font=small_font)
-    refresh_button1.pack(side=tk.RIGHT, padx=(0, 10))
 
     # 採集状況パネッドウィンドウの作成
     paned_window = ttk.PanedWindow(tab2, orient=tk.VERTICAL)
@@ -859,9 +831,6 @@ def main():
         process_text_frame, wrap=tk.WORD, width=-1, height=7, font=small_font
     )
     process_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-    process_text.insert(
-        tk.END, "ここに、選択したファイルの証拠採取の進行状況が表示されます。\n\n（工事中）今のところは「証拠採取を開始」タブと同じ情報が表示されます。"
-    )
 
     # 採集状況テキストエリアのスクロールバー
     process_scrollbar = tk.Scrollbar(
@@ -869,19 +838,6 @@ def main():
     )
     process_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
     process_text.config(yscrollcommand=process_scrollbar.set, state=tk.DISABLED)
-
-    # 採集状況の編集用ボタン
-    button_frame2 = tk.Frame(tab2)
-    button_frame2.pack(fill=tk.X, pady=(0, 5))
-
-    suspend_button = tk.Button(button_frame2, text="一時停止", font=small_font)
-    suspend_button.pack(side=tk.LEFT, padx=(10, 0))
-
-    complete_button = tk.Button(button_frame2, text="証拠採取を完了", font=font)
-    complete_button.pack(side=tk.RIGHT, padx=(0, 10))
-
-    refresh_button2 = tk.Button(button_frame2, text="更新", font=small_font)
-    refresh_button2.pack(side=tk.RIGHT, padx=(0, 10))
 
     # 誤検出パネッドウィンドウの作成
     paned_window = ttk.PanedWindow(tab4, orient=tk.VERTICAL)
@@ -915,13 +871,6 @@ def main():
         false_text_frame, wrap=tk.WORD, width=-1, height=7, font=small_font
     )
     false_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-    false_text.insert(
-        tk.END,
-        "ここでは、誤検出としてマークされたtorrentファイルの一覧を確認できます。"
-        "\n\n必要に応じてフォルダを削除したり、証拠採取の候補に戻したりすることができます。"
-        "\n\n「P2Pクローラ」の検索機能から生成したフォルダを完全に削除した場合、検出履歴をクリアしない限り、"
-        "クローラで同じファイルを収集することはできなくなりますので注意してください。",
-    )
 
     # 誤検出テキストエリアのスクロールバー
     false_scrollbar = tk.Scrollbar(
@@ -929,19 +878,6 @@ def main():
     )
     false_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
     false_text.config(yscrollcommand=false_scrollbar.set, state=tk.DISABLED)
-
-    # 誤検出タブの編集用ボタン
-    false_button_frame = tk.Frame(tab4)
-    false_button_frame.pack(fill=tk.X, pady=(0, 5))
-
-    delete_button = tk.Button(false_button_frame, text="削除", font=small_font)
-    delete_button.pack(side=tk.LEFT, padx=(10, 10))
-
-    unmark_button = tk.Button(false_button_frame, text="証拠採取の候補にもどす", font=font)
-    unmark_button.pack(side=tk.RIGHT, padx=(0, 10))
-
-    refresh_button3 = tk.Button(false_button_frame, text="更新", font=small_font)
-    refresh_button3.pack(side=tk.RIGHT, padx=(0, 10))
 
     # 完了パネッドウィンドウの作成
     paned_window = ttk.PanedWindow(tab3, orient=tk.VERTICAL)
@@ -977,10 +913,6 @@ def main():
         complete_text_frame, wrap=tk.WORD, width=-1, height=7, font=small_font
     )
     complete_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-    complete_text.insert(
-        tk.END,
-        "一覧からファイルを選択すると、証拠採取の結果が表示されます。" "\n\n追加でより長期の証拠採取を行う場合は、採取候補の一覧へ戻すことができます。",
-    )
 
     # 完了テキストエリアのスクロールバー
     complete_scrollbar = tk.Scrollbar(
@@ -988,6 +920,73 @@ def main():
     )
     complete_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
     complete_text.config(yscrollcommand=complete_scrollbar.set, state=tk.DISABLED)
+
+    # 各テキストエリアの記述
+    info_text.insert(
+        tk.END, "ここに選択したtorrentファイルの情報が表示されます。\n\n表示内容を見て、証拠採取を開始するかどうか決めてください。"
+    )
+    process_text.insert(
+        tk.END, "ここに、選択したファイルの証拠採取の進行状況が表示されます。"
+    )
+
+    false_text.insert(
+         tk.END,
+        "ここでは、誤検出としてマークされたtorrentファイルの一覧を確認できます。"
+        "\n\n必要に応じてフォルダを削除したり、証拠採取の候補に戻したりすることができます。"
+        "\n\n「P2Pクローラ」の検索機能から生成したフォルダを完全に削除した場合、検出履歴をクリアしない限り、"
+        "クローラで同じファイルを収集することはできなくなりますので注意してください。",
+    )
+    complete_text.insert(
+        tk.END,
+        "一覧からファイルを選択すると、証拠採取の結果が表示されます。" "\n\n追加でより長期の証拠採取を行う場合は、採取候補の一覧へ戻すことができます。",
+    )
+
+    # 採取候補の編集用ボタン
+    button_frame = tk.Frame(tab1)
+    button_frame.pack(fill=tk.X, pady=(0, 5))
+
+    bulk_add_button = tk.Button(button_frame, text="全年齢で追加", font=small_font)
+    bulk_add_button.pack(side=tk.LEFT, padx=(10, 10))
+
+    r18_bulk_add_button = tk.Button(button_frame, text="R18で追加", font=small_font)
+    r18_bulk_add_button.pack(side=tk.LEFT, padx=(0, 10))
+
+    # 選択したtorrentファイルから、証拠フォルダを生成するアクション
+    mark_button = tk.Button(button_frame, text="誤検出としてマーク", font=small_font)
+    mark_button.pack(side=tk.LEFT, padx=(0, 10))
+
+    start_button = tk.Button(button_frame, text="証拠採取を開始", font=font)
+    start_button.config(state=tk.DISABLED)
+    start_button.pack(side=tk.RIGHT, padx=(0, 10))
+
+    refresh_button1 = tk.Button(button_frame, text="更新", font=small_font)
+    refresh_button1.pack(side=tk.RIGHT, padx=(0, 10))
+
+    # 採集状況の編集用ボタン
+    button_frame2 = tk.Frame(tab2)
+    button_frame2.pack(fill=tk.X, pady=(0, 5))
+
+    suspend_button = tk.Button(button_frame2, text="一時停止", font=small_font)
+    suspend_button.pack(side=tk.LEFT, padx=(10, 0))
+
+    complete_button = tk.Button(button_frame2, text="証拠採取を完了", font=font)
+    complete_button.pack(side=tk.RIGHT, padx=(0, 10))
+
+    refresh_button2 = tk.Button(button_frame2, text="更新", font=small_font)
+    refresh_button2.pack(side=tk.RIGHT, padx=(0, 10))
+
+    # 誤検出タブの編集用ボタン
+    false_button_frame = tk.Frame(tab4)
+    false_button_frame.pack(fill=tk.X, pady=(0, 5))
+
+    delete_button = tk.Button(false_button_frame, text="削除", font=small_font)
+    delete_button.pack(side=tk.LEFT, padx=(10, 10))
+
+    unmark_button = tk.Button(false_button_frame, text="証拠採取の候補にもどす", font=font)
+    unmark_button.pack(side=tk.RIGHT, padx=(0, 10))
+
+    refresh_button3 = tk.Button(false_button_frame, text="更新", font=small_font)
+    refresh_button3.pack(side=tk.RIGHT, padx=(0, 10))
 
     # 完了タブの編集用ボタン
     complete_button_frame = tk.Frame(tab3)
@@ -1004,7 +1003,7 @@ def main():
         folder_names = []
         suspect_listbox.delete(0, tk.END)
         # torrent_folder 内のサブディレクトリを繰り返し処理
-        torrent_folder = os.path.join(EVIDENCE_FOLDER, "tor")
+        torrent_folder = os.path.join(EVI_FOLDER, "tor")
 
         subdirs = [
             os.path.join(torrent_folder, folder)
@@ -1375,14 +1374,14 @@ def main():
         torrent_files = filedialog.askopenfilenames(
             filetypes=[("Torrentファイル", "*.torrent")]
         )
-        torrent_folder = os.path.join(EVIDENCE_FOLDER, "tor")
+        torrent_folder = os.path.join(EVI_FOLDER, "tor")
 
         if not torrent_files:
             # torrentファイルが選択されていない場合は何もせずに戻る
             return
-        if not is_info_hash_duplicate(EVIDENCE_FOLDER, torrent_files):
+        if not is_info_hash_duplicate(EVI_FOLDER, torrent_files):
             for torrent_file in torrent_files:
-                # 2. 'folder_time'という名前の新しいフォルダを'EVIDENCE_FOLDER'内に作成する
+                # 2. 'folder_time'という名前の新しいフォルダを'EVI_FOLDER'内に作成する
                 # フォルダ名に使う現在日時を取得
                 try:
                     folder_time = ut.fetch_jst().strftime("%Y-%m-%d_%H-%M-%S")

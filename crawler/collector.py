@@ -1,24 +1,21 @@
 import json
 import os
-import sys
 from torrent.client import Client
-from pathlib import Path
 import time
+from utils.config import Config
 
-if getattr(sys, "frozen", False):
-    # PyInstallerが使用する一時ディレクトリ
-    application_path = sys._MEIPASS
-else:
-    application_path = Path(__file__).resolve().parent.parent
+# Configクラスのインスタンスを作成
+current_dir = os.path.dirname(os.path.abspath(__file__))
+con = Config(base_path=current_dir, level=1)
 
-EVIDENCE_FOLDER = os.path.join(application_path, "evi")
-SETTING_FOLDER = os.path.join(application_path, "settings")
-SETTING_FILE = os.path.join(SETTING_FOLDER, "setting.json")
+EVI_FOLDER = con.EVI_FOLDER
+SETTING_FOLDER = con.SETTING_FOLDER
+SETTING_FILE = con.SETTING_FILE
 
 folder_list = []  # 「.process」ファイルを含む証拠フォルダパスのリスト
 
 # フォルダ内のすべてのサブフォルダをチェック
-for root, dirs, files in os.walk(EVIDENCE_FOLDER):
+for root, dirs, files in os.walk(EVI_FOLDER):
     # 各ファイルに対してチェック
     for file in files:
         # ファイル名が「.process」であるかどうかを確認
