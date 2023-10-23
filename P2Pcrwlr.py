@@ -755,190 +755,83 @@ def main():
     add_button.config(command=save_data)
 
     # ここからピースダウンロード関連
-    # パネッドウィンドウの作成
-    paned_window = ttk.PanedWindow(tab1, orient=tk.VERTICAL)
-    paned_window.pack(fill=tk.BOTH, expand=True)
+    # 各タブに表示するパネッドウィンドウ・リストボックス・テキストエリアをそれぞれ定義
+    def create_paned_window(tab):
+        paned_window = ttk.PanedWindow(tab, orient=tk.VERTICAL)
+        paned_window.pack(fill=tk.BOTH, expand=True)
+        return paned_window
 
-    # リストボックスを含むフレーム
-    suspect_listbox_frame = tk.Frame(paned_window)
-    paned_window.add(suspect_listbox_frame)
+    def create_listbox_frame(paned_window, small_font):
+        frame = tk.Frame(paned_window)
+        paned_window.add(frame)
 
-    # リストボックス
-    suspect_listbox = tk.Listbox(
-        suspect_listbox_frame, width=-1, height=9, font=small_font
-    )
-    suspect_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        listbox = tk.Listbox(frame, width=-1, height=9, font=small_font)
+        listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-    # スクロールバー
-    suspect_scrollbar = tk.Scrollbar(
-        suspect_listbox_frame, orient=tk.VERTICAL, command=suspect_listbox.yview
-    )
-    suspect_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-    suspect_listbox.config(yscrollcommand=suspect_scrollbar.set)
+        scrollbar = tk.Scrollbar(frame, orient=tk.VERTICAL, command=listbox.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        listbox.config(yscrollcommand=scrollbar.set)
 
-    # テキストエリアを含むキャンバス
-    info_canvas = tk.Canvas(paned_window)
-    paned_window.add(info_canvas)
+        return frame, listbox, scrollbar
 
-    # キャンバス内にテキストエリアを含むフレームを配置
-    info_text_frame = tk.Frame(info_canvas)
-    info_text_frame.pack(fill=tk.BOTH, expand=True)
+    def create_text_area_frame(paned_window, small_font):
+        canvas = tk.Canvas(paned_window)
+        paned_window.add(canvas)
 
-    # テキストエリア
-    info_text = tk.Text(
-        info_text_frame, wrap=tk.WORD, width=-1, height=7, font=small_font
-    )
-    info_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        frame = tk.Frame(canvas)
+        frame.pack(fill=tk.BOTH, expand=True)
 
-    # 候補テキストエリアのスクロールバー
-    info_scrollbar = tk.Scrollbar(
-        info_text_frame, orient=tk.VERTICAL, command=info_text.yview
-    )
-    info_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-    info_text.config(yscrollcommand=info_scrollbar.set, state=tk.DISABLED)
+        text_area = tk.Text(frame, wrap=tk.WORD, width=-1, height=7, font=small_font)
+        text_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-    # 採集状況パネッドウィンドウの作成
-    paned_window = ttk.PanedWindow(tab2, orient=tk.VERTICAL)
-    paned_window.pack(fill=tk.BOTH, expand=True)
+        scrollbar = tk.Scrollbar(frame, orient=tk.VERTICAL, command=text_area.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        text_area.config(yscrollcommand=scrollbar.set, state=tk.DISABLED)
 
-    # 採集状況リストボックスを含むフレーム
-    process_listbox_frame = tk.Frame(paned_window)
-    paned_window.add(process_listbox_frame)
+        return frame, text_area, scrollbar
 
-    # 採集状況リストボックス
-    process_listbox = tk.Listbox(
-        process_listbox_frame, width=-1, height=9, font=small_font
-    )
-    process_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    # 各タブに対する参照を保持する辞書
+    listboxes = {}
+    text_areas = {}
 
-    # 採集状況スクロールバー
-    process_scrollbar = tk.Scrollbar(
-        process_listbox_frame, orient=tk.VERTICAL, command=process_listbox.yview
-    )
-    process_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-    process_listbox.config(yscrollcommand=process_scrollbar.set)
+    # 各タブに対してパネッドウィンドウとその中のコンポーネントを作成
+    for tab_name, tab in zip(['info', 'process', 'false', 'complete'], [tab1, tab2, tab4, tab3]):
+        paned_window = create_paned_window(tab)
+        listbox_frame, listbox, listbox_scrollbar = create_listbox_frame(paned_window, small_font)
+        text_frame, text_area, text_scrollbar = create_text_area_frame(paned_window, small_font)
+        listboxes[tab_name] = listbox  # リストボックスの参照を保持
+        text_areas[tab_name] = text_area  # テキストエリアの参照を保持
+    
+    # 各タブの名前に対するリストボックスとテキストエリアの対応を定義
+    suspect_listbox = listboxes['info']
+    suspect_text = text_areas['info']
 
-    # 採集状況テキストエリアを含むキャンバス
-    process_canvas = tk.Canvas(paned_window)
-    paned_window.add(process_canvas)
+    process_listbox = listboxes['process']
+    process_text = text_areas['process']
 
-    # 採集状況キャンバス内にテキストエリアを含むフレームを配置
-    process_text_frame = tk.Frame(process_canvas)
-    process_text_frame.pack(fill=tk.BOTH, expand=True)
+    false_listbox = listboxes['false']
+    false_text = text_areas['false']
 
-    # 採集状況テキストエリア
-    process_text = tk.Text(
-        process_text_frame, wrap=tk.WORD, width=-1, height=7, font=small_font
-    )
-    process_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    complete_listbox = listboxes['complete']
+    complete_text = text_areas['complete']
 
-    # 採集状況テキストエリアのスクロールバー
-    process_scrollbar = tk.Scrollbar(
-        process_text_frame, orient=tk.VERTICAL, command=process_text.yview
-    )
-    process_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-    process_text.config(yscrollcommand=process_scrollbar.set, state=tk.DISABLED)
-
-    # 誤検出パネッドウィンドウの作成
-    paned_window = ttk.PanedWindow(tab4, orient=tk.VERTICAL)
-    paned_window.pack(fill=tk.BOTH, expand=True)
-
-    # 誤検出リストボックスを含むフレーム
-    false_listbox_frame = tk.Frame(paned_window)
-    paned_window.add(false_listbox_frame)
-
-    # 誤検出リストボックス
-    false_listbox = tk.Listbox(false_listbox_frame, width=-1, height=9, font=small_font)
-    false_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-    # 誤検出スクロールバー
-    suspect_scrollbar = tk.Scrollbar(
-        false_listbox_frame, orient=tk.VERTICAL, command=false_listbox.yview
-    )
-    suspect_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-    false_listbox.config(yscrollcommand=suspect_scrollbar.set)
-
-    # 誤検出テキストエリアを含むキャンバス
-    false_canvas = tk.Canvas(paned_window)
-    paned_window.add(false_canvas)
-
-    # 誤検出キャンバス内にテキストエリアを含むフレームを配置
-    false_text_frame = tk.Frame(false_canvas)
-    false_text_frame.pack(fill=tk.BOTH, expand=True)
-
-    # 誤検出テキストエリア
-    false_text = tk.Text(
-        false_text_frame, wrap=tk.WORD, width=-1, height=7, font=small_font
-    )
-    false_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-    # 誤検出テキストエリアのスクロールバー
-    false_scrollbar = tk.Scrollbar(
-        false_text_frame, orient=tk.VERTICAL, command=false_text.yview
-    )
-    false_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-    false_text.config(yscrollcommand=false_scrollbar.set, state=tk.DISABLED)
-
-    # 完了パネッドウィンドウの作成
-    paned_window = ttk.PanedWindow(tab3, orient=tk.VERTICAL)
-    paned_window.pack(fill=tk.BOTH, expand=True)
-
-    # 完了リストボックスを含むフレーム
-    complete_listbox_frame = tk.Frame(paned_window)
-    paned_window.add(complete_listbox_frame)
-
-    # 完了リストボックス
-    complete_listbox = tk.Listbox(
-        complete_listbox_frame, width=-1, height=9, font=small_font
-    )
-    complete_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-    # 完了スクロールバー
-    complete_scrollbar = tk.Scrollbar(
-        complete_listbox_frame, orient=tk.VERTICAL, command=complete_listbox.yview
-    )
-    complete_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-    complete_listbox.config(yscrollcommand=complete_scrollbar.set)
-
-    # 完了テキストエリアを含むキャンバス
-    complete_canvas = tk.Canvas(paned_window)
-    paned_window.add(complete_canvas)
-
-    # 完了キャンバス内にテキストエリアを含むフレームを配置
-    complete_text_frame = tk.Frame(complete_canvas)
-    complete_text_frame.pack(fill=tk.BOTH, expand=True)
-
-    # 完了テキストエリア
-    complete_text = tk.Text(
-        complete_text_frame, wrap=tk.WORD, width=-1, height=7, font=small_font
-    )
-    complete_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-    # 完了テキストエリアのスクロールバー
-    complete_scrollbar = tk.Scrollbar(
-        complete_text_frame, orient=tk.VERTICAL, command=complete_text.yview
-    )
-    complete_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-    complete_text.config(yscrollcommand=complete_scrollbar.set, state=tk.DISABLED)
-
-    # 各テキストエリアの記述
-    info_text.insert(
+    # 各テキストエリアに情報を挿入
+    text_areas['info'].insert(
         tk.END, "ここに選択したtorrentファイルの情報が表示されます。\n\n表示内容を見て、証拠採取を開始するかどうか決めてください。"
     )
-    process_text.insert(
+    text_areas['process'].insert(
         tk.END, "ここに、選択したファイルの証拠採取の進行状況が表示されます。"
     )
-
-    false_text.insert(
-         tk.END,
+    text_areas['false'].insert(
+        tk.END,
         "ここでは、誤検出としてマークされたtorrentファイルの一覧を確認できます。"
         "\n\n必要に応じてフォルダを削除したり、証拠採取の候補に戻したりすることができます。"
         "\n\n「P2Pクローラ」の検索機能から生成したフォルダを完全に削除した場合、検出履歴をクリアしない限り、"
-        "クローラで同じファイルを収集することはできなくなりますので注意してください。",
+        "クローラで同じファイルを収集することはできなくなりますので注意してください。"
     )
-    complete_text.insert(
+    text_areas['complete'].insert(
         tk.END,
-        "一覧からファイルを選択すると、証拠採取の結果が表示されます。" "\n\n追加でより長期の証拠採取を行う場合は、採取候補の一覧へ戻すことができます。",
+        "一覧からファイルを選択すると、証拠採取の結果が表示されます。" "\n\n追加でより長期の証拠採取を行う場合は、採取候補の一覧へ戻すことができます。"
     )
 
     # 採取候補の編集用ボタン
@@ -998,7 +891,7 @@ def main():
     refresh_button4 = tk.Button(complete_button_frame, text="更新", font=small_font)
     refresh_button4.pack(side=tk.RIGHT, padx=(0, 10))
 
-    def names(suspect_listbox, info_text, start_button, selected_tab=None):
+    def names(suspect_listbox, suspect_text, start_button, selected_tab=None):
         # torrentファイルに対応するフォルダ名を格納する配列
         folder_names = []
         suspect_listbox.delete(0, tk.END)
@@ -1075,8 +968,8 @@ def main():
                 torrent = Torrent.from_file(torrent_file_path)
 
                 # トレントファイルに含まれる情報を表示
-                info_text.config(state=tk.NORMAL)
-                info_text.delete(1.0, tk.END)
+                suspect_text.config(state=tk.NORMAL)
+                suspect_text.delete(1.0, tk.END)
 
                 def bytes_to_mb(size_in_bytes):
                     size_in_mb = size_in_bytes / (1024 * 1024)
@@ -1137,38 +1030,38 @@ def main():
 
                     return len(bin_files)
 
-                info_text.insert(tk.END, f"【 採取済みピア数：{peer_counter(directory)} 】　")
-                info_text.insert(tk.END, f"【 ピース数：{count_bin_files(directory)} 】\n\n")
+                suspect_text.insert(tk.END, f"【 採取済みピア数：{peer_counter(directory)} 】　")
+                suspect_text.insert(tk.END, f"【 ピース数：{count_bin_files(directory)} 】\n\n")
 
                 # トレントファイルに含まれる情報を表示
-                info_text.insert(
+                suspect_text.insert(
                     tk.END, f"対象ファイル名：{torrent.name if torrent.name else '不明'}\n\n"
                 )
-                info_text.insert(tk.END, f"torrent取得日時：{dt}\n")
-                info_text.insert(tk.END, f"{torrent_situation}\n")
-                info_text.insert(tk.END, "【torrentファイル内の情報】\n")
-                info_text.insert(
+                suspect_text.insert(tk.END, f"torrent取得日時：{dt}\n")
+                suspect_text.insert(tk.END, f"{torrent_situation}\n")
+                suspect_text.insert(tk.END, "【torrentファイル内の情報】\n")
+                suspect_text.insert(
                     tk.END,
                     f"作成日時：{torrent.creation_date if torrent.creation_date else '不明'}\n",
                 )
-                info_text.insert(
+                suspect_text.insert(
                     tk.END,
                     f"作成者：{torrent.created_by if torrent.created_by else '不明'}\n",
                 )
-                info_text.insert(
+                suspect_text.insert(
                     tk.END, f"コメント：{torrent.comment if torrent.comment else '不明'}\n"
                 )
-                info_text.insert(
+                suspect_text.insert(
                     tk.END,
                     "ファイルサイズ：{} MB\n".format(
                         bytes_to_mb(torrent.total_size) if torrent.total_size else "不明"
                     ),
                 )
-                info_text.insert(
+                suspect_text.insert(
                     tk.END,
                     f"ハッシュ：{torrent.info_hash if torrent.info_hash else '不明'}\n\n",
                 )
-                info_text.insert(
+                suspect_text.insert(
                     tk.END,
                     "トラッカー：{}\n".format(
                         ", ".join(
@@ -1182,7 +1075,7 @@ def main():
                         else "不明"
                     ),
                 )
-                info_text.config(state=tk.DISABLED)
+                suspect_text.config(state=tk.DISABLED)
 
             selected_indices = suspect_listbox.curselection()
             if selected_indices:
@@ -1197,7 +1090,7 @@ def main():
         names(complete_listbox, complete_text, restart_button, selected_tab="complete")
         names(process_listbox, process_text, suspend_button, selected_tab="process")
         names(false_listbox, false_text, unmark_button, selected_tab="false")
-        names(suspect_listbox, info_text, start_button, selected_tab=None)
+        names(suspect_listbox, suspect_text, start_button, selected_tab=None)
 
     def delete_folder():
         # 1. リストボックス「false_listbox」の選択された要素のインデックスを取得
@@ -1441,11 +1334,11 @@ def main():
 
     def combined_commands():
         if start_picking():
-            mark_folder(suspect_listbox, info_text, ".process")
+            mark_folder(suspect_listbox, suspect_text, ".process")
 
     start_button.config(command=combined_commands)
     mark_button.config(
-        command=lambda: mark_folder(suspect_listbox, info_text, ".false")
+        command=lambda: mark_folder(suspect_listbox, suspect_text, ".false")
     )
     unmark_button.config(
         command=lambda: unmark_folder(false_listbox, false_text, ".false")
