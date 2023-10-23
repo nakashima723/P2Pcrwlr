@@ -11,8 +11,13 @@ from pgpy import PGPKey, PGPMessage, PGPUID
 import os
 
 
-def save_key(name: str, email: str, save_folder: str | os.PathLike[str]):
-    private_key, public_key = generate_key_pair(name, email)
+def save_key(
+    save_folder: str | os.PathLike[str],
+    name: str,
+    comment: str = "",
+    email: str = "",
+):
+    private_key, public_key = generate_key_pair(name, comment, email)
     with open(os.path.join(save_folder, "private_key.asc"), "w") as f:
         f.write(str(private_key))
 
@@ -39,11 +44,11 @@ def sign_file(
         f.write(str(signed_data))
 
 
-def generate_key_pair(name: str, email: str) -> tuple[PGPKey, PGPKey]:
+def generate_key_pair(name: str, comment: str, email: str) -> tuple[PGPKey, PGPKey]:
     # 秘密鍵の生成 (EdDSA)
     key = PGPKey.new(PubKeyAlgorithm.EdDSA, EllipticCurveOID.Ed25519)
 
-    uid = PGPUID.new(name, email=email)
+    uid = PGPUID.new(name, comment=comment, email=email)
     key.add_uid(
         uid,
         usage={KeyFlags.Certify, KeyFlags.Sign},

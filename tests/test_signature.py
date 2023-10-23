@@ -10,7 +10,7 @@ class TestSignature(TestCase):
         content = "This is the data to be signed"
 
         private_key, public_key = es.generate_key_pair(
-            "John Doe", "john.doe@example.com"
+            "John Doe", "This is a comment.", "john.doe@example.com"
         )
 
         message = es.sign(content, private_key)
@@ -19,7 +19,7 @@ class TestSignature(TestCase):
 
     def test_sign_file(self):
         TEST_DIR = os.path.join(pathlib.Path(__file__).parent, "testdata", "sign")
-        es.save_key("John Doe", "john.doe@example.com", TEST_DIR)
+        es.save_key(TEST_DIR, "John Doe", email="john.doe@example.com")
 
         es.sign_file(
             os.path.join(TEST_DIR, "sample.txt"),
