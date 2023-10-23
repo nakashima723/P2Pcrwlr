@@ -11,8 +11,10 @@ class Config:
             if base_path:
                 self.application_path = Path(base_path)
             else:
-                self.application_path = Path(os.path.dirname(os.path.abspath(sys.argv[0])))
-            
+                self.application_path = Path(
+                    os.path.dirname(os.path.abspath(sys.argv[0]))
+                )
+
             for _ in range(level):
                 self.application_path = self.application_path.parent
 
@@ -23,6 +25,12 @@ class Config:
         self.QUERIES_FILE = os.path.join(self.SETTING_FOLDER, "queries.json")
         self.R18_QUERIES_FILE = os.path.join(self.SETTING_FOLDER, "r18queries.json")
         self.SCRAPER_FILE = os.path.join(self.application_path, "crawler/scraper.py")
-        self.COLLECTOR_FILE = os.path.join(self.application_path, "crawler/collector.py")
-        self.FETCH_IP_FILE = os.path.join(self.application_path, "crawler/fetch_ip_list.py")
-        self.COMPLETE_EVI_FILE = os.path.join(self.application_path, "crawler/get_complete_evidence.py")
+        self.COLLECTOR_FILE = os.path.join(
+            self.application_path, "crawler/collector.py"
+        )
+        self.FETCH_IP_FILE = os.path.join(
+            self.application_path, "crawler/fetch_ip_list.py"
+        )
+        self.COMPLETE_EVI_FILE = os.path.join(
+            self.application_path, "crawler/get_complete_evidence.py"
+        )

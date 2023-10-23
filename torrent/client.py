@@ -287,7 +287,7 @@ class Client:
                 f"{peer_modified}_{str(peer[1])}",
                 "{}_{}_{}.log".format(peer_modified, str(peer[1]), info.info_hash()),
             ),
-            download_completed_timestamp
+            download_completed_timestamp,
         )
 
 
@@ -353,7 +353,11 @@ def _write_piece_to_file(piece: bytes, save_path: str) -> None:
 
 
 def _write_peer_log(
-    torrent_info, peer: tuple[str, int], piece_index: int, save_path: str, completed_timestamp: str
+    torrent_info,
+    peer: tuple[str, int],
+    piece_index: int,
+    save_path: str,
+    completed_timestamp: str,
 ) -> None:
     """
     ピアごとのピースのダウンロードログを、指定されたファイルに書き込む。

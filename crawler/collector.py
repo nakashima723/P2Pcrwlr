@@ -20,11 +20,11 @@ for root, dirs, files in os.walk(EVI_FOLDER):
     for file in files:
         # ファイル名が「.process」であるかどうかを確認
         if file == ".process":
-            # 「.process」ファイルを含むフォルダパスをリストに追加
+            # 「.process」ファイルを含むフォルダパスを証拠採取の対象リストに追加
             folder_list.append(root)
             break
 
-source_files = []  # ダウンロード対象とする「source.torrent」ファイルへのパスを格納するリスト
+source_files = []  # 証拠採取の対象とする「source.torrent」ファイルへのパスを格納するリスト
 
 # 「folder_list」内の各フォルダパスを取得
 for folder in folder_list:
@@ -49,7 +49,7 @@ for i in range(len(source_files)):
     peers = client.fetch_peer_list(source_files[i], max_list_size)
     print("採取対象ピア数: " + str(len(peers)))
 
-    # 日本国内からのみダウンロードするなどの設定行ったセッションを作成
+    # 日本国内からのみダウンロードするなど、各種設定を行ったセッションを作成
     session, info, ip_filter = client.setup_session(source_files[i])
 
     # 取得した各ピアにピースダウンロードを実行

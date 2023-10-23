@@ -22,10 +22,10 @@ TORRENT_FOLDER = con.TORRENT_FOLDER
 
 # Torrentファイルからinfo_hashを取得
 def get_info_hash(torrent_file):
-    with open(torrent_file, 'rb') as f:
+    with open(torrent_file, "rb") as f:
         torrent_data = bencodepy.decode(f.read())
 
-    info = torrent_data[b'info']
+    info = torrent_data[b"info"]
     info_bencoded = bencodepy.encode(info)
     info_hash = hashlib.sha1(info_bencoded).hexdigest()
 
@@ -39,7 +39,9 @@ def fetch_html(site_url, info_hash):
     if response.status_code == 200:
         return BeautifulSoup(response.content, "html.parser")
     else:
-        print(f"エラー: Failed to fetch the content with status code {response.status_code}")
+        print(
+            f"エラー: Failed to fetch the content with status code {response.status_code}"
+        )
         return None
 
 
@@ -70,7 +72,7 @@ def fetch_complete_evidence(site_url, folder_name, info_hash):
     complete_evidence_folder = os.path.join(folder_name, "complete_evidence")
 
     # fetch_html関数を使用してHTMLのDOM情報を取得
-    soup = fetch_html(site_url, info_hash) 
+    soup = fetch_html(site_url, info_hash)
 
     # 「Completed:」、「Seeders:」、「Leechers:」に関するテキストを取得
     complete_text = find_next_div_text(soup, "Completed:")
@@ -79,13 +81,27 @@ def fetch_complete_evidence(site_url, folder_name, info_hash):
     log_timestamp = ut.get_jst_str()
 
     # 「evidence」から始まるログファイルを探して、テキストを追加
-    log_files = [f for f in os.listdir(folder_name) if f.startswith("evidence") and f.endswith(".log")]
+    log_files = [
+        f
+        for f in os.listdir(folder_name)
+        if f.startswith("evidence") and f.endswith(".log")
+    ]
     if log_files:
-        write_to_log(folder_name, log_files[0], complete_text + " Completed " + seeder_text + " Seeder " + leecher_text + " Leecher " + log_timestamp)
+        write_to_log(
+            folder_name,
+            log_files[0],
+            complete_text
+            + " Completed "
+            + seeder_text
+            + " Seeder "
+            + leecher_text
+            + " Leecher "
+            + log_timestamp,
+        )
 
     # 「complete_evidence」が存在しない場合のみCSS関連とHTML保存の処理を行う
     if not os.path.exists(complete_evidence_folder):
-        os.makedirs(complete_evidence_folder, exist_ok=True) 
+        os.makedirs(complete_evidence_folder, exist_ok=True)
         save_file_name = f"complete_evidence_{info_hash}.html"
         output_path = os.path.join(complete_evidence_folder, save_file_name)
 

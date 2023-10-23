@@ -55,7 +55,9 @@ class TaskHandler:
             else:
                 interval = data["interval"]  # デフォルトのインターバルを使用
 
-            process_thread = threading.Thread(target=self.run_task, args=(task_file, interval))
+            process_thread = threading.Thread(
+                target=self.run_task, args=(task_file, interval)
+            )
             process_thread.start()
 
     def start_repeat_thread(self):
@@ -78,7 +80,7 @@ class TaskHandler:
 
         # handlerが管理する各サブプロセスに対してstop_with_timeoutを呼び出す
         for process, process_thread in self.processes:
-            self.stop_with_timeout(process) 
+            self.stop_with_timeout(process)
 
     def restart_task(self):
         self.stop_task()  # 既存のタスクを停止

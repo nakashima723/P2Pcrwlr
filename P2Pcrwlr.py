@@ -133,7 +133,7 @@ def main():
     interval_options = options_list[:]
     piece_interval_options = options_list[:]
 
-    interval_var = tk.StringVar()    
+    interval_var = tk.StringVar()
     piece_interval_var = tk.StringVar()
 
     # intervalとメール設定の値を設定ファイルから読み込み
@@ -795,43 +795,47 @@ def main():
     text_areas = {}
 
     # 各タブに対してパネッドウィンドウとその中のコンポーネントを作成
-    for tab_name, tab in zip(['info', 'process', 'false', 'complete'], [tab1, tab2, tab4, tab3]):
+    for tab_name, tab in zip(
+        ["info", "process", "false", "complete"], [tab1, tab2, tab4, tab3]
+    ):
         paned_window = create_paned_window(tab)
-        listbox_frame, listbox, listbox_scrollbar = create_listbox_frame(paned_window, small_font)
-        text_frame, text_area, text_scrollbar = create_text_area_frame(paned_window, small_font)
+        listbox_frame, listbox, listbox_scrollbar = create_listbox_frame(
+            paned_window, small_font
+        )
+        text_frame, text_area, text_scrollbar = create_text_area_frame(
+            paned_window, small_font
+        )
         listboxes[tab_name] = listbox  # リストボックスの参照を保持
         text_areas[tab_name] = text_area  # テキストエリアの参照を保持
-    
+
     # 各タブの名前に対するリストボックスとテキストエリアの対応を定義
-    suspect_listbox = listboxes['info']
-    suspect_text = text_areas['info']
+    suspect_listbox = listboxes["info"]
+    suspect_text = text_areas["info"]
 
-    process_listbox = listboxes['process']
-    process_text = text_areas['process']
+    process_listbox = listboxes["process"]
+    process_text = text_areas["process"]
 
-    false_listbox = listboxes['false']
-    false_text = text_areas['false']
+    false_listbox = listboxes["false"]
+    false_text = text_areas["false"]
 
-    complete_listbox = listboxes['complete']
-    complete_text = text_areas['complete']
+    complete_listbox = listboxes["complete"]
+    complete_text = text_areas["complete"]
 
     # 各テキストエリアに情報を挿入
-    text_areas['info'].insert(
+    text_areas["info"].insert(
         tk.END, "ここに選択したtorrentファイルの情報が表示されます。\n\n表示内容を見て、証拠採取を開始するかどうか決めてください。"
     )
-    text_areas['process'].insert(
-        tk.END, "ここに、選択したファイルの証拠採取の進行状況が表示されます。"
-    )
-    text_areas['false'].insert(
+    text_areas["process"].insert(tk.END, "ここに、選択したファイルの証拠採取の進行状況が表示されます。")
+    text_areas["false"].insert(
         tk.END,
         "ここでは、誤検出としてマークされたtorrentファイルの一覧を確認できます。"
         "\n\n必要に応じてフォルダを削除したり、証拠採取の候補に戻したりすることができます。"
         "\n\n「P2Pクローラ」の検索機能から生成したフォルダを完全に削除した場合、検出履歴をクリアしない限り、"
-        "クローラで同じファイルを収集することはできなくなりますので注意してください。"
+        "クローラで同じファイルを収集することはできなくなりますので注意してください。",
     )
-    text_areas['complete'].insert(
+    text_areas["complete"].insert(
         tk.END,
-        "一覧からファイルを選択すると、証拠採取の結果が表示されます。" "\n\n追加でより長期の証拠採取を行う場合は、採取候補の一覧へ戻すことができます。"
+        "一覧からファイルを選択すると、証拠採取の結果が表示されます。" "\n\n追加でより長期の証拠採取を行う場合は、採取候補の一覧へ戻すことができます。",
     )
 
     # 採取候補の編集用ボタン
@@ -1031,7 +1035,9 @@ def main():
                     return len(bin_files)
 
                 suspect_text.insert(tk.END, f"【 採取済みピア数：{peer_counter(directory)} 】　")
-                suspect_text.insert(tk.END, f"【 ピース数：{count_bin_files(directory)} 】\n\n")
+                suspect_text.insert(
+                    tk.END, f"【 ピース数：{count_bin_files(directory)} 】\n\n"
+                )
 
                 # トレントファイルに含まれる情報を表示
                 suspect_text.insert(
