@@ -11,7 +11,6 @@ def execute():
     con = Config(base_path=current_dir, level=1)
 
     EVI_FOLDER = con.EVI_FOLDER
-    SETTING_FOLDER = con.SETTING_FOLDER
     SETTING_FILE = con.SETTING_FILE
 
     folder_list = []  # 「.process」ファイルを含む証拠フォルダパスのリスト

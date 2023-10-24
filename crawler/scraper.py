@@ -338,7 +338,6 @@ def execute():
     with file_lock:
         with open(SETTING_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-    interval = data["interval"]
     site_urls = data["site_urls"]
     r18_site_urls = data["r18_site_urls"]
     mail_user = data["mail_user"]

@@ -154,8 +154,6 @@ def execute():
 
     site_urls = data["site_urls"]
     r18_site_urls = data["r18_site_urls"]
-    output_file = "evidence.html"
-    folder_name = "complete_evidence"
 
     # TORRENT_FOLDER内のすべてのフォルダをループで処理
     for folder in Path(TORRENT_FOLDER).iterdir():
