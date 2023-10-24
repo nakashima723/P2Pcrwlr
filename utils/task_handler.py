@@ -29,9 +29,11 @@ class TaskHandler:
         self.stop_event = threading.Event()
 
     def run_task(self, task, interval):
-        while not self.stop_event.is_set():
+        # TODO: 現状、リスタート用のメソッドはあるがストップがない。
+        while True:
             task()
-            self.stop_event.wait(timeout=interval)
+            if self.stop_event.wait(timeout=interval):
+                break
 
     def start_task(self):
         with open(SETTING_FILE, "r", encoding="utf-8") as f:
