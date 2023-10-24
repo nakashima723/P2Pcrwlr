@@ -19,6 +19,7 @@ from requests.exceptions import RequestException
 
 # 独自モジュール
 import utils.time as ut
+from utils.config import Config
 
 
 class Client:
@@ -119,6 +120,10 @@ class Client:
         # _get_public_ips()を一度だけ呼び出し、結果を2つの変数に格納
         ipv4, ipv6 = _get_public_ips()
 
+        # 対象をIPアドレスリストの範囲に限定
+        ipv4_ranges = load_ip_ranges(4)
+        ipv6_ranges = load_ip_ranges(6)
+
         with tempfile.TemporaryDirectory() as tmpdir:
             handle = session.add_torrent({"ti": info, "save_path": tmpdir})
 
@@ -132,7 +137,9 @@ class Client:
                         and p.ip[0] != ipv4
                         and p.ip[0] != ipv6
                     ):
-                        if _ip_in_range(p.ip[0]) or (_ip_in_range(p.ip[0]) is None):
+                        if _ip_in_range(p.ip[0], ipv4_ranges) or _ip_in_range(
+                            p.ip[0], ipv6_ranges
+                        ):
                             peers.append(p.ip)
                 cnt += 1
                 time.sleep(1)
@@ -426,7 +433,29 @@ def _save_peer(peer: tuple[str, int], save_path: str) -> None:
             writer.writerow(peer)
 
 
-def _ip_in_range(ip: str) -> bool:
+def load_ip_ranges(version: int) -> list:
+    # IP範囲をファイルから読み込む
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    con = Config(base_path=current_dir, level=1)
+
+    SETTING_FOLDER = con.SETTING_FOLDER
+
+    ip_range_file = os.path.join(
+        SETTING_FOLDER, "ipv4.txt" if version == 4 else "ipv6.txt"
+    )
+
+    if not os.path.exists(ip_range_file):
+        return []
+
+    with open(ip_range_file, "r") as f:
+        ip_ranges = [
+            ipaddress.ip_network(line.strip(), strict=False) for line in f.readlines()
+        ]
+
+    return ip_ranges
+
+
+def _ip_in_range(ip: str, ip_ranges: list) -> bool:
     """
     指定されたIPアドレスが、設定ファイル（ipv4.txt, ipv6.txt）の範囲に収まっているかを返す。
 
@@ -434,38 +463,19 @@ def _ip_in_range(ip: str) -> bool:
     ----------
     ip : str
         判定対象のIPアドレス。
+    ip_ranges : list
+        load_ip_rangesで取得したIPアドレス範囲の設定。
     """
     try:
         ip_obj = ipaddress.ip_address(ip)
     except ValueError:
-        print(f" {ip} はIPアドレスとして不正な形式です。")
+        print(f"{ip} はIPアドレスとして不正な形式です。")
         return False
 
-    # 設定フォルダへのパスを指定
-    if getattr(sys, "frozen", False):
-        SETTING_FOLDER = sys._MEIPASS
-    else:
-        main_script_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
-        parent_dir = os.path.dirname(main_script_dir)
-        SETTING_FOLDER = os.path.join(parent_dir, "settings")
-
-    # IPv4なのかIPv6なのかを判定して、適切な範囲ファイルを取得
-    ip_range_file = os.path.join(
-        SETTING_FOLDER, "ipv4.txt" if ip_obj.version == 4 else "ipv6.txt"
-    )
-
-    if not os.path.exists(ip_range_file):
-        return None
-
-    # ipがファイルの内容に含まれているかを判定
-    with open(ip_range_file, "r") as f:
-        ip_ranges = f.readlines()
-
     for ip_range in ip_ranges:
-        ip_range = ip_range.strip()
-        # IPアドレスが指定された範囲内にあるかどうかをチェック
-        if ip_obj in ipaddress.ip_network(ip_range, strict=False):
+        if ip_obj in ip_range:
             return True
+
     return False
 
 
