@@ -26,13 +26,16 @@ SETTING_FILE = con.SETTING_FILE
 
 class TaskHandler:
     def __init__(self):
-        self.stop_event = threading.Event()
+        self.__stop_event = threading.Event()
+
+    def stop_task(self):
+        self.__stop_event.set()
 
     def run_task(self, task, interval):
         # TODO: 現状、リスタート用のメソッドはあるがストップがない。
         while True:
             task()
-            if self.stop_event.wait(timeout=interval):
+            if self.__stop_event.wait(timeout=interval):
                 break
 
     def start_task(self):
@@ -54,6 +57,6 @@ class TaskHandler:
             t.start()
 
     def restart_task(self):
-        self.stop_event.set()  # スレッドを停止
-        self.stop_event.clear()  # stop_eventをリセット
+        self.__stop_event.set()  # スレッドを停止
+        self.__stop_event.clear()  # stop_eventをリセット
         self.start_task()  # タスクを再開
