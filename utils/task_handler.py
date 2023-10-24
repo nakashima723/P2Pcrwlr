@@ -32,7 +32,6 @@ class TaskHandler:
         self.__stop_event.set()
 
     def run_task(self, task, interval):
-        # TODO: 現状、リスタート用のメソッドはあるがストップがない。
         while True:
             task()
             if self.__stop_event.wait(timeout=interval):
