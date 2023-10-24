@@ -27,10 +27,6 @@ con = Config(base_path=current_dir, level=0)
 EVI_FOLDER = con.EVI_FOLDER
 SETTING_FOLDER = con.SETTING_FOLDER
 SETTING_FILE = con.SETTING_FILE
-SCRAPER_FILE = con.SCRAPER_FILE
-COLLECTOR_FILE = con.COLLECTOR_FILE
-FETCH_IP_FILE = con.FETCH_IP_FILE
-COMPLETE_EVI_FILE = con.COMPLETE_EVI_FILE
 
 # 設定ファイルが存在しないときは生成
 settings_manager = SettingsGenerator()
