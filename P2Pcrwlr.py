@@ -36,11 +36,17 @@ query_manager.make_query_json()
 r18query_manager = QueryGenerator("r18queries.json")
 r18query_manager.make_query_json()
 
-handler = TaskHandler()
-handler.start_task()
-
 
 def main():
+    handler = TaskHandler()
+    handler.start_task()
+
+    def on_window_close(root):
+        handler.stop_task()
+
+        root.destroy()
+        sys.exit()
+
     window = tk.Tk()
     window.title("P2Pクローラ")
     window.geometry("800x600")
@@ -1362,13 +1368,6 @@ def main():
     window.protocol("WM_DELETE_WINDOW", lambda: on_window_close(window))
 
     window.mainloop()
-
-
-def on_window_close(root):
-    handler.stop_task()
-
-    root.destroy()
-    sys.exit()
 
 
 if __name__ == "__main__":
