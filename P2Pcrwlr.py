@@ -8,6 +8,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 import time
+import sys
 
 # サードパーティライブラリ
 import tkinter as tk
@@ -47,10 +48,6 @@ def main():
     window = tk.Tk()
     window.title("P2Pクローラ")
     window.geometry("800x600")
-
-    def on_window_close():
-        handler.stop_event.set()
-        window.quit()  # ウィンドウを閉じる
 
     # フォント設定
     font = ("", 17)
@@ -1366,9 +1363,16 @@ def main():
 
     update()
 
-    window.protocol("WM_DELETE_WINDOW", on_window_close)
+    window.protocol("WM_DELETE_WINDOW", lambda: on_window_close(window))
 
     window.mainloop()
+
+
+def on_window_close(root):
+    handler.stop_task()
+
+    root.destroy()
+    sys.exit()
 
 
 if __name__ == "__main__":
