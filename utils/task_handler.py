@@ -26,18 +26,25 @@ SETTING_FILE = con.SETTING_FILE
 
 class TaskHandler:
     def __init__(self):
+        self.stop_thread = False
         self.__stop_event = threading.Event()
 
     def stop_task(self):
+        # スレッドを停止させる
+        self.stop_thread = True
+
         self.__stop_event.set()
 
     def run_task(self, task, interval):
-        while True:
+        while not self.stop_thread:
             task()
             if self.__stop_event.wait(timeout=interval):
                 break
 
     def start_task(self):
+        # スレッドが実行可能にする
+        self.stop_thread = False
+
         with open(SETTING_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
 
@@ -56,6 +63,6 @@ class TaskHandler:
             t.start()
 
     def restart_task(self):
-        self.__stop_event.set()  # スレッドを停止
+        self.stop_task()
         self.__stop_event.clear()  # stop_eventをリセット
         self.start_task()  # タスクを再開
