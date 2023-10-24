@@ -13,6 +13,7 @@ import multiprocessing
 current_dir = os.path.dirname(os.path.abspath(__file__))
 con = Config(base_path=current_dir, level=1)
 
+# 実行対象のタスク
 TASKS = [
     crawler.scraper.execute,
     crawler.collector.execute,
@@ -34,6 +35,7 @@ class TaskHandler:
         for process in self.processes:
             process.terminate()
 
+        # プロセスリストを初期状態にリセットする
         self.processes = []
 
     def run_task(self, task, interval):
@@ -63,4 +65,4 @@ class TaskHandler:
 
     def restart_task(self):
         self.stop_task()
-        self.start_task()  # タスクを再開
+        self.start_task()
