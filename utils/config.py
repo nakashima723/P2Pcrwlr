@@ -24,13 +24,3 @@ class Config:
         self.SETTING_FILE = os.path.join(self.SETTING_FOLDER, "setting.json")
         self.QUERIES_FILE = os.path.join(self.SETTING_FOLDER, "queries.json")
         self.R18_QUERIES_FILE = os.path.join(self.SETTING_FOLDER, "r18queries.json")
-        self.SCRAPER_FILE = os.path.join(self.application_path, "crawler/scraper.py")
-        self.COLLECTOR_FILE = os.path.join(
-            self.application_path, "crawler/collector.py"
-        )
-        self.FETCH_IP_FILE = os.path.join(
-            self.application_path, "crawler/fetch_ip_list.py"
-        )
-        self.COMPLETE_EVI_FILE = os.path.join(
-            self.application_path, "crawler/get_complete_evidence.py"
-        )

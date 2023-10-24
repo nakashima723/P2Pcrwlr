@@ -8,6 +8,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 import time
+import sys
 
 # サードパーティライブラリ
 import tkinter as tk
@@ -26,10 +27,6 @@ con = Config(base_path=current_dir, level=0)
 EVI_FOLDER = con.EVI_FOLDER
 SETTING_FOLDER = con.SETTING_FOLDER
 SETTING_FILE = con.SETTING_FILE
-SCRAPER_FILE = con.SCRAPER_FILE
-COLLECTOR_FILE = con.COLLECTOR_FILE
-FETCH_IP_FILE = con.FETCH_IP_FILE
-COMPLETE_EVI_FILE = con.COMPLETE_EVI_FILE
 
 # 設定ファイルが存在しないときは生成
 settings_manager = SettingsGenerator()
@@ -39,25 +36,14 @@ query_manager.make_query_json()
 r18query_manager = QueryGenerator("r18queries.json")
 r18query_manager.make_query_json()
 
-task_files = [FETCH_IP_FILE, SCRAPER_FILE, COLLECTOR_FILE, COMPLETE_EVI_FILE]
-
-handler = TaskHandler(task_files)
-handler.start_repeat_thread()
+handler = TaskHandler()
+handler.start_task()
 
 
 def main():
     window = tk.Tk()
     window.title("P2Pクローラ")
     window.geometry("800x600")
-
-    def on_window_close():
-        handler.stop_event.set()  # スレッドを停止
-
-        # handlerが管理する各サブプロセスに対してstop_with_timeoutを呼び出す
-        for process, _ in handler.processes:  # タプルを展開し、processオブジェクトのみを取得
-            handler.stop_with_timeout(process)
-
-        window.quit()  # ウィンドウを閉じる
 
     # フォント設定
     font = ("", 17)
@@ -246,7 +232,7 @@ def main():
         last_crawl_time_str.set(get_last_crawl_time())
 
     def combined_actions():
-        handler.set_update_label_callback(update_label)
+        update_label()
         handler.restart_task()
 
     patrol_button = tk.Button(
@@ -1373,9 +1359,16 @@ def main():
 
     update()
 
-    window.protocol("WM_DELETE_WINDOW", on_window_close)
+    window.protocol("WM_DELETE_WINDOW", lambda: on_window_close(window))
 
     window.mainloop()
+
+
+def on_window_close(root):
+    handler.stop_task()
+
+    root.destroy()
+    sys.exit()
 
 
 if __name__ == "__main__":

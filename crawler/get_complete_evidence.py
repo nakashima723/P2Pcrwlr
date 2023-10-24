@@ -129,17 +129,6 @@ def fetch_complete_evidence(site_url, folder_name, info_hash):
             f.write(str(soup.prettify()))
 
 
-file_lock = threading.Lock()
-with file_lock:
-    with open(SETTING_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-site_urls = data["site_urls"]
-r18_site_urls = data["r18_site_urls"]
-output_file = "evidence.html"
-folder_name = "complete_evidence"
-
-
 def archive_evidence(urls, folder):
     # .processファイルが存在するかチェック
     process_file = folder / ".process"
@@ -157,14 +146,23 @@ def archive_evidence(urls, folder):
             print(f"エラー: フォルダ {folder} に source.torrent が存在しませんでした。")
 
 
-# TORRENT_FOLDER内のすべてのフォルダをループで処理
-for folder in Path(TORRENT_FOLDER).iterdir():
-    if folder.is_dir():
-        r18_file = folder / ".r18"
+def execute():
+    file_lock = threading.Lock()
+    with file_lock:
+        with open(SETTING_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
 
-        # .r18ファイルの存在に基づいて、処理するURLリストを決定
-        target_urls = r18_site_urls if r18_file.exists() else site_urls
+    site_urls = data["site_urls"]
+    r18_site_urls = data["r18_site_urls"]
 
-        archive_evidence(target_urls, folder)
+    # TORRENT_FOLDER内のすべてのフォルダをループで処理
+    for folder in Path(TORRENT_FOLDER).iterdir():
+        if folder.is_dir():
+            r18_file = folder / ".r18"
 
-time.sleep(1)
+            # .r18ファイルの存在に基づいて、処理するURLリストを決定
+            target_urls = r18_site_urls if r18_file.exists() else site_urls
+
+            archive_evidence(target_urls, folder)
+
+    time.sleep(1)

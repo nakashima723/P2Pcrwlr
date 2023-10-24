@@ -1,6 +1,5 @@
 # 標準ライブラリ
 import csv
-import datetime
 import hashlib
 import ipaddress
 import logging
@@ -11,6 +10,7 @@ import sys
 import tempfile
 import time
 import urllib.parse
+from datetime import datetime
 
 # サードパーティライブラリ
 import libtorrent as lt

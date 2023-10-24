@@ -334,51 +334,50 @@ def scraper(url, file_path):
                         f.truncate()
 
 
-with file_lock:
-    with open(SETTING_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
-interval = data["interval"]
-site_urls = data["site_urls"]
-r18_site_urls = data["r18_site_urls"]
-mail_user = data["mail_user"]
-mail_pass = data["mail_pass"]
+def execute():
+    with file_lock:
+        with open(SETTING_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    site_urls = data["site_urls"]
+    r18_site_urls = data["r18_site_urls"]
+    mail_user = data["mail_user"]
+    mail_pass = data["mail_pass"]
 
-for url in site_urls:
-    scraper(url, QUERIES_FILE)
+    for url in site_urls:
+        scraper(url, QUERIES_FILE)
+        time.sleep(1)
+    for url in r18_site_urls:
+        scraper(url, R18_QUERIES_FILE)
+        time.sleep(1)
+
+    if __name__ == "__main__":
+        if new_file:
+            unique_list = list(set(new_file))
+            new_file_wrapped = ["「" + s + "」" for s in unique_list]
+            new_file_str = "".join(new_file_wrapped)
+            notification_str = (
+                new_file_str + "について、新しいファイルが" + str(len(new_file)) + "件検出されました。"
+            )
+            send_notification("P2Pスレイヤー", notification_str)
+
+            # 送信元に使うメールアドレスが設定されている場合
+            if mail_user is not None and mail_user != "null":
+                # メールの内容を設定
+                msg = EmailMessage()
+                msg.set_content(notification_str + "\nただちにP2Pスレイヤーを起動し、証拠採取を行ってください。")
+
+                msg["Subject"] = "【P2Pスレイヤー】新しいファイルが検出されました"
+                msg["From"] = mail_user
+                msg["To"] = mail_user
+
+                # GmailのSMTPサーバーに接続してメールを送信
+                try:
+                    server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
+                    server.login(mail_user, mail_pass)
+                    server.send_message(msg)
+                    server.quit()
+                    print("メールが送信されました。")
+                except Exception as e:
+                    print(f"メールの送信に失敗しました: {e}")
+
     time.sleep(1)
-for url in r18_site_urls:
-    scraper(url, R18_QUERIES_FILE)
-    time.sleep(1)
-
-if __name__ == "__main__":
-    if new_file:
-        unique_list = list(set(new_file))
-        new_file_wrapped = ["「" + s + "」" for s in unique_list]
-        new_file_str = "".join(new_file_wrapped)
-        notification_str = (
-            new_file_str + "について、新しいファイルが" + str(len(new_file)) + "件検出されました。"
-        )
-        send_notification("P2Pスレイヤー", notification_str)
-
-        # 送信元に使うメールアドレスが設定されている場合
-        if mail_user is not None and mail_user != "null":
-            # メールの内容を設定
-            msg = EmailMessage()
-            msg.set_content(notification_str + "\nただちにP2Pスレイヤーを起動し、証拠採取を行ってください。")
-
-            msg["Subject"] = "【P2Pスレイヤー】新しいファイルが検出されました"
-            msg["From"] = mail_user
-            msg["To"] = mail_user
-
-            # GmailのSMTPサーバーに接続してメールを送信
-            try:
-                server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
-                server.login(mail_user, mail_pass)
-                server.send_message(msg)
-                server.quit()
-                print("メールが送信されました。")
-            except Exception as e:
-                print(f"メールの送信に失敗しました: {e}")
-
-
-time.sleep(1)
