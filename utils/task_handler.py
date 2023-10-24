@@ -1,12 +1,13 @@
 # 設定ファイル内のinterval値に応じて、指定したpythonモジュールを繰り返し実行するモジュール
 import json
 import os
-import threading
+import time
 from utils.config import Config
 import crawler.scraper
 import crawler.collector
 import crawler.fetch_ip_list
 import crawler.get_complete_evidence
+import multiprocessing
 
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -26,25 +27,21 @@ SETTING_FILE = con.SETTING_FILE
 
 class TaskHandler:
     def __init__(self):
-        self.stop_thread = False
-        self.__stop_event = threading.Event()
+        self.processes = []
 
     def stop_task(self):
-        # スレッドを停止させる
-        self.stop_thread = True
+        # 走っているプロセスを強制Kill
+        for process in self.processes:
+            process.terminate()
 
-        self.__stop_event.set()
+        self.processes = []
 
     def run_task(self, task, interval):
-        while not self.stop_thread:
+        while True:
             task()
-            if self.__stop_event.wait(timeout=interval):
-                break
+            time.sleep(interval)
 
     def start_task(self):
-        # スレッドが実行可能にする
-        self.stop_thread = False
-
         with open(SETTING_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
 
@@ -59,10 +56,11 @@ class TaskHandler:
             else:
                 interval = data["interval"]  # デフォルトのインターバルを使用
 
-            t = threading.Thread(target=self.run_task, args=(task, interval))
-            t.start()
+            process = multiprocessing.Process(
+                target=self.run_task, args=(task, interval)
+            )
+            process.start()
 
     def restart_task(self):
         self.stop_task()
-        self.__stop_event.clear()  # stop_eventをリセット
         self.start_task()  # タスクを再開
