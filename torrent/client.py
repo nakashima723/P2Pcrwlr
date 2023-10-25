@@ -6,7 +6,6 @@ import logging
 import os
 import random
 import socket
-import sys
 import tempfile
 import time
 import urllib.parse
@@ -137,7 +136,11 @@ class Client:
                         and p.ip[0] != ipv4
                         and p.ip[0] != ipv6
                     ):
-                        if _ip_in_range(p.ip[0], ipv4_ranges) or _ip_in_range(
+                        # ipv4_rangesとipv6_rangesがいずれも空であればフィルタリングせずに追加、
+                        # そうでなければフィルタリングを適用
+                        if not ipv4_ranges and not ipv6_ranges:
+                            peers.append(p.ip)
+                        elif _ip_in_range(p.ip[0], ipv4_ranges) or _ip_in_range(
                             p.ip[0], ipv6_ranges
                         ):
                             peers.append(p.ip)
