@@ -239,7 +239,8 @@ def main():
 
     def combined_actions():
         update_label()
-        handler.restart_task()
+        handler.stop_task()
+        handler.start_task()
 
     patrol_button = tk.Button(
         interval_frame, text="いますぐ巡回", font=font, command=combined_actions

@@ -26,20 +26,30 @@ SETTING_FOLDER = con.SETTING_FOLDER
 SETTING_FILE = con.SETTING_FILE
 
 
+def wrapper_run_task(task, interval, stop_event):
+    while not stop_event.is_set():
+        task()
+        time.sleep(interval)
+
+
 class TaskHandler:
     def __init__(self):
         self.processes = []
+        self.stop_event = multiprocessing.Event()  # multiprocessing.Eventを使用
 
     def stop_task(self):
         # 走っているプロセスを強制Kill
-        for process in self.processes:
-            process.terminate()
+        self.stop_event.set()  # multiprocessing.Eventを使用
 
         # プロセスリストを初期状態にリセットする
+        for process in self.processes:
+            process.terminate()
+            process.join()  # プロセスが終了するのを確認
         self.processes = []
+        self.stop_event.clear()
 
     def run_task(self, task, interval):
-        while True:
+        while not self.stop_event.is_set():  # multiprocessing.Eventを使用
             task()
             time.sleep(interval)
 
@@ -51,18 +61,15 @@ class TaskHandler:
             # ファイル名に基づいてインターバルを取得
             if task == crawler.scraper.execute:
                 interval = data["interval"]
-            elif task == crawler.collector.execute:  # elifを使用して条件を修正
+            elif task == crawler.collector.execute:
                 interval = data["piece_interval"]
-            elif task == crawler.fetch_ip_list.execute:  # elifを使用して条件を修正
+            elif task == crawler.fetch_ip_list.execute:
                 interval = 86400
             else:
                 interval = data["interval"]  # デフォルトのインターバルを使用
 
             process = multiprocessing.Process(
-                target=self.run_task, args=(task, interval)
+                target=wrapper_run_task, args=(task, interval, self.stop_event)
             )
             process.start()
-
-    def restart_task(self):
-        self.stop_task()
-        self.start_task()
+            self.processes.append(process)
