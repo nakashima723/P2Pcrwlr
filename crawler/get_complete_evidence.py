@@ -74,7 +74,7 @@ def fetch_complete_evidence(site_url, folder_name, info_hash):
     # fetch_html関数を使用してHTMLのDOM情報を取得
     soup = fetch_html(site_url, info_hash)
 
-    # 「Completed:」、「Seeders:」、「Leechers:」に関するテキストを取得
+    # 各種テキストを取得
     complete_text = find_next_div_text(soup, "Completed:")
     seeder_text = find_next_div_text(soup, "Seeders:")
     leecher_text = find_next_div_text(soup, "Leechers:")
@@ -82,9 +82,7 @@ def fetch_complete_evidence(site_url, folder_name, info_hash):
 
     # 「evidence」から始まるログファイルを探して、テキストを追加
     log_files = [
-        f
-        for f in os.listdir(folder_name)
-        if f.startswith("evidence") and f.endswith(".log")
+        f for f in os.listdir(folder_name) if f.startswith("evi") and f.endswith(".log")
     ]
     if log_files:
         write_to_log(
