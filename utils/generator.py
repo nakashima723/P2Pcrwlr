@@ -31,6 +31,8 @@ class SettingsGenerator:
                 "piece_interval": 3600,
                 "last_crawl_time": "null",
                 "max_list_size": 50,
+                "ip_last_modified": 0,
+                "piece_download": "true",
                 "mail_user": "null",
                 "mail_pass": "null",
                 "site_urls": ["https://nyaa.si/"],

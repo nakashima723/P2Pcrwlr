@@ -2,6 +2,7 @@
 import csv
 import hashlib
 import ipaddress
+import json
 import logging
 import os
 import random
@@ -25,6 +26,7 @@ class Client:
     def __init__(self) -> None:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
+        self.piece_download = read_piece_download_setting()
 
     def download(self, torrent_path: str, save_path: str) -> None:
         """
@@ -254,39 +256,46 @@ class Client:
             return
 
         # ダウンロードが完了した瞬間のタイムスタンプを記録
-        download_completed_timestamp = ut.get_jst_str()
+        completed_timestamp = ut.get_jst_str()
 
-        # pieceのサイズが0であれば、以降の処理を行わない
+        error_prefix = ""
+        log_error_message = ""
+
+        # ピースサイズが0かどうかをチェック
         if a is None or len(a) == 0:
-            print("ピースサイズが0だったため、以降の処理をスキップしました。")
-            return
+            print("ピースサイズが0でした。通信エラーがあった可能性があります。")
+            error_prefix = "BLANK_"
+            log_error_message = " エラー：ピースダウンロード失敗 "
 
-        # ダウンロードしたピースのハッシュを計算
-        downloaded_piece_hash = _calculate_piece_hash(a)
-
-        # 元の.torrentファイルのハッシュを取得
-        original_piece_hash = info.hash_for_piece(piece_index)
-
-        # 二つのハッシュを比較
-        if downloaded_piece_hash != original_piece_hash:
-            self.logger.warning("ダウンロードしたピースのハッシュが一致しません。ピースが破損している可能性があります。")
-            return  # ダメージを受けたピースの後の処理をスキップ
         else:
-            print("ピース" + str(piece_index) + "を" + str(peer[0]) + "からダウンロード成功。")
+            # ダウンロードしたピースのハッシュを計算
+            downloaded_piece_hash = _calculate_piece_hash(a)
+            # 元の.torrentファイルのハッシュを取得
+            original_piece_hash = info.hash_for_piece(piece_index)
 
+            # 二つのハッシュを比較
+            if downloaded_piece_hash != original_piece_hash:
+                self.logger.warning("ダウンロードしたピースのハッシュが一致しません。ピースが破損している可能性があります。")
+                error_prefix = "FALSE_"
+                log_error_message = " エラー：バイナリ不一致 "
+
+        # ピア・ピースの情報を文字列として整理
         peer_modified = peer[0].replace(":", "-") if ":" in peer[0] else peer[0]
 
         file_path = os.path.join(
             save_path,
             f"{peer_modified}_{str(peer[1])}",
-            "{:05}_{}_{}_{}.bin".format(
-                piece_index, peer_modified, peer[1], info.info_hash()
+            "{}{:05}_{}_{}_{}.bin".format(
+                error_prefix, piece_index, peer_modified, peer[1], info.info_hash()
             ),
         )
 
         _save_peer(peer, os.path.join(save_path, "peer.csv"))
         unique_file_path = _get_unique_filename(file_path)
-        _write_piece_to_file(a, unique_file_path)
+
+        # 保存オプションがONのとき、ピース実物を保存
+        if self.piece_download:
+            _write_piece_to_file(a, unique_file_path)
 
         _write_peer_log(
             info,
@@ -297,7 +306,8 @@ class Client:
                 f"{peer_modified}_{str(peer[1])}",
                 "{}_{}_{}.log".format(peer_modified, str(peer[1]), info.info_hash()),
             ),
-            download_completed_timestamp,
+            completed_timestamp,
+            log_error_message,
         )
 
 
@@ -363,12 +373,13 @@ def _write_piece_to_file(piece: bytes, save_path: str) -> None:
 
 
 def _write_peer_log(
-    torrent_info,
-    peer: tuple[str, int],
-    piece_index: int,
-    save_path: str,
-    completed_timestamp: str,
-) -> None:
+    info,
+    peer,
+    piece_index,
+    save_path,
+    completed_timestamp,
+    log_error_message="",
+):
     """
     ピアごとのピースのダウンロードログを、指定されたファイルに書き込む。
     指定されたファイルがまだ存在しない場合は新規作成してヘッダーを書き込む。
@@ -394,6 +405,9 @@ def _write_peer_log(
         except socket.herror:
             return None
 
+    dir = os.path.dirname(save_path)
+    os.makedirs(dir, exist_ok=True)
+
     file_mode = "w" if not os.path.exists(save_path) else "a"
 
     with open(save_path, file_mode) as f:
@@ -402,12 +416,12 @@ def _write_peer_log(
             f.write(f"IPアドレス：{peer[0]}\n")
             f.write(f"ポート番号：{peer[1]}\n")
             f.write(f"リモートホスト：{get_remote_host(peer[0])}\n")
-            f.write(f"ファイル名：{torrent_info.name()}\n")
-            f.write(f"ファイルハッシュ: {torrent_info.info_hash()}\n")
+            f.write(f"ファイル名：{info.name()}\n")
+            f.write(f"ファイルハッシュ: {info.info_hash()}\n")
             f.write(f"証拠収集開始時刻: {completed_timestamp}\n")
             f.write("---\n")
 
-        f.write(f"piece{piece_index} 完了時刻: {completed_timestamp}\n")
+        f.write(f"piece{piece_index}{log_error_message} 完了時刻: {completed_timestamp}\n")
 
 
 def _save_peer(peer: tuple[str, int], save_path: str) -> None:
@@ -434,6 +448,21 @@ def _save_peer(peer: tuple[str, int], save_path: str) -> None:
         with open(save_path, "a", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(peer)
+
+
+def read_piece_download_setting():
+    # IP範囲をファイルから読み込む
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    con = Config(base_path=current_dir, level=1)
+
+    SETTING_FILE = con.SETTING_FILE
+
+    # ファイルを開いて、JSONをパース
+    with open(SETTING_FILE, "r", encoding="utf-8") as f:
+        settings = json.load(f)
+
+    # "piece_download" の値を取得して返す
+    return settings.get("piece_download", None)
 
 
 def load_ip_ranges(version: int) -> list:

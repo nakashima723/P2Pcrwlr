@@ -95,12 +95,55 @@ def main():
 
     pass_frame = tk.Frame(tab5)
     pass_frame.pack(fill=tk.X, pady=(10, 0))
-
     pass_label = tk.Label(pass_frame, text="アプリパスワード：", font=font)
     pass_label.pack(side=tk.LEFT, padx=(80, 10))
 
     pass_entry = tk.Entry(pass_frame, font=font, insertwidth=3)
     pass_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 20), expand=True)
+
+    def save_piece_setting():
+        # チェックボックスの状態を取得
+        piece_download = piece_var.get()
+
+        # 設定を読み込む
+        with open(SETTING_FILE, "r") as f:
+            settings = json.load(f)
+
+        # 設定を更新
+        settings["piece_download"] = True if piece_download == 1 else False  # ここを修正
+
+        # 設定を保存
+        with open(SETTING_FILE, "w") as f:
+            json.dump(settings, f, ensure_ascii=False, indent=2)
+
+    # 設定ファイルから "piece_setting" の値を読み込む関数
+    def load_piece_setting_from_file():
+        try:
+            with open(SETTING_FILE, "r") as f:
+                settings = json.load(f)
+            return settings.get("piece_download", False)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return False
+
+    # ピースのダウンロード有無の設定チェックボックス欄
+    piece_frame = tk.Frame(tab5)
+    piece_frame.pack(fill=tk.X, pady=(30, 0))
+
+    piece_label = tk.Label(piece_frame, text="ピース実物をダウンロード後に保存する", font=font)
+    piece_label.pack(side=tk.LEFT, padx=(150, 10))
+
+    # チェックボックスの初期値を設定
+    piece_var = tk.IntVar()
+
+    # 設定ファイルから "piece_setting" の値を読み込み、それに基づいて初期値を設定
+    initial_value = 1 if load_piece_setting_from_file() else 0
+    piece_var.set(initial_value)
+
+    # チェックボックスの作成
+    piece_checkbox = tk.Checkbutton(
+        piece_frame, variable=piece_var, command=save_piece_setting
+    )
+    piece_checkbox.pack(side=tk.LEFT, padx=(0, 10))
 
     # 巡回の間隔
     interval_frame = tk.Frame(tab0)
@@ -715,6 +758,7 @@ def main():
         # 設定を保存
         with open(SETTING_FILE, "w") as f:
             json.dump(settings, f, ensure_ascii=False, indent=2)
+        # メール通知設定を更新するボタンの関数
 
     # ボタンに関数を紐付け
     mail_set_button = tk.Button(
