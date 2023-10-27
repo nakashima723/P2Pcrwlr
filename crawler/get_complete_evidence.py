@@ -96,7 +96,9 @@ def fetch_complete_evidence(site_url, folder_name, info_hash):
             + " Seeder "
             + leecher_text
             + " Leecher "
-            + log_timestamp,
+            + log_timestamp
+            + " from:"
+            + site_url,
         )
 
     # 「complete_evidence」が存在しない場合のみCSS関連とHTML保存の処理を行う
