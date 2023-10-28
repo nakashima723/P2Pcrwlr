@@ -23,6 +23,13 @@ from utils.generator import SettingsGenerator, QueryGenerator
 import utils.time as ut
 from utils.task_handler import TaskHandler
 
+# 設定ファイルが存在しないときは生成
+settings_manager = SettingsGenerator()
+settings_manager.make_setting_json()
+query_manager = QueryGenerator("queries.json")
+query_manager.make_query_json()
+r18query_manager = QueryGenerator("r18queries.json")
+r18query_manager.make_query_json()
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 con = Config(base_path=current_dir, level=0)
@@ -31,14 +38,6 @@ EVI_FOLDER = con.EVI_FOLDER
 SETTING_FOLDER = con.SETTING_FOLDER
 KEYS_FOLDER = con.KEYS_FOLDER
 SETTING_FILE = con.SETTING_FILE
-
-# 設定ファイルが存在しないときは生成
-settings_manager = SettingsGenerator()
-settings_manager.make_setting_json()
-query_manager = QueryGenerator("queries.json")
-query_manager.make_query_json()
-r18query_manager = QueryGenerator("r18queries.json")
-r18query_manager.make_query_json()
 
 
 def main():

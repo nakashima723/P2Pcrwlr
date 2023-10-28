@@ -1,21 +1,17 @@
 # 各種設定ファイルが存在しない場合に、初期設定を生成するモジュール
 import json
 import os
-import sys
-from pathlib import Path
 import threading
+from utils.config import Config
 
 
 class SettingsGenerator:
     def __init__(self):
-        if getattr(sys, "frozen", False):
-            # PyInstallerが使用する一時ディレクトリ
-            self.application_path = sys._MEIPASS
-        else:
-            self.application_path = Path(__file__).resolve().parent.parent
-
-        self.SETTING_FOLDER = os.path.join(self.application_path, "settings")
-        self.SETTING_FILE = os.path.join(self.SETTING_FOLDER, "setting.json")
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        con = Config(base_path=current_dir, level=1)
+        self.SETTING_FOLDER = con.SETTING_FOLDER
+        self.SETTING_FILE = con.SETTING_FILE
+        self.KEYS_FOLDER = con.KEYS_FOLDER
 
         self.file_lock = threading.Lock()
 
@@ -43,16 +39,16 @@ class SettingsGenerator:
                 with open(self.SETTING_FILE, "w", encoding="utf-8") as f:
                     json.dump(data, f, ensure_ascii=False, indent=4)
 
+    def make_keys_json(self):
+        if not os.path.exists(self.KEYS_FOLDER):
+            os.makedirs(self.KEYS_FOLDER)
+
 
 class QueryGenerator:
     def __init__(self, queries_file):
-        if getattr(sys, "frozen", False):
-            # PyInstallerが使用する一時ディレクトリ
-            self.application_path = sys._MEIPASS
-        else:
-            self.application_path = Path(__file__).resolve().parent.parent
-
-        self.QUERIES_FILE = os.path.join(self.application_path, queries_file)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        con = Config(base_path=current_dir, level=1)
+        self.QUERIES_FILE = con.QUERIES_FILE
         self.file_lock = threading.Lock()
 
     def make_query_json(self):
