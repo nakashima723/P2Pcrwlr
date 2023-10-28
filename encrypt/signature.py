@@ -1,5 +1,5 @@
-from pgpy import PGPKey
 import os
+from pgpy import PGPKey
 
 
 def sign_file(
@@ -15,17 +15,17 @@ def sign_file(
     private_key_path: str
         署名に用いる秘密鍵ファイルのパス。
     """
-    with open(private_key_path, "r") as f:
+    with open(private_key_path, "rb") as f:
         private_key_data = f.read()
 
     private_key, _ = PGPKey.from_blob(private_key_data)
 
-    with open(file_path, "r") as f:
+    with open(file_path, "rb") as f:
         file_data = f.read()
 
     signed_data = private_key.sign(file_data)
 
     folder = os.path.dirname(file_path)
     filename = os.path.basename(file_path)
-    with open(os.path.join(folder, filename + ".sig"), "w") as f:
-        f.write(str(signed_data))
+    with open(os.path.join(folder, filename + ".sig"), "wb") as f:
+        f.write(signed_data.__bytes__())

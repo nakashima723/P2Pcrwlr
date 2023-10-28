@@ -1,31 +1,35 @@
 # 標準ライブラリ
+import bencodepy
 import csv
-import json
+from datetime import datetime
 import glob
+import json
 import os
 import re
 import shutil
-from datetime import datetime
-from pathlib import Path
-import time
 import sys
+import time
+from pathlib import Path
 
 # サードパーティライブラリ
+from torrentool.api import Torrent
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
-from torrentool.api import Torrent
 
 # 独自モジュール
-from utils.task_handler import TaskHandler
-import utils.time as ut
-from utils.generator import SettingsGenerator, QueryGenerator
+import encrypt.signature as es
 from utils.config import Config
+from utils.generator import SettingsGenerator, QueryGenerator
+import utils.time as ut
+from utils.task_handler import TaskHandler
+
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 con = Config(base_path=current_dir, level=0)
 
 EVI_FOLDER = con.EVI_FOLDER
 SETTING_FOLDER = con.SETTING_FOLDER
+KEYS_FOLDER = con.KEYS_FOLDER
 SETTING_FILE = con.SETTING_FILE
 
 # 設定ファイルが存在しないときは生成
@@ -65,26 +69,20 @@ def main():
     notebook = ttk.Notebook(window)
     notebook.pack(fill=tk.BOTH, expand=True)
 
-    tab0 = ttk.Frame(notebook)
-    notebook.add(tab0, text="Torrent収集")
+    # タブを格納するリスト
+    tabs = []
 
-    tab1 = ttk.Frame(notebook)
-    notebook.add(tab1, text="証拠採取を開始")
+    # タブの名前リスト
+    tab_names = ["Torrent収集", "証拠採取を開始", "採取中", "完了一覧", "誤検出", "設定"]
 
-    tab2 = ttk.Frame(notebook)
-    notebook.add(tab2, text="採取中")
-
-    tab3 = ttk.Frame(notebook)
-    notebook.add(tab3, text="完了一覧")
-
-    tab4 = ttk.Frame(notebook)
-    notebook.add(tab4, text="誤検出")
-
-    tab5 = ttk.Frame(notebook)
-    notebook.add(tab5, text="設定")
+    # ループでタブを作成
+    for name in tab_names:
+        tab = ttk.Frame(notebook)
+        notebook.add(tab, text=name)
+        tabs.append(tab)
 
     # メール通知の設定欄
-    mail_frame = tk.Frame(tab5)
+    mail_frame = tk.Frame(tabs[5])
     mail_frame.pack(fill=tk.X, pady=(30, 0))
 
     mail_label = tk.Label(mail_frame, text="通知先アドレス：", font=font)
@@ -93,7 +91,7 @@ def main():
     mail_entry = tk.Entry(mail_frame, font=font, insertwidth=3)
     mail_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 80), expand=True)
 
-    pass_frame = tk.Frame(tab5)
+    pass_frame = tk.Frame(tabs[5])
     pass_frame.pack(fill=tk.X, pady=(10, 0))
     pass_label = tk.Label(pass_frame, text="アプリパスワード：", font=font)
     pass_label.pack(side=tk.LEFT, padx=(80, 10))
@@ -126,7 +124,7 @@ def main():
             return False
 
     # ピースのダウンロード有無の設定チェックボックス欄
-    piece_frame = tk.Frame(tab5)
+    piece_frame = tk.Frame(tabs[5])
     piece_frame.pack(fill=tk.X, pady=(30, 0))
 
     piece_label = tk.Label(piece_frame, text="ピース実物をダウンロード後に保存する", font=font)
@@ -146,7 +144,7 @@ def main():
     piece_checkbox.pack(side=tk.LEFT, padx=(0, 10))
 
     # 巡回の間隔
-    interval_frame = tk.Frame(tab0)
+    interval_frame = tk.Frame(tabs[0])
     interval_frame.pack(pady=(10, 10))
 
     interval_label = tk.Label(interval_frame, text="巡回の間隔　Torrent/ピース", font=font)
@@ -258,7 +256,7 @@ def main():
     interval_menu.pack(side=tk.LEFT, padx=(0, 10))
     piece_interval_menu.pack(side=tk.LEFT, padx=(0, 10))
 
-    crawl_history_frame = tk.Frame(tab0)
+    crawl_history_frame = tk.Frame(tabs[0])
     crawl_history_frame.pack(pady=(10, 10))
 
     crawl_history = tk.Label(
@@ -291,7 +289,7 @@ def main():
     patrol_button.pack(side=tk.RIGHT, padx=(30, 0))
 
     # 新しい検索語を追加
-    keyword_entry_frame = tk.Frame(tab0)
+    keyword_entry_frame = tk.Frame(tabs[0])
     keyword_entry_frame.pack(fill=tk.X, pady=(10, 0))
 
     new_keyword_label = tk.Label(keyword_entry_frame, text="新しい検索語：", font=font)
@@ -303,7 +301,7 @@ def main():
     add_button = tk.Button(keyword_entry_frame, text="追加", font=font)
     add_button.pack(side=tk.LEFT, padx=(0, 100))
 
-    option_entry_frame = tk.Frame(tab0)
+    option_entry_frame = tk.Frame(tabs[0])
     option_entry_frame.pack(
         fill=tk.X,
         pady=(10, 5),
@@ -327,7 +325,7 @@ def main():
     )
     publisher_entry.pack(side=tk.LEFT, padx=(0, 100))
 
-    url_frame = tk.Frame(tab0)
+    url_frame = tk.Frame(tabs[0])
     url_frame.pack(
         fill=tk.X,
         pady=(10, 5),
@@ -340,7 +338,7 @@ def main():
     url_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 160), expand=True)
 
     # ラジオボタン
-    radio_frame = tk.Frame(tab0)
+    radio_frame = tk.Frame(tabs[0])
     radio_frame.pack(pady=(10, 5))
 
     radio_var = tk.StringVar()
@@ -365,11 +363,11 @@ def main():
     radio_adult.pack(side=tk.LEFT)
 
     # 空白
-    spacer = tk.Frame(tab0, height=30)
+    spacer = tk.Frame(tabs[0], height=30)
     spacer.pack(fill=tk.X, expand=False)
 
-    # tab0内に新しいタブを追加
-    nested_notebook = ttk.Notebook(tab0)
+    # tabs[0]内に新しいタブを追加
+    nested_notebook = ttk.Notebook(tabs[0])
     nested_notebook.pack(fill=tk.BOTH, expand=True)
 
     # 全年齢の検索語タブ
@@ -833,7 +831,7 @@ def main():
 
     # 各タブに対してパネッドウィンドウとその中のコンポーネントを作成
     for tab_name, tab in zip(
-        ["info", "process", "false", "complete"], [tab1, tab2, tab4, tab3]
+        ["info", "process", "complete", "false"], [tabs[1], tabs[2], tabs[3], tabs[4]]
     ):
         paned_window = create_paned_window(tab)
         listbox_frame, listbox, listbox_scrollbar = create_listbox_frame(
@@ -876,7 +874,7 @@ def main():
     )
 
     # 採取候補の編集用ボタン
-    button_frame = tk.Frame(tab1)
+    button_frame = tk.Frame(tabs[1])
     button_frame.pack(fill=tk.X, pady=(0, 5))
 
     bulk_add_button = tk.Button(button_frame, text="全年齢で追加", font=small_font)
@@ -897,7 +895,7 @@ def main():
     refresh_button1.pack(side=tk.RIGHT, padx=(0, 10))
 
     # 採集状況の編集用ボタン
-    button_frame2 = tk.Frame(tab2)
+    button_frame2 = tk.Frame(tabs[2])
     button_frame2.pack(fill=tk.X, pady=(0, 5))
 
     suspend_button = tk.Button(button_frame2, text="一時停止", font=small_font)
@@ -910,7 +908,7 @@ def main():
     refresh_button2.pack(side=tk.RIGHT, padx=(0, 10))
 
     # 誤検出タブの編集用ボタン
-    false_button_frame = tk.Frame(tab4)
+    false_button_frame = tk.Frame(tabs[4])
     false_button_frame.pack(fill=tk.X, pady=(0, 5))
 
     delete_button = tk.Button(false_button_frame, text="削除", font=small_font)
@@ -923,7 +921,7 @@ def main():
     refresh_button3.pack(side=tk.RIGHT, padx=(0, 10))
 
     # 完了タブの編集用ボタン
-    complete_button_frame = tk.Frame(tab3)
+    complete_button_frame = tk.Frame(tabs[3])
     complete_button_frame.pack(fill=tk.X, pady=(0, 5))
 
     restart_button = tk.Button(complete_button_frame, text="追加の証拠採取を行う", font=font)
@@ -1206,6 +1204,40 @@ def main():
 
         return matching_folders
 
+    def get_dl_targets_from_torrent(torrent_path):
+        # Torrentデータを読み込む
+        with open(torrent_path, "rb") as f:
+            torrent_data = bencodepy.decode(f.read())
+
+        # DL対象のファイルとフォルダ名を取得し、その最も上位の部分だけを取得
+        top_level_targets = set()
+
+        # 'info' キーが存在することを確認
+        if b"info" in torrent_data:
+            info = torrent_data[b"info"]
+
+            # 'files' キーが存在するかどうかをチェックして、マルチファイルTorrentか単一ファイルTorrentかを判断
+            if b"files" in info:
+                for f in info[b"files"]:
+                    # ファイルパスを取得
+                    file_path = os.path.join(*f[b"path"]).decode(
+                        "utf-8", errors="replace"
+                    )
+                    # 区切り文字を確認
+                    sep = "\\" if "\\" in file_path else "/"
+                    # パスを適切な区切り文字で分割し、最も上位の部分を取得
+                    top_level = file_path.split(sep)[0]
+                    top_level_targets.add(top_level)
+            else:
+                # 単一ファイルTorrentの場合
+                file_name = info[b"name"].decode("utf-8", errors="replace")
+                # ファイル名から最も上位のディレクトリ名を取得
+                sep = "\\" if "\\" in file_name else "/"
+                top_level = file_name.split(sep)[0]
+                top_level_targets.add(top_level)
+
+        return list(top_level_targets)
+
     def mark_folder(listbox, text, status):
         # 日付を抽出
         selected_indices = listbox.curselection()
@@ -1230,6 +1262,36 @@ def main():
         if status == ".complete":
             tab_name = "の証拠採取を完了し、完了一覧"
             os.remove(os.path.join(target_folder, ".process"))
+
+            # 各ピアのログファイルへの署名を行う
+            # TorrentファイルからDL対象を取得
+            dl_targets = get_dl_targets_from_torrent(
+                os.path.join(target_folder, "source.torrent")
+            )
+
+            # 特定のフォルダ（DL対象と "complete_evidence"）を探索対象から外す
+            excluded_targets = set(dl_targets)
+            excluded_targets.add("complete_evidence")
+
+            private_key_path = os.path.join(KEYS_FOLDER, "private_key_P2Pcrwlr.asc")
+            public_key_path = os.path.join(KEYS_FOLDER, "public_key_P2Pcrwlr.asc")
+
+            # 証拠フォルダのルートに公開鍵をコピー
+            shutil.copy2(public_key_path, target_folder)
+
+            # target_folder 及びそのサブディレクトリ内のすべてのファイルを探索
+            for dirpath, dirnames, filenames in os.walk(target_folder):
+                # 探索対象から外すフォルダを削除
+                dirnames[:] = [d for d in dirnames if d not in excluded_targets]
+
+                # .log ファイルを探す
+                log_files = [f for f in filenames if f.endswith(".log")]
+
+                # 見つかったすべての .log ファイルに対して sign_file を実行
+                for peer_log in log_files:
+                    if peer_log not in excluded_targets:  # DL対象内の.logファイルは除外
+                        file_path = os.path.join(dirpath, peer_log)
+                        es.sign_file(file_path, private_key_path)
 
         text.config(state=tk.NORMAL)
         text.delete(1.0, tk.END)
