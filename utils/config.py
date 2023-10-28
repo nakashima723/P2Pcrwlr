@@ -7,7 +7,8 @@ from pathlib import Path
 class Config:
     def __init__(self, base_path=None, level=0):
         if getattr(sys, "frozen", False):
-            self.application_path = Path(sys._MEIPASS)
+            # プログラムが実際に実行されている場所を取得
+            self.application_path = Path(sys.executable).parent
         else:
             if base_path:
                 self.application_path = Path(base_path)
@@ -28,7 +29,12 @@ class Config:
         self.R18_QUERIES_FILE = os.path.join(self.SETTING_FOLDER, "r18queries.json")
 
         # 存在しない場合、Config側で作成
-        folders_to_check = [self.EVI_FOLDER, self.SETTING_FOLDER, self.KEYS_FOLDER]
+        folders_to_check = [
+            self.EVI_FOLDER,
+            self.TORRENT_FOLDER,
+            self.SETTING_FOLDER,
+            self.KEYS_FOLDER,
+        ]
 
         for folder in folders_to_check:
             if not os.path.exists(folder):

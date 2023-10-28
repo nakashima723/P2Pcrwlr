@@ -4,6 +4,7 @@ import csv
 from datetime import datetime
 import glob
 import json
+from multiprocessing import freeze_support
 import os
 import re
 import shutil
@@ -42,6 +43,8 @@ SETTING_FILE = con.SETTING_FILE
 
 
 def main():
+    freeze_support()
+
     handler = TaskHandler()
     handler.start_task()
 
@@ -1279,6 +1282,13 @@ def main():
 
             private_key_path = os.path.join(KEYS_FOLDER, "private_key_P2Pcrwlr.asc")
             public_key_path = os.path.join(KEYS_FOLDER, "public_key_P2Pcrwlr.asc")
+
+            if not os.path.isfile(private_key_path):
+                print("秘密鍵ファイルが存在しません。")
+                return
+            if not os.path.isfile(public_key_path):
+                print("公開鍵ファイルが存在しません。")
+                return
 
             # 証拠フォルダのルートに公開鍵をコピー
             shutil.copy2(public_key_path, target_folder)
