@@ -1,3 +1,4 @@
+# 各種設定フォルダへのパスを取得するためのモジュール
 import os
 import sys
 from pathlib import Path
@@ -21,6 +22,7 @@ class Config:
         self.EVI_FOLDER = os.path.join(self.application_path, "evi")
         self.TORRENT_FOLDER = os.path.join(self.EVI_FOLDER, "tor")
         self.SETTING_FOLDER = os.path.join(self.application_path, "settings")
+        self.KEYS_FOLDER = os.path.join(self.application_path, "keys")
         self.SETTING_FILE = os.path.join(self.SETTING_FOLDER, "setting.json")
         self.QUERIES_FILE = os.path.join(self.SETTING_FOLDER, "queries.json")
         self.R18_QUERIES_FILE = os.path.join(self.SETTING_FOLDER, "r18queries.json")
