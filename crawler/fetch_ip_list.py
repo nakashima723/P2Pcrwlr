@@ -1,7 +1,9 @@
+# APNICのサイトからIPアドレス範囲リストを取得し、日本国内のIP範囲一覧を作成して
+# 設定ファイルを自動更新するモジュール
 import ipaddress
+import json
 import math
 import os
-import json
 import urllib.request
 from email.utils import parsedate_to_datetime
 from utils.config import Config

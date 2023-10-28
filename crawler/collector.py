@@ -1,7 +1,13 @@
+# 対象フォルダのsource.torrentをもとに、本体ファイルのDLとピース収集を行うモジュール
+# 標準ライブラリ
 import json
 import os
-from torrent.client import Client
 import time
+
+# サードパーティライブラリ
+from torrent.client import Client
+
+# 独自モジュール
 from utils.config import Config
 
 

@@ -1,15 +1,22 @@
+# トラッカーサイトに掲載されているCompleteを魚拓するモジュール
+# 標準ライブラリ
 import bencodepy
 import hashlib
 import json
 import os
+from pathlib import Path
 import threading
 import time
-from pathlib import Path
-import requests
-import utils.time as ut
-from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
+
+# サードパーティライブラリ
+from bs4 import BeautifulSoup
+import requests
+
+# 独自モジュール
 from utils.config import Config
+import utils.time as ut
+
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 con = Config(base_path=current_dir, level=1)

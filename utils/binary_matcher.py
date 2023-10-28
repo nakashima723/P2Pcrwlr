@@ -1,5 +1,7 @@
-import os
+# 対象フォルダ内のsource.torrentの情報をもとに、同フォルダ以下にあるピースと
+# 本体ファイルのバイナリマッチを実行するモジュール
 import bencodepy
+import os
 
 
 class BinaryMatcher:

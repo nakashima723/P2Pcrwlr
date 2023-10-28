@@ -1,13 +1,16 @@
 # 設定ファイル内のinterval値に応じて、指定したpythonモジュールを繰り返し実行するモジュール
+# 標準ライブラリ
 import json
+import multiprocessing
 import os
 import time
-from utils.config import Config
-import crawler.scraper
+
+# 独自モジュール
 import crawler.collector
 import crawler.fetch_ip_list
 import crawler.get_complete_evidence
-import multiprocessing
+import crawler.scraper
+from utils.config import Config
 
 
 current_dir = os.path.dirname(os.path.abspath(__file__))

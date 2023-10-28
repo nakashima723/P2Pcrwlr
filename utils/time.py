@@ -1,3 +1,4 @@
+# NTPサーバーから正確な時刻を取得し、JSTやフォーマット済の日付形式で返すモジュール
 import ntplib
 from datetime import datetime, timezone, timedelta
 

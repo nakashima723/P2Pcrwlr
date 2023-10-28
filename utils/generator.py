@@ -1,3 +1,4 @@
+# 各種設定ファイルが存在しない場合に、初期設定を生成するモジュール
 import json
 import os
 import sys

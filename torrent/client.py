@@ -1,5 +1,6 @@
 # 標準ライブラリ
 import csv
+from datetime import datetime
 import hashlib
 import ipaddress
 import json
@@ -10,7 +11,6 @@ import socket
 import tempfile
 import time
 import urllib.parse
-from datetime import datetime
 
 # サードパーティライブラリ
 import libtorrent as lt
@@ -18,8 +18,8 @@ import requests
 from requests.exceptions import RequestException
 
 # 独自モジュール
-import utils.time as ut
 from utils.config import Config
+import utils.time as ut
 
 
 class Client:

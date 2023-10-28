@@ -1,20 +1,27 @@
+# トラッカーサイトに掲載されているTorrentファイルを、
+# ユーザーが入力した検索語にもとづき自動巡回・収集するモジュール
+# 標準ライブラリ
 from datetime import datetime, timedelta, timezone
-import urllib.request
-from bs4 import BeautifulSoup
-from torrentool.api import Torrent
-import shutil
-import os
-import requests
-import tempfile
-import time
 import gzip
 import json
-import threading
-from plyer import notification
+import os
+import shutil
 import smtplib
 from email.message import EmailMessage
-import utils.time as ut
+import tempfile
+import threading
+import time
+import urllib.request
+
+# サードパーティライブラリ
+from bs4 import BeautifulSoup
+from plyer import notification
+import requests
+from torrentool.api import Torrent
+
+# 独自モジュール
 from utils.config import Config
+import utils.time as ut
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 con = Config(base_path=current_dir, level=1)
