@@ -12,11 +12,14 @@ class SettingsGenerator:
         self.SETTING_FOLDER = con.SETTING_FOLDER
         self.SETTING_FILE = con.SETTING_FILE
         self.KEYS_FOLDER = con.KEYS_FOLDER
+        self.EVI_FOLDER = con.EVI_FOLDER
 
         self.file_lock = threading.Lock()
 
-        # 設定ファイルが存在しない場合は生成
+        # 設定フォルダが存在しない場合は生成
         self.make_setting_json()
+        self.make_keys_json()
+        self.make_evi_folder()
 
     def make_setting_json(self):
         if not os.path.exists(self.SETTING_FOLDER):
@@ -42,6 +45,10 @@ class SettingsGenerator:
     def make_keys_json(self):
         if not os.path.exists(self.KEYS_FOLDER):
             os.makedirs(self.KEYS_FOLDER)
+
+    def make_evi_folder(self):
+        if not os.path.exists(self.EVI_FOLDER):
+            os.makedirs(self.EVI_FOLDER)
 
 
 class QueryGenerator:

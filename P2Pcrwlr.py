@@ -23,9 +23,10 @@ from utils.generator import SettingsGenerator, QueryGenerator
 import utils.time as ut
 from utils.task_handler import TaskHandler
 
-# 設定ファイルが存在しないときは生成
+# 設定ファイル・フォルダが存在しないときは生成
 settings_manager = SettingsGenerator()
 settings_manager.make_setting_json()
+settings_manager.make_evi_folder()
 query_manager = QueryGenerator("queries.json")
 query_manager.make_query_json()
 r18query_manager = QueryGenerator("r18queries.json")
@@ -935,6 +936,10 @@ def main():
         suspect_listbox.delete(0, tk.END)
         # torrent_folder 内のサブディレクトリを繰り返し処理
         torrent_folder = os.path.join(EVI_FOLDER, "tor")
+
+        if not os.path.exists(torrent_folder):
+            print("エラー: 指定されたパスが見つかりません。")
+            return
 
         subdirs = [
             os.path.join(torrent_folder, folder)

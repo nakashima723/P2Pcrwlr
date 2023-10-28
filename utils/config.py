@@ -26,3 +26,10 @@ class Config:
         self.SETTING_FILE = os.path.join(self.SETTING_FOLDER, "setting.json")
         self.QUERIES_FILE = os.path.join(self.SETTING_FOLDER, "queries.json")
         self.R18_QUERIES_FILE = os.path.join(self.SETTING_FOLDER, "r18queries.json")
+
+        # 存在しない場合、Config側で作成
+        folders_to_check = [self.EVI_FOLDER, self.SETTING_FOLDER, self.KEYS_FOLDER]
+
+        for folder in folders_to_check:
+            if not os.path.exists(folder):
+                os.makedirs(folder)
