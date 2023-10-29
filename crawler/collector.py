@@ -17,6 +17,7 @@ def execute():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     con = Config(base_path=current_dir, level=1)
 
+    version = con.version
     EVI_FOLDER = con.EVI_FOLDER
     SETTING_FILE = con.SETTING_FILE
 
@@ -67,7 +68,7 @@ def execute():
         if peers:
             for peer in peers:
                 client.download_piece(
-                    session, matcher, info, ip_filter, folder_list[i], peer
+                    session, matcher, info, ip_filter, folder_list[i], peer, version
                 )
                 time.sleep(1)
             print("ピース収集が完了しました。")

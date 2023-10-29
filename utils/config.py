@@ -20,6 +20,7 @@ class Config:
             for _ in range(level):
                 self.application_path = self.application_path.parent
 
+        self.version = "ver.1.0.0"
         self.EVI_FOLDER = os.path.join(self.application_path, "evi")
         self.TORRENT_FOLDER = os.path.join(self.EVI_FOLDER, "tor")
         self.SETTING_FOLDER = os.path.join(self.application_path, "settings")

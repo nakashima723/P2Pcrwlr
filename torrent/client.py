@@ -199,7 +199,14 @@ class Client:
         return session, info, ip_filter
 
     def download_piece(
-        self, session, matcher, info, ip_filter, save_path: str, peer: tuple[str, int]
+        self,
+        session,
+        matcher,
+        info,
+        ip_filter,
+        save_path: str,
+        peer: tuple[str, int],
+        version: str,
     ) -> None:
         """
         指定したピアからピースをダウンロードする。
@@ -218,6 +225,8 @@ class Client:
             ピースを保存するディレクトリのパス。
         peer : tuple[str, int]
             ピースをダウンロードするピア。
+        version : str
+            P2Pクローラのバージョン情報。
         """
 
         # 指定されたピアのみからダウンロード
@@ -321,6 +330,7 @@ class Client:
             ),
             completed_timestamp,
             log_error_message,
+            version,
         )
 
 
@@ -392,6 +402,7 @@ def _write_peer_log(
     save_path,
     completed_timestamp,
     log_error_message="",
+    version="",
 ):
     """
     ピアごとのピースのダウンロードログを、指定されたファイルに書き込む。
@@ -432,9 +443,12 @@ def _write_peer_log(
             f.write(f"ファイル名：{info.name()}\n")
             f.write(f"ファイルハッシュ: {info.info_hash()}\n")
             f.write(f"証拠収集開始時刻: {completed_timestamp}\n")
+            f.write(f"P2Pクローラ {version}\n")
             f.write("---\n")
 
-        f.write(f"piece{piece_index}{log_error_message} 完了時刻: {completed_timestamp}\n")
+        f.write(
+            f"piece{piece_index}{log_error_message} 完了時刻: {completed_timestamp} {version}\n"
+        )
 
 
 def _save_peer(peer: tuple[str, int], save_path: str) -> None:
