@@ -20,6 +20,8 @@
 *.complete
 *.process
 *.r18
+*.zip
+*.torrent
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
