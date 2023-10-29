@@ -1,5 +1,4 @@
 #P2Pslayer
-*.torrent
 /tests/evidence/torrent/*
 !/tests/evidence/torrent/.gitkeep
 *.html
@@ -17,7 +16,6 @@
 *.bin
 *.json
 *.txt
-*.zip
 *.false
 *.complete
 *.process
