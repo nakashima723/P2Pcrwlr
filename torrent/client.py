@@ -199,7 +199,7 @@ class Client:
         return session, info, ip_filter
 
     def download_piece(
-        self, session, info, ip_filter, save_path: str, peer: tuple[str, int]
+        self, session, matcher, info, ip_filter, save_path: str, peer: tuple[str, int]
     ) -> None:
         """
         指定したピアからピースをダウンロードする。
@@ -208,6 +208,8 @@ class Client:
         ----------
         session : lt.session
             ダウンロード用のセッション。
+        matcher : Binarymatcher
+            ピースのバイナリマッチ検査用インスタンス。
         info : lt.torrent_info
             トレント情報。
         ip_filter : lt.ip_filter
@@ -277,7 +279,18 @@ class Client:
             if downloaded_piece_hash != original_piece_hash:
                 self.logger.warning("ダウンロードしたピースのハッシュが一致しません。ピースが破損している可能性があります。")
                 error_prefix = "FALSE_"
-                log_error_message = " エラー：バイナリ不一致 "
+                log_error_message = " エラー：ピースハッシュ不一致 "
+            else:
+                match_result = matcher.instant_binary_match(a, piece_index)
+                # instant_binary_matchの結果に基づいて処理を分岐
+                if match_result is False:
+                    self.logger.warning(
+                        "ダウンロードしたピースのバイナリが一致しません。Torrentファイル、または本体ファイルの内容が不正な可能性があります。"
+                    )
+                    error_prefix = "INVALID_"
+                    log_error_message = " エラー：バイナリ不一致 "
+                elif isinstance(match_result, (int, float)):
+                    print(f"{peer[0]}からピース{piece_index}のダウンロードに成功。")
 
         # ピア・ピースの情報を文字列として整理
         peer_modified = peer[0].replace(":", "-") if ":" in peer[0] else peer[0]

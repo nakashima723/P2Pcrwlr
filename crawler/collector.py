@@ -8,6 +8,7 @@ import time
 from torrent.client import Client
 
 # 独自モジュール
+from utils.binary_matcher import BinaryMatcher
 from utils.config import Config
 
 
@@ -59,10 +60,15 @@ def execute():
         # 日本国内からのみダウンロードするなど、各種設定を行ったセッションを作成
         session, info, ip_filter = client.setup_session(source_files[i])
 
+        # ピースごとにバイナリマッチ検査を行うためのインスタンスを作成
+        matcher = BinaryMatcher(source_files[i])
+
         # 取得した各ピアにピースダウンロードを実行
         if peers:
             for peer in peers:
-                client.download_piece(session, info, ip_filter, folder_list[i], peer)
+                client.download_piece(
+                    session, matcher, info, ip_filter, folder_list[i], peer
+                )
                 time.sleep(1)
             print("ピース収集が完了しました。")
         else:
