@@ -1,80 +1,89 @@
-import os
-import tkinter as tk
-import sys
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.label import Label
+from kivy.uix.button import Button
+from kivy.uix.scrollview import ScrollView
+from kivy.clock import Clock
 from torrent.client import _get_public_ips
 from utils.time import get_jst_str
+import os
 
-# ログファイルのパス
-if getattr(sys, "frozen", False):
-    application_path = os.path.dirname(sys.executable)
-else:
-    application_path = os.path.dirname(__file__)
-
+# ログファイルの設定
+application_path = (
+    App.get_running_app().user_data_dir
+    if App.get_running_app()
+    else os.path.dirname(__file__)
+)
 log_file_path = os.path.join(application_path, "IP_address_watcher.log")
 
 # ログファイルが存在しない場合、新規作成
 if not os.path.exists(log_file_path):
     with open(log_file_path, "w", encoding="utf-8") as f:
-        f.write("最終記録日時：\n")
-
-# UIウィンドウとラベルを作成
-window = tk.Tk()
-window.title("IPアドレス監視ツール")
-font = ("", 18)
-last_recorded_time_label = tk.Label(window, text="最終記録日時：", padx=10, pady=5, font=font)
-current_ipv4_label = tk.Label(window, text="", padx=20, pady=5, font=font)
-current_ipv6_label = tk.Label(window, text="", padx=30, pady=5, font=font)
-last_recorded_time_label.pack()
-current_ipv4_label.pack()
-current_ipv6_label.pack()
+        f.write("Last Update:\n")
 
 
-# ログを更新する関数
-def update_log():
-    current_time = get_jst_str()
+class IPAddressWatcherApp(App):
+    def build(self):
+        layout = BoxLayout(orientation="vertical")
 
-    # 現在のIPアドレスを取得（IPv4とIPv6）
-    ipv4, ipv6 = _get_public_ips()
-    current_ipv4_label.config(text=f"IPv4: {ipv4}")
-    current_ipv6_label.config(text=f"IPv6: {ipv6}")
+        # UI部品の定義
+        self.last_recorded_time_label = Label(text="Last Update:", font_size=18)
+        self.current_ipv4_label = Label(text="", font_size=18)
+        self.current_ipv6_label = Label(text="", font_size=18)
+        scroll_view = ScrollView(size_hint=(1, None), size=(400, 400))
+        self.log_display_label = Label(text="", font_size=14, size_hint_y=None)
+        self.log_display_label.bind(texture_size=self.log_display_label.setter("size"))
+        scroll_view.add_widget(self.log_display_label)
 
-    # ログファイルを開き、最終のIPアドレスを取得
-    with open(log_file_path, "r", encoding="utf-8") as f:
-        lines = f.readlines()
-        last_record = lines[-1].strip() if len(lines) > 1 else None
+        # 「ログ表示」ボタンの定義
+        show_log_button = Button(text="Show LOG", size_hint_y=None, height=50)
+        show_log_button.bind(on_press=self.show_logs)
 
-    # 区切り文字で切り分けてIPアドレス部分だけを比較
-    if last_record:
-        _, last_ipv4, last_ipv6 = last_record.split(", ")
-    else:
-        last_ipv4, last_ipv6 = None, None
+        # UI部品をレイアウトに追加
+        layout.add_widget(self.last_recorded_time_label)
+        layout.add_widget(self.current_ipv4_label)
+        layout.add_widget(self.current_ipv6_label)
+        layout.add_widget(show_log_button)
+        layout.add_widget(scroll_view)
 
-    if ipv4 != last_ipv4 or ipv6 != last_ipv6:
-        # IPアドレスが変わった場合、新しい行に加筆
-        current_record = f"{current_time}, {ipv4}, {ipv6}"
-        with open(log_file_path, "a", encoding="utf-8") as f:
-            f.write(f"{current_record}\n")
+        # アプリ起動直後にも一度呼び出す
+        self.update_log(0)
 
-    with open(log_file_path, "r+", encoding="utf-8") as f:
-        lines = f.readlines()
-        f.seek(0)
-        f.write(f"最終記録日時：{current_time}\n")
-        for line in lines[1:]:
-            f.write(line)
+        # 1分ごとにupdate_logを呼び出す
+        Clock.schedule_interval(self.update_log, 10)
 
-    last_recorded_time_label.config(text=f"最終記録日時：{current_time}")
+        return layout
 
+    # ログを表示する関数
+    def show_logs(self, instance):
+        with open(log_file_path, "r", encoding="utf-8") as f:
+            display_text = f.read()
+        self.log_display_label.text = display_text
 
-# メインループ
-def main_loop():
-    update_log()
-    window.after(60000, main_loop)
+    def __init__(self, **kwargs):
+        super(IPAddressWatcherApp, self).__init__(**kwargs)
+        self.last_ipv4 = None
+        self.last_ipv6 = None
+
+    def update_log(self, dt):
+        current_time = get_jst_str()
+        ipv4, ipv6 = _get_public_ips()
+        self.current_ipv4_label.text = f"IPv4: {ipv4}"
+        self.current_ipv6_label.text = f"IPv6: {ipv6}"
+
+        # 前回のIPアドレスと現在のIPアドレスを比較
+        if ipv4 != self.last_ipv4 or ipv6 != self.last_ipv6:
+            # ログファイルに書き込む
+            with open(log_file_path, "a", encoding="utf-8") as f:
+                f.write(f"{current_time}, {ipv4}, {ipv6}\n")
+
+            # 現在のIPアドレスを「前回のIPアドレス」として保持
+            self.last_ipv4 = ipv4
+            self.last_ipv6 = ipv6
+
+        self.last_recorded_time_label.text = f"Last Update:{current_time}"
+        self.show_logs(Button)
 
 
 if __name__ == "__main__":
-    try:
-        window.protocol("WM_DELETE_WINDOW", window.quit)
-        main_loop()
-        window.mainloop()
-    except tk.TclError:
-        print("プログラムが終了されました。")
+    IPAddressWatcherApp().run()

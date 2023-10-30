@@ -167,6 +167,8 @@ class Client:
         # 基本のセッションとIPフィルタを定義
         session = lt.session({"listen_interfaces": "0.0.0.0:6881,[::]:6881"})
 
+        _get_local_ips()
+
         # アップロード量を0に設定
         session.set_upload_rate_limit(0)
 
@@ -565,6 +567,26 @@ def _get_public_ips() -> tuple[str, str]:
         print(f"IPv6の取得に失敗しました: {e}")
 
     return ipv4, ipv6
+
+
+def _get_local_ips():
+    """
+    端末に割り当てられているすべてのIPv4とIPv6アドレスを取得する。
+    """
+    ipv4_list = []
+    ipv6_list = []
+
+    try:
+        # AF_INETとAF_INET6のソケットを作成して、利用可能なネットワークインターフェースを取得
+        for family, _, _, _, sockaddr in socket.getaddrinfo("", None):
+            if family == socket.AF_INET:
+                ipv4_list.append(sockaddr[0])
+            elif family == socket.AF_INET6:
+                ipv6_list.append(sockaddr[0])
+    except Exception as e:
+        print(f"IPアドレスの取得に失敗しました: {e}")
+
+    return list(set(ipv4_list)), list(set(ipv6_list))
 
 
 def _get_unique_filename(path):
