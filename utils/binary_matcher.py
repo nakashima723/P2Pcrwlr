@@ -76,6 +76,8 @@ class BinaryMatcher:
 
         # 全ピース数を計算
         total_pieces = len(self.concatenated_data) // piece_length
+        if len(self.concatenated_data) % piece_length != 0:
+            total_pieces += 1
 
         # 指定されたpiece_indexが全ピース数未満であるか確認
         if piece_index >= total_pieces:
