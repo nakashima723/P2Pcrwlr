@@ -21,50 +21,68 @@ url = "https://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-extended-latest"
 
 
 def merge_ip_ranges(ip_ranges):
-    ip_ranges = [ipaddress.ip_network(ip_range) for ip_range in ip_ranges]
-    ip_ranges.sort(key=lambda x: x.network_address)
+    if not ip_ranges:  # 入力が空かどうかをチェック
+        print("IP範囲が指定されていません。")
+        return []
+
+    # IP範囲のリストを生成し、無効な範囲があればエラーを出力
+    try:
+        ip_ranges_obj = []
+        for ip_range in ip_ranges:
+            ip_ranges_obj.append(ipaddress.ip_network(ip_range))
+    except ValueError as e:
+        print(f"エラーが発生したIP範囲: {ip_range}")
+        print(f"具体的なエラー: {e}")
+        return []
+
+    # ソート
+    ip_ranges_obj.sort(key=lambda x: x.network_address)
+
+    # 合成処理
     merged_ranges = []
-    current_range = ip_ranges[0]
+    current = ip_ranges_obj[0]
 
-    for ip_range in ip_ranges[1:]:
+    for next_range in ip_ranges_obj[1:]:
         if (
-            current_range.overlaps(ip_range)
-            or current_range.broadcast_address + 1 == ip_range.network_address
+            current.overlaps(next_range)
+            or current.broadcast_address + 1 == next_range.network_address
         ):
-            # collapse_addressesの結果をリストに変換し、最初の要素を取得する
-            current_range = list(
-                ipaddress.collapse_addresses([current_range, ip_range])
-            )[0]
+            # collapse_addressesの結果をリストに変換し、最初の要素を取得
+            current = list(ipaddress.collapse_addresses([current, next_range]))[0]
         else:
-            merged_ranges.append(str(current_range))
-            current_range = ip_range
+            merged_ranges.append(str(current))
+            current = next_range
 
-    merged_ranges.append(str(current_range))
-    return merged_ranges
+    merged_ranges.append(str(current))
 
 
-def process_data(data):
-    ipv4_output = []
-    ipv6_output = []
+def process_data(lines):
+    ipv4_output = []  # IPv4アドレス範囲を保存するリスト
+    ipv6_output = []  # IPv6アドレス範囲を保存するリスト
 
-    for line in data:
-        fields = line.split("|")
+    # 最後に見つかった国のコードを保存する変数
+    last_country = None
 
-        # データ行のバリデーションチェック: 最初の範囲が'apnic'でなければスキップ、2番目の範囲が'*'であればスキップ
-        if fields[0] != "apnic" or fields[1] == "*":
+    # ファイルから読み取った各行に対する処理
+    for line in lines:
+        parts = line.split("|")
+
+        # 最初の欄が 'apnic' でない場合、この行はスキップする
+        if parts[0] != "apnic":
             continue
 
-        country = fields[1]
-        ip_type = fields[2]
-        ip_start = fields[3]
+        # 国のコードが空白でなければ更新、空白であれば最後に見つかった国のコードを使用
+        country = parts[1] if parts[1] != "" else last_country
 
-        # ip_sizeが空または数値でない場合はエラーメッセージを出力してスキップ
+        ip_type = parts[2]
+        ip_start = parts[3]
         try:
-            ip_size = int(fields[4])
+            ip_size = int(parts[4])
         except ValueError:
-            print(f"Invalid ip_size value: {line}")
+            print(f"エラーが発生した行: {line}")
             continue
 
+        # 日本（JP）のIPアドレス範囲の場合
         if country == "JP":
             if ip_type == "ipv4":
                 # CIDR表記を計算する
@@ -73,13 +91,14 @@ def process_data(data):
                 )
                 ipv4_output.append(str(ip_net))
             elif ip_type == "ipv6":
-                # CIDR表記を計算する
-                ip_net = ipaddress.ip_network(
-                    f"{ip_start}/{128-int(math.log2(ip_size))}", strict=False
-                )
+                # 修正: ip_sizeがプレフィックス長そのものであるため、そのまま使用する
+                ip_net = ipaddress.ip_network(f"{ip_start}/{ip_size}", strict=False)
                 ipv6_output.append(str(ip_net))
 
-    return ipv4_output, ipv6_output
+        # 最後に見つかった国のコードを更新
+        last_country = country
+
+    return ipv4_output, ipv6_output  # IPv4とIPv6のアドレス範囲を返す
 
 
 def update_data_and_settings(settings, fetched_unix_timestamp):
@@ -94,9 +113,9 @@ def update_data_and_settings(settings, fetched_unix_timestamp):
                 if not line.startswith("#") and line
             ]
             ipv4_output, ipv6_output = process_data(data_lines)
-            ipv4_output, ipv6_output = merge_ip_ranges(ipv4_output), merge_ip_ranges(
-                ipv6_output
-            )
+        # ipv4_output, ipv6_output = merge_ip_ranges(ipv4_output), merge_ip_ranges(
+        #    ipv6_output
+        # )
 
     except Exception as e:
         print(f"データの取得と処理中にエラーが発生しました: {e}")
