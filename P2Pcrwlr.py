@@ -10,7 +10,6 @@ import re
 import shutil
 import sys
 import time
-from pathlib import Path
 
 # サードパーティライブラリ
 from torrentool.api import Torrent
@@ -37,6 +36,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 con = Config(base_path=current_dir, level=0)
 
 EVI_FOLDER = con.EVI_FOLDER
+TORRENT_FOLDER = con.TORRENT_FOLDER
 SETTING_FOLDER = con.SETTING_FOLDER
 KEYS_FOLDER = con.KEYS_FOLDER
 SETTING_FILE = con.SETTING_FILE
@@ -938,7 +938,7 @@ def main():
         folder_names = []
         suspect_listbox.delete(0, tk.END)
         # torrent_folder 内のサブディレクトリを繰り返し処理
-        torrent_folder = os.path.join(EVI_FOLDER, "tor")
+        torrent_folder = TORRENT_FOLDER
 
         if not os.path.exists(torrent_folder):
             print("エラー: 指定されたパスが見つかりません。")
@@ -1152,7 +1152,7 @@ def main():
         selected_text = false_listbox.get(num)
 
         # 2. num番目のフォルダを削除
-        torrent_folder = os.path.join(Path(__file__).parents[0], "evi/tor")
+        torrent_folder = TORRENT_FOLDER
         subdirs = [
             os.path.join(torrent_folder, folder)
             for folder in os.listdir(torrent_folder)
@@ -1197,7 +1197,7 @@ def main():
         folder_date_format = date_str.replace(":", "-").replace(" ", "_")
 
         # フォルダ内のサブディレクトリを取得
-        torrent_folder = os.path.join(Path(__file__).parents[0], "evi/tor")
+        torrent_folder = TORRENT_FOLDER
         subdirs = [
             os.path.join(torrent_folder, folder)
             for folder in os.listdir(torrent_folder)
