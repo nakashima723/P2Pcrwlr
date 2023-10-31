@@ -54,9 +54,9 @@ def execute():
         # 本体ファイルをダウンロード
         download_result = client.download(source_files[i], folder_list[i])
 
-        # ダウンロードの成否またはファイルの存在をチェック
-        if not download_result or not os.path.exists(source_files[i]):
-            print(f"本体ファイル：{source_files[i]} がダウンロードできていないため、スキップします。")
+        # ダウンロードの成否をチェック
+        if not download_result:
+            print("本体ファイルがダウンロードできていないため、スキップします。")
             print(ut.get_jst_str().split(".", 1)[0])
             continue  # 存在しない場合またはダウンロード失敗の場合は以降の処理をスキップ
 

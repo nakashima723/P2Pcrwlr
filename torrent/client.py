@@ -70,7 +70,7 @@ class Client:
             and get_size(target_file_path) == info.total_size()
         ):
             self.logger.info("本体ファイルはダウンロード済み %s", target_file_path)
-            return
+            return True
 
         session = lt.session({"listen_interfaces": "0.0.0.0:6881,[::]:6881"})
         print("本体ファイル" + target_file_path + "のダウンロードを行います。")
