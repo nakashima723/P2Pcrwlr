@@ -196,18 +196,6 @@ def main():
             piece_interval_var.set(option)
             break
 
-    if data["last_crawl_time"] is not None and data["last_crawl_time"] != "null":
-        try:
-            jst = ut.fetch_jst()
-        except ut.TimeException:
-            jst = ut.utc_to_jst(datetime.now())
-        time_str = jst.strftime("%Y年%m月%d日 %H時%M分%S秒")
-    else:
-        time_str = "未登録"
-
-    last_crawl_time_str = tk.StringVar()
-    last_crawl_time_str.set("最後に巡回した日時：" + str(time_str))
-
     def on_option_changed(event, var, options, key):
         selected_option = var.get()
         for option, value in options:
@@ -259,30 +247,7 @@ def main():
     interval_menu.pack(side=tk.LEFT, padx=(0, 10))
     piece_interval_menu.pack(side=tk.LEFT, padx=(0, 10))
 
-    crawl_history_frame = tk.Frame(tabs[0])
-    crawl_history_frame.pack(pady=(10, 10))
-
-    crawl_history = tk.Label(
-        crawl_history_frame, textvariable=last_crawl_time_str, font=small_font
-    )
-    crawl_history.pack(side=tk.LEFT, padx=(0, 5))
-
-    def get_last_crawl_time():
-        with open(SETTING_FILE, "r") as json_file:
-            data = json.load(json_file)
-        last_crawl_time = data.get("last_crawl_time", None)
-        if last_crawl_time is not None or "null":
-            jst = datetime.fromtimestamp(last_crawl_time)
-            time_str = jst.strftime("%Y年%m月%d日 %H時%M分%S秒")
-        else:
-            time_str = "未登録"
-        return "最後に巡回した日時：" + str(time_str)
-
-    def update_label():
-        last_crawl_time_str.set(get_last_crawl_time())
-
     def combined_actions():
-        update_label()
         handler.stop_task()
         handler.start_task()
 

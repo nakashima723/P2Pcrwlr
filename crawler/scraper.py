@@ -76,6 +76,25 @@ def url_in_r18_site_urls(R18_QUERIES_FILE, url):
         return False
 
 
+def write_current_crawl_time():
+    with file_lock:
+        with open(SETTING_FILE, "r+", encoding="utf-8") as f:
+            data = json.load(f)
+            try:
+                jst = ut.fetch_jst()
+                current_time = jst.timestamp()
+                data["last_crawl_time"] = current_time
+                print(jst.strftime("%Y-%m-%d %H:%M:%S"))
+            except ut.TimeException:
+                jst = ut.utc_to_jst(datetime.now())
+                current_time = jst.timestamp()
+                data["last_crawl_time"] = current_time
+                print(jst.strftime("%Y-%m-%d %H:%M:%S"))
+            f.seek(0)
+            json.dump(data, f, ensure_ascii=False, indent=4)
+            f.truncate()
+
+
 def scraper(url, file_path):
     page = 1
     while bool(page):
@@ -86,19 +105,9 @@ def scraper(url, file_path):
 
         if len(keywords) == 0:
             print("「" + url + "」に対する検索語が存在しないため、処理を中断しました。")
-            with file_lock:
-                with open(SETTING_FILE, "r+", encoding="utf-8") as f:
-                    data = json.load(f)
-                    try:
-                        data["last_crawl_time"] = ut.fetch_jst().timestamp()
-                    except ut.TimeException:
-                        data["last_crawl_time"] = ut.utc_to_jst(
-                            datetime.now()
-                        ).timestamp()
-                    f.seek(0)
-                    json.dump(data, f, ensure_ascii=False, indent=4)
-                    f.truncate()
-                break
+            write_current_crawl_time()
+            break  # 時刻を書き込んで巡回終了
+
         with file_lock:
             with open(SETTING_FILE, "r", encoding="utf-8") as f:
                 date_data = json.load(f)
@@ -107,8 +116,10 @@ def scraper(url, file_path):
             date_data["last_crawl_time"] is not None
             and date_data["last_crawl_time"] != "null"
         ):
+            # 過去に巡回した記録があるとき
             last_crawl_time = date_data["last_crawl_time"]
         else:
+            # まだ一度も巡回したことがないとき
             try:
                 data["last_crawl_time"] = ut.fetch_jst().timestamp()
             except ut.TimeException:
@@ -321,24 +332,14 @@ def scraper(url, file_path):
                                         os.unlink(temp_file_path)
                                         print("フォルダが既に存在します：\n" + new_folder)
         if last_timestamp > last_crawl_time:
+            # ページ内末尾のタイムスタンプで確認し、巡回したことがなさそうであれば次のページへ
             page += 1
         else:
             page = False
             filename = os.path.basename(file_path)
 
             if filename == "r18queries.json":
-                with file_lock:
-                    with open(SETTING_FILE, "r+", encoding="utf-8") as f:
-                        data = json.load(f)
-                        try:
-                            data["last_crawl_time"] = ut.fetch_jst().timestamp()
-                        except ut.TimeException:
-                            data["last_crawl_time"] = ut.utc_to_jst(
-                                datetime.now()
-                            ).timestamp()
-                        f.seek(0)
-                        json.dump(data, f, ensure_ascii=False, indent=4)
-                        f.truncate()
+                write_current_crawl_time()  # 時刻を書き込んで巡回終了
 
 
 def execute():
