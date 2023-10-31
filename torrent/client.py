@@ -3,10 +3,12 @@ import csv
 from datetime import datetime
 import hashlib
 import ipaddress
+from ipaddress import ip_address, ip_network
 import json
 import logging
 import os
 import random
+import re
 import socket
 import tempfile
 import time
@@ -118,10 +120,14 @@ class Client:
 
         peers: list[tuple[str, int]] = []
 
-        # _get_public_ips()を一度だけ呼び出し、結果を2つの変数に格納
+        # 自分のIPを取得する_get_public_ips()を呼び出し、結果を2つの変数に格納
         ipv4, ipv6 = _get_public_ips()
 
-        # 対象をIPアドレスリストの範囲に限定
+        # IPv6アドレスの最初の4つのセクションを取得して除外リストに追加
+        if ipv6:
+            excluded_ipv6_network = ip_network(":".join(ipv6.split(":")[:4]) + "::/64")
+
+        # 対象をIPアドレスリストの範囲に限定（IPv4とIPv6）
         ipv4_ranges = load_ip_ranges(4)
         ipv6_ranges = load_ip_ranges(6)
 
@@ -131,23 +137,26 @@ class Client:
             cnt = 0
             while cnt < RETRY_COUNTER:
                 for p in handle.get_peer_info():
-                    # p.ip[0]が自分自身の公開IPv4またはIPv6アドレスではないことを確認
+                    peer_ip = p.ip[0]
+
+                    # 除外条件のチェック
                     if (
                         p.seed
                         and p.ip not in peers
-                        and p.ip[0] != ipv4
-                        and p.ip[0] != ipv6
-                    ):
-                        # ipv4_rangesとipv6_rangesがいずれも空であればフィルタリングせずに追加、
-                        # そうでなければフィルタリングを適用
-                        if not ipv4_ranges and not ipv6_ranges:
-                            peers.append(p.ip)
-                        elif _ip_in_range(p.ip[0], ipv4_ranges) or _ip_in_range(
-                            p.ip[0], ipv6_ranges
+                        and peer_ip != ipv4
+                        and (
+                            not ipv6 or not ip_address(peer_ip) in excluded_ipv6_network
+                        )
+                    ):  # 除外範囲のチェック
+                        # 範囲フィルタリング
+                        if _ip_in_range(peer_ip, ipv4_ranges) or _ip_in_range(
+                            peer_ip, ipv6_ranges
                         ):
                             peers.append(p.ip)
+
                 cnt += 1
                 time.sleep(1)
+
             return peers[:max_list_size]
 
     def setup_session(self, torrent_path: str) -> tuple:
@@ -166,8 +175,6 @@ class Client:
         """
         # 基本のセッションとIPフィルタを定義
         session = lt.session({"listen_interfaces": "0.0.0.0:6881,[::]:6881"})
-
-        _get_local_ips()
 
         # アップロード量を0に設定
         session.set_upload_rate_limit(0)
@@ -424,13 +431,6 @@ def _write_peer_log(
         ログを書き込むファイルのパス。
     """
 
-    def get_remote_host(ip_address):
-        try:
-            host_name, _, _ = socket.gethostbyaddr(ip_address)
-            return host_name
-        except socket.herror:
-            return None
-
     dir = os.path.dirname(save_path)
     os.makedirs(dir, exist_ok=True)
 
@@ -441,7 +441,7 @@ def _write_peer_log(
             # 新規ファイルの場合はヘッダーを書き込み
             f.write(f"IPアドレス：{peer[0]}\n")
             f.write(f"ポート番号：{peer[1]}\n")
-            f.write(f"リモートホスト：{get_remote_host(peer[0])}\n")
+            f.write(f"プロバイダ：{_query_jpnic_whois(peer[0])}\n")
             f.write(f"ファイル名：{info.name()}\n")
             f.write(f"ファイルハッシュ: {info.info_hash()}\n")
             f.write(f"証拠収集開始時刻: {completed_timestamp}\n")
@@ -569,24 +569,35 @@ def _get_public_ips() -> tuple[str, str]:
     return ipv4, ipv6
 
 
-def _get_local_ips():
-    """
-    端末に割り当てられているすべてのIPv4とIPv6アドレスを取得する。
-    """
-    ipv4_list = []
-    ipv6_list = []
+def _query_jpnic_whois(ip_address):
+    # JPNICのWHOISサービスに接続
+    whois_server = "whois.nic.ad.jp"
+    whois_port = 43
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect((whois_server, whois_port))
 
-    try:
-        # AF_INETとAF_INET6のソケットを作成して、利用可能なネットワークインターフェースを取得
-        for family, _, _, _, sockaddr in socket.getaddrinfo("", None):
-            if family == socket.AF_INET:
-                ipv4_list.append(sockaddr[0])
-            elif family == socket.AF_INET6:
-                ipv6_list.append(sockaddr[0])
-    except Exception as e:
-        print(f"IPアドレスの取得に失敗しました: {e}")
+    # IPアドレスの問い合わせを行う
+    sock.send((ip_address + "\r\n").encode("utf-8"))
 
-    return list(set(ipv4_list)), list(set(ipv6_list))
+    # 結果を受け取る
+    data = b""
+    while True:
+        buffer = sock.recv(4096)
+        data += buffer
+        if not buffer:
+            break
+    sock.close()
+
+    # 結果をJISエンコーディングでデコード
+    result = data.decode("iso-2022-jp", "ignore")
+
+    # 組織名を抽出
+    match = re.search(r"\[組織名\]\s+(.+)", result)
+    if match:
+        organization_name = match.group(1)
+        return organization_name
+    else:
+        return "取得失敗"
 
 
 def _get_unique_filename(path):
