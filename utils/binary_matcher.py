@@ -29,7 +29,8 @@ class BinaryMatcher:
 
         # ファイル存在チェック
         if not os.path.exists(download_file):
-            raise FileNotFoundError(f"{download_file_name} が見つかりません。")
+            print(f"{download_file_name} が見つかりませんでした。")
+            return None  # 存在しない場合はNoneを返す
 
         # ダウンロードしたファイルまたはフォルダ内の全てのファイルを連結
         if os.path.isdir(download_file):
@@ -49,6 +50,10 @@ class BinaryMatcher:
         return concatenated_data
 
     def binary_match(self, bin_file, piece_folder):
+        # self.concatenated_dataがNoneなら、その時点でFalseを返す
+        if self.concatenated_data is None:
+            return False
+
         # binファイルの読み込み
         with open(os.path.join(piece_folder, bin_file), "rb") as f:
             bin_data = f.read()
@@ -70,6 +75,10 @@ class BinaryMatcher:
         return False
 
     def instant_binary_match(self, bin_data, piece_index):
+        # self.concatenated_dataがNoneなら、その時点でFalseを返す
+        if self.concatenated_data is None:
+            return False
+
         # ピースダウンロードメソッド中にバイナリマッチを行う
         # ダウンロード元となったtorrentファイルからピース長の情報を取得
         piece_length = self.torrent_data[b"info"][b"piece length"]

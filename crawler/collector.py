@@ -10,6 +10,7 @@ from torrent.client import Client
 # 独自モジュール
 from utils.binary_matcher import BinaryMatcher
 from utils.config import Config
+import utils.time as ut
 
 
 def execute():
@@ -51,7 +52,13 @@ def execute():
 
     for i in range(len(source_files)):
         # 本体ファイルをダウンロード
-        client.download(source_files[i], folder_list[i])
+        download_result = client.download(source_files[i], folder_list[i])
+
+        # ダウンロードの成否またはファイルの存在をチェック
+        if not download_result or not os.path.exists(source_files[i]):
+            print(f"本体ファイル：{source_files[i]} がダウンロードできていないため、スキップします。")
+            print(ut.get_jst_str().split(".", 1)[0])
+            continue  # 存在しない場合またはダウンロード失敗の場合は以降の処理をスキップ
 
         # ピースの収集対象とするピアの一覧を取得
         print("ピアの一覧を取得しています...")
@@ -72,5 +79,7 @@ def execute():
                 )
                 time.sleep(1)
             print("ピース収集が完了しました。")
+            print(ut.get_jst_str().split(".", 1)[0])
         else:
             print("対象となるピアがありませんでした。")
+            print(ut.get_jst_str().split(".", 1)[0])

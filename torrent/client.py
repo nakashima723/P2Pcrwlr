@@ -50,7 +50,7 @@ class Client:
         # .download_skip ファイルが存在する場合、ダウンロードを行わない
         if os.path.exists(skip_file_path):
             self.logger.info("本体ファイルのダウンロードをスキップ: %s", target_file_path)
-            return
+            return False
 
         # すでにDL対象のファイル・フォルダが存在する場合、そのサイズを取得
         def get_size(path: str) -> int:
@@ -78,10 +78,35 @@ class Client:
         info = lt.torrent_info(torrent_path)
         handle = session.add_torrent({"ti": info, "save_path": save_path})
 
+        # 進捗を追跡する変数
+        last_downloaded = 0
+
+        # 現在の時刻を記録
+        last_time = time.time()
+
         self.logger.info("starting %s", handle.status().name)
 
         while not handle.status().is_seeding:
-            _print_download_status(handle.status(), self.logger)
+            current_status = handle.status()
+            _print_download_status(current_status, self.logger)
+
+            # 現在の進捗を取得
+            current_downloaded = current_status.total_done
+
+            # 現在の時刻を取得
+            current_time = time.time()
+
+            # 1分経過したかどうかを確認
+            if current_time - last_time >= 30:
+                # 進捗があるかどうかを確認
+                if current_downloaded == last_downloaded:
+                    self.logger.info("ダウンロードが進捗していないため、スキップします。")
+                    return False
+
+                # 進捗と時刻を更新
+                last_downloaded = current_downloaded
+                last_time = current_time
+
             time.sleep(1)
 
         self.logger.info("complete %s", handle.status().name)
@@ -93,6 +118,8 @@ class Client:
                 ut.utc_to_jst(datetime.now()).strftime("%Y-%m-%d %H:%M:%S"),
             )
         )
+
+        return True
 
     def fetch_peer_list(
         self, torrent_path: str, max_list_size: int = 20
