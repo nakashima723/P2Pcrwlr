@@ -158,32 +158,41 @@ class Client:
         ipv4_ranges = load_ip_ranges(4)
         ipv6_ranges = load_ip_ranges(6)
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            handle = session.add_torrent({"ti": info, "save_path": tmpdir})
+        # 一時ディレクトリの削除に関するエラーハンドリングを追加する
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                handle = session.add_torrent({"ti": info, "save_path": tmpdir})
 
-            cnt = 0
-            while cnt < RETRY_COUNTER:
-                for p in handle.get_peer_info():
-                    peer_ip = p.ip[0]
+                cnt = 0
+                while cnt < RETRY_COUNTER:
+                    for p in handle.get_peer_info():
+                        peer_ip = p.ip[0]
 
-                    # 除外条件のチェック
-                    if (
-                        p.seed
-                        and p.ip not in peers
-                        and peer_ip != ipv4
-                        and (
-                            not ipv6 or not ip_address(peer_ip) in excluded_ipv6_network
-                        )
-                    ):  # 除外範囲のチェック
-                        # 範囲フィルタリング
-                        if _ip_in_range(peer_ip, ipv4_ranges) or _ip_in_range(
-                            peer_ip, ipv6_ranges
-                        ):
-                            peers.append(p.ip)
+                        # 除外条件のチェック
+                        if (
+                            p.seed
+                            and p.ip not in peers
+                            and peer_ip != ipv4
+                            and (
+                                not ipv6
+                                or not ip_address(peer_ip) in excluded_ipv6_network
+                            )
+                        ):  # 除外範囲のチェック
+                            # 範囲フィルタリング
+                            if _ip_in_range(peer_ip, ipv4_ranges) or _ip_in_range(
+                                peer_ip, ipv6_ranges
+                            ):
+                                peers.append(p.ip)
 
-                cnt += 1
-                time.sleep(1)
+                    cnt += 1
+                    time.sleep(1)
 
+                return peers[:max_list_size]
+
+        except Exception as e:
+            # 一時ディレクトリの削除に失敗した場合、ログに表示する
+            logging.error(f"一時ファイルの削除に失敗しました。: {e}")
+            # 処理を続行するために、例外をここでキャッチして処理をスキップする
             return peers[:max_list_size]
 
     def setup_session(self, torrent_path: str) -> tuple:
