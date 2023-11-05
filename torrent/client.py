@@ -115,7 +115,7 @@ class Client:
             % (
                 handle.info_hash(),
                 info.total_size(),
-                ut.utc_to_jst(datetime.now()).strftime("%Y-%m-%d %H:%M:%S"),
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             )
         )
 
