@@ -9,7 +9,9 @@ import logging
 import os
 import random
 import re
+import shutil
 import socket
+import sys
 import tempfile
 import time
 import urllib.parse
@@ -29,6 +31,8 @@ class Client:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
         self.piece_download = read_piece_download_setting()
+        sys.stdout = os.fdopen(sys.stdout.fileno(), "w", buffering=1)
+        sys.stderr = os.fdopen(sys.stderr.fileno(), "w", buffering=1)
 
     def download(self, torrent_path: str, save_path: str) -> None:
         """
@@ -165,36 +169,38 @@ class Client:
         try:
             with tempfile.TemporaryDirectory() as tmpdir:
                 handle = session.add_torrent({"ti": info, "save_path": tmpdir})
-
                 cnt = 0
                 while cnt < RETRY_COUNTER:
-                    for p in handle.get_peer_info():
-                        peer_ip = p.ip[0]
+                    try:
+                        peer_info_list = handle.get_peer_info()
+                        for p in peer_info_list:
+                            peer_ip = p.ip[0]
 
-                        # 全てのピアを追加するフラグが真の場合、条件を無視して追加
-                        if add_all_peers:
-                            peers.append(p.ip)
+                            # 全てのピアを追加するフラグが真の場合、条件を無視して追加
+                            if add_all_peers:
+                                peers.append(p.ip)
+                            else:
+                                if (
+                                    p.seed
+                                    and p.ip not in peers
+                                    and peer_ip != ipv4
+                                    and (
+                                        not ipv6
+                                        or not ip_address(peer_ip)
+                                        in excluded_ipv6_network
+                                    )
+                                ):  # 除外範囲のチェック
+                                    # 範囲フィルタリング
+                                    if _ip_in_range(
+                                        peer_ip, ipv4_ranges
+                                    ) or _ip_in_range(peer_ip, ipv6_ranges):
+                                        peers.append(p.ip)
 
-                        else:
-                            # 除外条件のチェック
-                            if (
-                                p.seed
-                                and p.ip not in peers
-                                and peer_ip != ipv4
-                                and (
-                                    not ipv6
-                                    or not ip_address(peer_ip) in excluded_ipv6_network
-                                )
-                            ):  # 除外範囲のチェック
-                                # 範囲フィルタリング
-                                if _ip_in_range(peer_ip, ipv4_ranges) or _ip_in_range(
-                                    peer_ip, ipv6_ranges
-                                ):
-                                    peers.append(p.ip)
+                    except Exception as e:
+                        print(f"ループ中に例外が発生: {e}")
 
                     cnt += 1
                     time.sleep(1)
-
                 return peers[:max_list_size]
 
         except Exception as e:
@@ -202,6 +208,14 @@ class Client:
             logging.error(f"一時ファイルの削除に失敗しました。: {e}")
             # 処理を続行するために、例外をここでキャッチして処理をスキップする
             return peers[:max_list_size]
+
+        finally:
+            # finallyブロックで一時ディレクトリの削除を確実に実行
+            if tmpdir and os.path.exists(tmpdir):
+                try:
+                    shutil.rmtree(tmpdir)
+                except Exception as e:
+                    logging.error(f"明示的な一時ファイルの削除に失敗しました。: {e}")
 
     def setup_session(self, torrent_path: str) -> tuple:
         """
