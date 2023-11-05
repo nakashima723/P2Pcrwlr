@@ -4,10 +4,10 @@ from setuptools import (
 )
 
 
-with open("README.md") as fh:
+with open("README.md", encoding="utf-8") as fh:
     long_description = fh.read()
 
-with open("requirements.txt") as rf:
+with open("requirements.txt", encoding="utf-8") as rf:
     requires = rf.read().splitlines()
 
 setup(
