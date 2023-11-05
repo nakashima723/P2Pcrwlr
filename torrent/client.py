@@ -553,6 +553,8 @@ def _save_peers_info(
 
     if valid_piece:
         num = 1
+    else:
+        num = 0
 
     if os.path.exists(csv_path):
         with open(csv_path, "r", encoding="utf-8") as f:
