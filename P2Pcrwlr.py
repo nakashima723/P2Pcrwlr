@@ -1019,7 +1019,7 @@ def main():
                 # 取得済みのピア数を表示
                 def peer_counter(directory):
                     # peer.csvのパスを組み立てる
-                    peer_csv_path = os.path.join(directory, "peer.csv")
+                    peer_csv_path = os.path.join(directory, "peers.csv")
 
                     # ファイルが存在しない場合は0を返す
                     if not os.path.exists(peer_csv_path):
