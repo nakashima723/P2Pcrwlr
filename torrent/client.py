@@ -158,6 +158,9 @@ class Client:
         ipv4_ranges = load_ip_ranges(4)
         ipv6_ranges = load_ip_ranges(6)
 
+        # IP範囲ファイルが両方とも存在しない場合にすべてのピアを追加するフラグ
+        add_all_peers = not ipv4_ranges and not ipv6_ranges
+
         # 一時ディレクトリの削除に関するエラーハンドリングを追加する
         try:
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -168,21 +171,26 @@ class Client:
                     for p in handle.get_peer_info():
                         peer_ip = p.ip[0]
 
-                        # 除外条件のチェック
-                        if (
-                            p.seed
-                            and p.ip not in peers
-                            and peer_ip != ipv4
-                            and (
-                                not ipv6
-                                or not ip_address(peer_ip) in excluded_ipv6_network
-                            )
-                        ):  # 除外範囲のチェック
-                            # 範囲フィルタリング
-                            if _ip_in_range(peer_ip, ipv4_ranges) or _ip_in_range(
-                                peer_ip, ipv6_ranges
-                            ):
-                                peers.append(p.ip)
+                        # 全てのピアを追加するフラグが真の場合、条件を無視して追加
+                        if add_all_peers:
+                            peers.append(p.ip)
+
+                        else:
+                            # 除外条件のチェック
+                            if (
+                                p.seed
+                                and p.ip not in peers
+                                and peer_ip != ipv4
+                                and (
+                                    not ipv6
+                                    or not ip_address(peer_ip) in excluded_ipv6_network
+                                )
+                            ):  # 除外範囲のチェック
+                                # 範囲フィルタリング
+                                if _ip_in_range(peer_ip, ipv4_ranges) or _ip_in_range(
+                                    peer_ip, ipv6_ranges
+                                ):
+                                    peers.append(p.ip)
 
                     cnt += 1
                     time.sleep(1)
@@ -316,6 +324,7 @@ class Client:
 
         error_prefix = ""
         log_error_message = ""
+        valid_piece = False
 
         # ピースサイズが0かどうかをチェック
         if a is None or len(a) == 0:
@@ -345,6 +354,7 @@ class Client:
                     log_error_message = " エラー：バイナリ不一致 "
                 elif isinstance(match_result, (int, float)):
                     print(f"{peer[0]}からピース{piece_index}のダウンロードに成功。")
+                    valid_piece = True
 
         # ピア・ピースの情報を文字列として整理
         peer_modified = peer[0].replace(":", "-") if ":" in peer[0] else peer[0]
@@ -357,7 +367,30 @@ class Client:
             ),
         )
 
-        _save_peer(peer, os.path.join(save_path, "peer.csv"))
+        # 証拠フォルダ内のピアを一覧するためのデータ、peers.csvを編集
+        csv_path = os.path.join(save_path, "peers.csv")
+        log_path = os.path.join(
+            save_path,
+            f"{peer_modified}_{str(peer[1])}",
+            "{}_{}_{}.log".format(peer_modified, str(peer[1]), info.info_hash()),
+        )
+        if not os.path.exists(log_path):
+            provider = _query_jpnic_whois(peer[0])
+            time.sleep(1)
+        else:
+            provider = ""
+
+        peer_csv = _save_peers_info(
+            peer,
+            provider,
+            completed_timestamp,
+            valid_piece,
+            csv_path,
+        )
+
+        if not peer_csv:
+            return
+
         unique_file_path = _get_unique_filename(file_path)
 
         # 保存オプションがONのとき、ピース実物を保存
@@ -368,11 +401,8 @@ class Client:
             info,
             peer,
             piece_index,
-            os.path.join(
-                save_path,
-                f"{peer_modified}_{str(peer[1])}",
-                "{}_{}_{}.log".format(peer_modified, str(peer[1]), info.info_hash()),
-            ),
+            log_path,
+            provider,
             completed_timestamp,
             log_error_message,
             version,
@@ -444,7 +474,8 @@ def _write_peer_log(
     info,
     peer,
     piece_index,
-    save_path,
+    log_path,
+    provider,
     completed_timestamp,
     log_error_message="",
     version="",
@@ -467,17 +498,22 @@ def _write_peer_log(
         ログを書き込むファイルのパス。
     """
 
-    dir = os.path.dirname(save_path)
-    os.makedirs(dir, exist_ok=True)
+    # ファイルを開く前にディレクトリの存在を確認
+    save_dir = os.path.dirname(log_path)
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir, exist_ok=True)
 
-    file_mode = "w" if not os.path.exists(save_path) else "a"
+    if not os.path.exists(log_path):
+        file_mode = "w"
+    else:
+        file_mode = "a"
 
-    with open(save_path, file_mode) as f:
+    with open(log_path, file_mode) as f:
         if file_mode == "w":
             # 新規ファイルの場合はヘッダーを書き込み
             f.write(f"IPアドレス：{peer[0]}\n")
             f.write(f"ポート番号：{peer[1]}\n")
-            f.write(f"プロバイダ：{_query_jpnic_whois(peer[0])}\n")
+            f.write(f"プロバイダ：{provider}\n")
             f.write(f"ファイル名：{info.name()}\n")
             f.write(f"ファイルハッシュ: {info.info_hash()}\n")
             f.write(f"証拠収集開始時刻: {completed_timestamp}\n")
@@ -489,30 +525,76 @@ def _write_peer_log(
         )
 
 
-def _save_peer(peer: tuple[str, int], save_path: str) -> None:
+def _save_peers_info(
+    peer: tuple[str, int],
+    provider: str,
+    completed_timestamp: str,
+    valid_piece: bool,
+    csv_path: str,
+) -> None:
     """
-    ピアの一覧をファイルに記録する。
+    ピアの一覧をファイルに記録または更新する。
 
     Parameters
     ----------
     peer : (str, int)
         ピアを表すタプル。
+    provider : str
+        プロバイダ情報。
+    completed_timestamp : str
+        完了タイムスタンプ。
+    valid_piece : bool
+        取得できたのが正常なピースかどうか。
     save_path : str
         記録ファイルのパス。
     """
-    existing_peers = []
+    updated = False
+    new_data = []
 
-    if os.path.exists(save_path):
-        # 重複を避けるために、すでにファイルが存在している場合は記録されたピアを読み込む
-        with open(save_path, "r") as f:
+    if valid_piece:
+        num = 1
+
+    if os.path.exists(csv_path):
+        with open(csv_path, "r", encoding="utf-8") as f:
             reader = csv.reader(f)
-            # peerは (str, int) 型なので読み込んだ値を型変換する
-            existing_peers = [(row[0], int(row[1])) for row in reader]
+            for row in reader:
+                # peerのIPアドレスとポート番号が一致する行を見つけたら
+                if row[:2] == [peer[0], str(peer[1])]:
+                    # 5列目のみcompleted_timestampで更新
+                    row[5] = completed_timestamp
+                    updated = True
+                new_data.append(row)
 
-    if peer not in existing_peers:
-        with open(save_path, "a", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(peer)
+    try:
+        # ピアが既存であった場合は、更新されたデータでファイルを上書き
+        if updated:
+            with open(csv_path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                for row in new_data:
+                    # peerが一致し、valid_pieceがTrueの場合に3列目を更新
+                    if row[:2] == [peer[0], str(peer[1])] and valid_piece:
+                        try:
+                            # 4列目を数値に変換して1を加える
+                            row[3] = str(int(row[3]) + 1)
+                        except ValueError:
+                            # 3列目が数値でなければエラーメッセージを表示
+                            print("csvデータ上の値が数値ではないため、書き込みできませんでした。")
+                            continue  # 次の行の処理を続ける
+                    writer.writerow(row)
+        else:
+            # ピアが新規である場合は追加
+            with open(csv_path, "a", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                # 新しいピア情報を追加
+                writer.writerow(
+                    peer + (provider, num, completed_timestamp, completed_timestamp)
+                )
+
+        return True
+
+    except PermissionError:
+        print("パーミッションエラー：peers.csvに書き込みできません。ファイルが開かれている場合は閉じてください。")
+        return False  # download_pieceを中断するための戻り値
 
 
 def read_piece_download_setting():
@@ -609,29 +691,32 @@ def _query_jpnic_whois(ip_address):
     # JPNICのWHOISサービスに接続
     whois_server = "whois.nic.ad.jp"
     whois_port = 43
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((whois_server, whois_port))
 
-    # IPアドレスの問い合わせを行う
-    sock.send((ip_address + "\r\n").encode("utf-8"))
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect((whois_server, whois_port))
+        sock.send((ip_address + "\r\n").encode("utf-8"))
 
-    # 結果を受け取る
-    data = b""
-    while True:
-        buffer = sock.recv(4096)
-        data += buffer
-        if not buffer:
-            break
-    sock.close()
+        data = b""
+        while True:
+            buffer = sock.recv(4096)
+            if not buffer:
+                break
+            data += buffer
+    except ConnectionResetError:
+        print("プロバイダ取得エラー：Whoisサーバーによって接続がリセットされました。")
+        return "接続拒否"
+    except socket.error as e:
+        print(f"プロバイダ取得エラー：ソケットエラーが発生しました: {e}")
+        return "ソケットエラー"
+    finally:
+        sock.close()
 
-    # 結果をJISエンコーディングでデコード
     result = data.decode("iso-2022-jp", "ignore")
 
-    # 組織名を抽出
     match = re.search(r"\[組織名\]\s+(.+)", result)
     if match:
-        organization_name = match.group(1)
-        return organization_name
+        return match.group(1)
     else:
         return "取得失敗"
 
