@@ -4,7 +4,8 @@ import csv
 from datetime import datetime
 import glob
 import json
-from multiprocessing import freeze_support
+import logging
+import multiprocessing
 import os
 import re
 import shutil
@@ -43,7 +44,10 @@ SETTING_FILE = con.SETTING_FILE
 
 
 def main():
-    freeze_support()
+    multiprocessing.freeze_support()
+
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
+    logger = logging.getLogger("P2Pcrwlr")
 
     handler = TaskHandler()
     handler.start_task()
@@ -841,6 +845,22 @@ def main():
         "一覧からファイルを選択すると、証拠採取の結果が表示されます。" "\n\n追加でより長期の証拠採取を行う場合は、採取候補の一覧へ戻すことができます。",
     )
 
+    # フォルダを開く関数。引数でパスを受け取るようにする。
+    def open_folder(path):
+        if os.path.exists(path):
+            os.startfile(path)
+        else:
+            messagebox.showerror("エラー", "指定したフォルダが存在しません。")
+
+    def setup_open_folder_button(parent, folder_path):
+        open_folder_button = tk.Button(
+            parent,
+            text="フォルダを開く",
+            command=lambda: open_folder(folder_path),
+            font=small_font,
+        )
+        return open_folder_button
+
     # 採取候補の編集用ボタン
     button_frame = tk.Frame(tabs[1])
     button_frame.pack(fill=tk.X, pady=(0, 5))
@@ -872,6 +892,9 @@ def main():
     complete_button = tk.Button(button_frame2, text="証拠採取を完了", font=font)
     complete_button.pack(side=tk.RIGHT, padx=(0, 10))
 
+    open_folder_button2 = setup_open_folder_button(button_frame2, TORRENT_FOLDER)
+    open_folder_button2.pack(side=tk.RIGHT, padx=(0, 10))
+
     refresh_button2 = tk.Button(button_frame2, text="更新", font=small_font)
     refresh_button2.pack(side=tk.RIGHT, padx=(0, 10))
 
@@ -885,6 +908,9 @@ def main():
     unmark_button = tk.Button(false_button_frame, text="証拠採取の候補にもどす", font=font)
     unmark_button.pack(side=tk.RIGHT, padx=(0, 10))
 
+    open_folder_button3 = setup_open_folder_button(false_button_frame, TORRENT_FOLDER)
+    open_folder_button3.pack(side=tk.RIGHT, padx=(0, 10))
+
     refresh_button3 = tk.Button(false_button_frame, text="更新", font=small_font)
     refresh_button3.pack(side=tk.RIGHT, padx=(0, 10))
 
@@ -894,6 +920,11 @@ def main():
 
     restart_button = tk.Button(complete_button_frame, text="追加の証拠採取を行う", font=font)
     restart_button.pack(side=tk.RIGHT, padx=(0, 10))
+
+    open_folder_button2 = setup_open_folder_button(
+        complete_button_frame, TORRENT_FOLDER
+    )
+    open_folder_button2.pack(side=tk.RIGHT, padx=(0, 10))
 
     refresh_button4 = tk.Button(complete_button_frame, text="更新", font=small_font)
     refresh_button4.pack(side=tk.RIGHT, padx=(0, 10))
@@ -906,7 +937,7 @@ def main():
         torrent_folder = TORRENT_FOLDER
 
         if not os.path.exists(torrent_folder):
-            print("エラー: 指定されたパスが見つかりません。")
+            logger.warning("エラー: 指定されたパスが見つかりません。")
             return
 
         subdirs = [
@@ -1018,15 +1049,15 @@ def main():
 
                 # 取得済みのピア数を表示
                 def peer_counter(directory):
-                    # peer.csvのパスを組み立てる
-                    peer_csv_path = os.path.join(directory, "peers.csv")
+                    # peers.csvのパスを組み立てる
+                    peers_csv_path = os.path.join(directory, "peers.csv")
 
                     # ファイルが存在しない場合は0を返す
-                    if not os.path.exists(peer_csv_path):
+                    if not os.path.exists(peers_csv_path):
                         return 0
 
                     # 1列目の要素をリスト化する
-                    with open(peer_csv_path, "r") as file:
+                    with open(peers_csv_path, "r", encoding="utf-8") as file:
                         reader = csv.reader(file)
                         first_column_elements = [row[0] for row in reader if row]
 
@@ -1143,7 +1174,7 @@ def main():
         selected_indices = listbox.curselection()
 
         if not selected_indices:
-            print("選択されている項目がありません。")
+            logger.warning("選択されている項目がありません。")
             return []
 
         index = selected_indices[0]
@@ -1154,7 +1185,7 @@ def main():
         match = re.search(date_pattern, selected_text)
 
         if not match:
-            print("日付形式が見つかりませんでした。")
+            logger.warning("日付形式が見つかりませんでした。")
             return []
 
         date_str = match.group(1)
@@ -1215,7 +1246,7 @@ def main():
         selected_indices = listbox.curselection()
 
         if not selected_indices:
-            print("選択されている項目がありません。")
+            logger.warning("選択されている項目がありません。")
             return []
 
         index = selected_indices[0]
@@ -1249,10 +1280,10 @@ def main():
             public_key_path = os.path.join(KEYS_FOLDER, "public_key_P2Pcrwlr.asc")
 
             if not os.path.isfile(private_key_path):
-                print("秘密鍵ファイルが存在しません。")
+                logger.warning("秘密鍵ファイルが存在しません。")
                 return
             if not os.path.isfile(public_key_path):
-                print("公開鍵ファイルが存在しません。")
+                logger.warning("公開鍵ファイルが存在しません。")
                 return
 
             # 証拠フォルダのルートに公開鍵をコピー
@@ -1287,7 +1318,7 @@ def main():
             index = selected_indices[0]
             selected_text = listbox.get(index)
         else:
-            print("選択されているファイルがありません。")
+            logger.warning("選択されているファイルがありません。")
             return
 
         # リストボックスの選択された要素のインデックスを取得
@@ -1340,7 +1371,7 @@ def main():
 
                     # 既存のトレントのinfo_hashと、new_info_hashesリスト内の全てのinfo_hashを比較する
                     if existing_info_hash in new_info_hashes:
-                        print(
+                        logger.warning(
                             f"すでに存在しているtorrentファイルです: {torrent_files[new_info_hashes.index(existing_info_hash)]}"
                         )
                         return True
@@ -1366,7 +1397,7 @@ def main():
                     folder_time = ut.utc_to_jst(datetime.now()).strftime(
                         "%Y-%m-%d_%H-%M-%S"
                     )
-                    print(
+                    logger.warning(
                         "NTPサーバーから現在時刻を取得できませんでした。フォルダ名はローカルのシステム時刻を参照しており、正確な生成時刻を示していない可能性があります。"
                     )
                 folder_path = os.path.join(torrent_folder, folder_time)
