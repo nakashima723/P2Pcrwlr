@@ -76,6 +76,9 @@ class Client:
         session = lt.session({"listen_interfaces": "0.0.0.0:6881,[::]:6881"})
         self.logger.info("本体ファイル" + target_file_path + "のダウンロードを行います。")
 
+        # 最大アップロード速度を0KB/sに設定
+        session.set_upload_rate_limit(0)
+
         info = lt.torrent_info(torrent_path)
         handle = session.add_torrent({"ti": info, "save_path": save_path})
 
@@ -146,6 +149,9 @@ class Client:
         session = lt.session({"listen_interfaces": "0.0.0.0:6881,[::]:6881"})
         info = lt.torrent_info(torrent_path)
 
+        # 最大アップロード速度を0KB/sに設定
+        session.set_upload_rate_limit(0)
+
         peers: list[tuple[str, int]] = []
 
         # 自分のIPを取得する_get_public_ips()を呼び出し、結果を2つの変数に格納
@@ -175,7 +181,8 @@ class Client:
 
                             # 全てのピアを追加するフラグが真の場合、条件を無視して追加
                             if add_all_peers:
-                                peers.append(p.ip)
+                                if p.seed and p.ip not in peers:
+                                    peers.append(p.ip)
                             else:
                                 if (
                                     p.seed
@@ -378,8 +385,8 @@ class Client:
             ),
         )
 
-        # 証拠フォルダ内のピアを一覧するためのデータ、peers.csvを編集
-        csv_path = os.path.join(save_path, "peers.csv")
+        # 証拠フォルダ内のピアを一覧するためのデータ、peer_(info_hash).csvを編集
+        csv_path = os.path.join(save_path, "peer_" + str(info.info_hash()) + ".csv")
         log_path = os.path.join(
             save_path,
             f"{peer_modified}_{str(peer[1])}",
@@ -610,7 +617,7 @@ def _save_peers_info(
         return True
 
     except PermissionError:
-        logger.warning("パーミッションエラー：peers.csvに書き込みできません。ファイルが開かれている場合は閉じてください。")
+        logger.warning("パーミッションエラー：ピア履歴のcsvに書き込みできません。ファイルが開かれている場合は閉じてください。")
         return False  # download_pieceを中断するための戻り値
 
 
@@ -722,10 +729,10 @@ def _query_jpnic_whois(ip_address):
             data += buffer
     except ConnectionResetError:
         logger.warning("プロバイダ取得エラー：Whoisサーバーによって接続がリセットされました。")
-        return "接続拒否"
+        return "取得失敗（Whoisサーバーからの拒否）"
     except socket.error as e:
         logger.warning(f"プロバイダ取得エラー：ソケットエラーが発生しました: {e}")
-        return "ソケットエラー"
+        return "取得失敗（ソケットエラー）"
     finally:
         sock.close()
 
@@ -733,9 +740,12 @@ def _query_jpnic_whois(ip_address):
 
     match = re.search(r"\[組織名\]\s+(.+)", result)
     if match:
-        return match.group(1)
+        provider = match.group(1)
+        if provider == "":
+            provider = "取得失敗（不明）"
+        return provider
     else:
-        return "取得失敗"
+        return "取得失敗(JPNIC管理外)"
 
 
 def _get_unique_filename(path):
