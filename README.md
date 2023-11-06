@@ -39,7 +39,7 @@ http://www.ccif-j.jp/shared/pdf/BitTrrentreport.pdf
 https://xtech.nikkei.com/it/article/COLUMN/20080922/315234/
 
 
-運用メモ：
+<strong>運用メモ：</strong>
 
 exe化の際には以下のようなコマンドを推奨する。
 
