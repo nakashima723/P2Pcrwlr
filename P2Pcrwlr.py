@@ -1049,12 +1049,19 @@ def main():
 
                 # 取得済みのピア数を表示
                 def peer_counter(directory):
-                    # peers.csvのパスを組み立てる
-                    peers_csv_path = os.path.join(directory, "peers.csv")
+                    files = os.listdir(directory)
+                    peers_csv_file = None
+                    for file in files:
+                        if file.startswith("peer") and file.endswith(".csv"):
+                            peers_csv_file = file
+                            break
 
-                    # ファイルが存在しない場合は0を返す
-                    if not os.path.exists(peers_csv_path):
-                        return 0
+                    # 条件に合うファイルが見つかったかチェック
+                    if peers_csv_file is None:
+                        return "なし"
+
+                    # 条件に合うファイルのパスを組み立てる
+                    peers_csv_path = os.path.join(directory, peers_csv_file)
 
                     # 1列目の要素をリスト化する
                     with open(peers_csv_path, "r", encoding="utf-8") as file:
