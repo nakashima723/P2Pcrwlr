@@ -11,7 +11,6 @@ import random
 import re
 import shutil
 import socket
-import sys
 import tempfile
 import time
 import urllib.parse
@@ -31,8 +30,6 @@ class Client:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
         self.piece_download = read_piece_download_setting()
-        sys.stdout = os.fdopen(sys.stdout.fileno(), "w", buffering=1)
-        sys.stderr = os.fdopen(sys.stderr.fileno(), "w", buffering=1)
 
     def download(self, torrent_path: str, save_path: str) -> None:
         """
@@ -73,11 +70,11 @@ class Client:
             os.path.exists(target_file_path)
             and get_size(target_file_path) == info.total_size()
         ):
-            self.logger.info("本体ファイルはダウンロード済み %s", target_file_path)
+            self.logger.info("本体ファイルDL済： %s", os.path.basename(target_file_path))
             return True
 
         session = lt.session({"listen_interfaces": "0.0.0.0:6881,[::]:6881"})
-        print("本体ファイル" + target_file_path + "のダウンロードを行います。")
+        self.logger.info("本体ファイル" + target_file_path + "のダウンロードを行います。")
 
         info = lt.torrent_info(torrent_path)
         handle = session.add_torrent({"ti": info, "save_path": save_path})
@@ -197,7 +194,7 @@ class Client:
                                         peers.append(p.ip)
 
                     except Exception as e:
-                        print(f"ループ中に例外が発生: {e}")
+                        self.logger.warning(f"ループ中に例外が発生: {e}")
 
                     cnt += 1
                     time.sleep(1)
@@ -330,7 +327,7 @@ class Client:
                 continue
             break
         else:
-            print("read_piece_alert が受信されませんでした。")
+            self.logger.warning("read_piece_alert が受信されませんでした。")
             return
 
         # ダウンロードが完了した瞬間のタイムスタンプを記録
@@ -342,7 +339,7 @@ class Client:
 
         # ピースサイズが0かどうかをチェック
         if a is None or len(a) == 0:
-            print("ピースサイズが0でした。通信エラーがあった可能性があります。")
+            self.logger.warning("ピースサイズが0でした。通信エラーがあった可能性があります。")
             error_prefix = "BLANK_"
             log_error_message = " エラー：ピースダウンロード失敗 "
 
@@ -367,7 +364,7 @@ class Client:
                     error_prefix = "INVALID_"
                     log_error_message = " エラー：バイナリ不一致 "
                 elif isinstance(match_result, (int, float)):
-                    print(f"{peer[0]}からピース{piece_index}のダウンロードに成功。")
+                    self.logger.info(f"{peer[0]}からピース{piece_index}のダウンロードに成功。")
                     valid_piece = True
 
         # ピア・ピースの情報を文字列として整理
@@ -421,6 +418,10 @@ class Client:
             log_error_message,
             version,
         )
+
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def _print_download_status(torrent_status, logger: logging.Logger) -> None:
@@ -594,7 +595,7 @@ def _save_peers_info(
                             row[3] = str(int(row[3]) + 1)
                         except ValueError:
                             # 3列目が数値でなければエラーメッセージを表示
-                            print("csvデータ上の値が数値ではないため、書き込みできませんでした。")
+                            logger.warning("csvデータ上の値が数値ではないため、書き込みできませんでした。")
                             continue  # 次の行の処理を続ける
                     writer.writerow(row)
         else:
@@ -609,7 +610,7 @@ def _save_peers_info(
         return True
 
     except PermissionError:
-        print("パーミッションエラー：peers.csvに書き込みできません。ファイルが開かれている場合は閉じてください。")
+        logger.warning("パーミッションエラー：peers.csvに書き込みできません。ファイルが開かれている場合は閉じてください。")
         return False  # download_pieceを中断するための戻り値
 
 
@@ -664,7 +665,7 @@ def _ip_in_range(ip: str, ip_ranges: list) -> bool:
     try:
         ip_obj = ipaddress.ip_address(ip)
     except ValueError:
-        print(f"{ip} はIPアドレスとして不正な形式です。")
+        logger.warning(f"{ip} はIPアドレスとして不正な形式です。")
         return False
 
     for ip_range in ip_ranges:
@@ -690,7 +691,7 @@ def _get_public_ips() -> tuple[str, str]:
         response_ipv4.raise_for_status()
         ipv4 = response_ipv4.json().get("ip")
     except RequestException as e:
-        print(f"IPv4の取得に失敗しました: {e}")
+        logger.warning(f"IPv4の取得に失敗しました: {e}")
 
     # IPv6アドレスの取得
     try:
@@ -698,7 +699,7 @@ def _get_public_ips() -> tuple[str, str]:
         response_ipv6.raise_for_status()
         ipv6 = response_ipv6.json().get("ip")
     except RequestException as e:
-        print(f"IPv6の取得に失敗しました: {e}")
+        logger.warning(f"IPv6の取得に失敗しました: {e}")
 
     return ipv4, ipv6
 
@@ -720,10 +721,10 @@ def _query_jpnic_whois(ip_address):
                 break
             data += buffer
     except ConnectionResetError:
-        print("プロバイダ取得エラー：Whoisサーバーによって接続がリセットされました。")
+        logger.warning("プロバイダ取得エラー：Whoisサーバーによって接続がリセットされました。")
         return "接続拒否"
     except socket.error as e:
-        print(f"プロバイダ取得エラー：ソケットエラーが発生しました: {e}")
+        logger.warning(f"プロバイダ取得エラー：ソケットエラーが発生しました: {e}")
         return "ソケットエラー"
     finally:
         sock.close()

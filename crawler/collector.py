@@ -1,6 +1,7 @@
 # 対象フォルダのsource.torrentをもとに、本体ファイルのDLとピース収集を行うモジュール
 # 標準ライブラリ
 import json
+import logging
 import os
 import time
 
@@ -14,6 +15,9 @@ import utils.time as ut
 
 
 def execute():
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
+    logger = logging.getLogger("torrent.collector")
+
     # Configクラスのインスタンスを作成
     current_dir = os.path.dirname(os.path.abspath(__file__))
     con = Config(base_path=current_dir, level=1)
@@ -56,14 +60,14 @@ def execute():
 
         # ダウンロードの成否をチェック
         if not download_result:
-            print("本体ファイルがダウンロードできていないため、スキップします。")
-            print(ut.get_jst_str().split(".", 1)[0])
-            continue  # 存在しない場合またはダウンロード失敗の場合は以降の処理をスキップ
+            print("本体ファイルがダウンロードできていないため、ピア取得をスキップします。")
+            logger.info(ut.get_jst_str().split(".", 1)[0])
+            continue  # 存在しない、またはダウンロード失敗の場合は以降の処理をスキップ
 
         # ピースの収集対象とするピアの一覧を取得
-        print("ピアの一覧を取得しています...")
+        logger.info("ピアの一覧を取得しています...")
         peers = client.fetch_peer_list(source_files[i], max_list_size)
-        print("採取対象ピア数: " + str(len(peers)))
+        logger.info("採取対象ピア数: " + str(len(peers)))
 
         # 日本国内からのみダウンロードするなど、各種設定を行ったセッションを作成
         session, info, ip_filter = client.setup_session(source_files[i])
@@ -78,8 +82,8 @@ def execute():
                     session, matcher, info, ip_filter, folder_list[i], peer, version
                 )
                 time.sleep(1)
-            print("ピース収集が完了しました。")
-            print(ut.get_jst_str().split(".", 1)[0])
+            logger.info("ピース収集が完了しました。")
+            logger.info(ut.get_jst_str().split(".", 1)[0])
         else:
-            print("対象となるピアがありませんでした。")
-            print(ut.get_jst_str().split(".", 1)[0])
+            logger.info("対象となるピアがありませんでした。")
+            logger.info(ut.get_jst_str().split(".", 1)[0])

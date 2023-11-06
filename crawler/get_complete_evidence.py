@@ -4,6 +4,7 @@ import bencodepy
 import hashlib
 import json
 import os
+import logging
 from pathlib import Path
 import threading
 import time
@@ -26,6 +27,9 @@ SETTING_FOLDER = con.SETTING_FOLDER
 SETTING_FILE = con.SETTING_FILE
 TORRENT_FOLDER = con.TORRENT_FOLDER
 
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
+logger = logging.getLogger("torrent.complete")
+
 
 # Torrentファイルからinfo_hashを取得
 def get_info_hash(torrent_file):
@@ -46,7 +50,7 @@ def fetch_html(site_url, info_hash):
     if response.status_code == 200:
         return BeautifulSoup(response.content, "html.parser")
     else:
-        print(
+        logger.warning(
             f"エラー: Failed to fetch the content with status code {response.status_code}"
         )
         return None
@@ -150,7 +154,7 @@ def archive_evidence(urls, folder):
             for url in urls:
                 fetch_complete_evidence(url, str(folder), info_hash)
         else:
-            print(f"エラー: フォルダ {folder} に source.torrent が存在しませんでした。")
+            logger.warning(f"エラー: フォルダ {folder} に source.torrent が存在しませんでした。")
 
 
 def execute():

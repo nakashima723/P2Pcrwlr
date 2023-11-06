@@ -4,6 +4,7 @@ import ipaddress
 import json
 import math
 import os
+import logging
 import urllib.request
 from email.utils import parsedate_to_datetime
 from utils.config import Config
@@ -19,10 +20,13 @@ TORRENT_FOLDER = con.TORRENT_FOLDER
 # URLを指定
 url = "https://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-extended-latest"
 
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
+logger = logging.getLogger("torrent.fetch_ip")
+
 
 def merge_ip_ranges(ip_ranges):
     if not ip_ranges:  # 入力が空かどうかをチェック
-        print("IP範囲が指定されていません。")
+        logger.warning("IP範囲が指定されていません。")
         return []
 
     # IP範囲のリストを生成し、無効な範囲があればエラーを出力
@@ -31,8 +35,8 @@ def merge_ip_ranges(ip_ranges):
         for ip_range in ip_ranges:
             ip_ranges_obj.append(ipaddress.ip_network(ip_range))
     except ValueError as e:
-        print(f"エラーが発生したIP範囲: {ip_range}")
-        print(f"具体的なエラー: {e}")
+        logger.warning(f"エラーが発生したIP範囲: {ip_range}")
+        logger.warning(f"具体的なエラー: {e}")
         return []
 
     # ソート
@@ -79,7 +83,7 @@ def process_data(lines):
         try:
             ip_size = int(parts[4])
         except ValueError:
-            print(f"エラーが発生した行: {line}")
+            logger.warning(f"エラーが発生した行: {line}")
             continue
 
         # 日本（JP）のIPアドレス範囲の場合
@@ -118,7 +122,7 @@ def update_data_and_settings(settings, fetched_unix_timestamp):
         # )
 
     except Exception as e:
-        print(f"データの取得と処理中にエラーが発生しました: {e}")
+        logger.warning(f"データの取得と処理中にエラーが発生しました: {e}")
         return  # エラーが発生した場合、関数を終了する
 
     # 整理されたデータを保存する
@@ -131,7 +135,7 @@ def update_data_and_settings(settings, fetched_unix_timestamp):
     settings["ip_last_modified"] = fetched_unix_timestamp
     with open(SETTING_FILE, "w", encoding="utf-8") as file:
         json.dump(settings, file, ensure_ascii=False, indent=4)
-        print("IPアドレス範囲のデータを更新しました。")
+        logger.info("IPアドレス範囲のデータを更新しました。")
 
 
 def execute():
@@ -156,17 +160,17 @@ def execute():
                     if fetched_unix_timestamp > existing_unix_timestamp:
                         update_data_and_settings(settings, fetched_unix_timestamp)
                     elif fetched_unix_timestamp == existing_unix_timestamp:
-                        print("IPアドレス一覧の更新はありませんでした。")
+                        logger.info("IPアドレス一覧の更新はありませんでした。")
                     else:
-                        print("エラー: setting.json内のIPアドレス更新日時のほうが新しい状態です。")
+                        logger.warning("エラー: setting.json内のIPアドレス更新日時のほうが新しい状態です。")
                 else:
-                    print("新たにIPアドレス一覧を取得しています...")
+                    logger.warning("新たにIPアドレス一覧を取得しています...")
                     update_data_and_settings(settings, fetched_unix_timestamp)
             else:
-                print(f"エラー: {SETTING_FILE}が存在しません。")
+                logger.warning(f"エラー: {SETTING_FILE}が存在しません。")
 
         else:
-            print('エラー: このURLでは"Last-Modified"ヘッダーは利用できません。')
+            logger.warning('エラー: このURLでは"Last-Modified"ヘッダーは利用できません。')
 
     except Exception as e:
-        print(f"エラーが発生しました: {e}")
+        logger.warning(f"エラーが発生しました: {e}")

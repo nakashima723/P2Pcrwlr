@@ -4,6 +4,7 @@
 from datetime import datetime, timedelta, timezone
 import gzip
 import json
+import logging
 import os
 import shutil
 import smtplib
@@ -35,6 +36,9 @@ R18_QUERIES_FILE = con.R18_QUERIES_FILE
 file_lock = threading.Lock()
 new_file = []
 
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
+logger = logging.getLogger("torrent.scraper")
+
 
 def send_notification(title, message):
     notification.notify(
@@ -64,7 +68,7 @@ def process_query(query):
     return query
 
 
-def url_in_r18_site_urls(R18_QUERIES_FILE, url):
+def url_in_r18_site_urls(url):
     # JSONファイルを開き、内容を読み込む
     with open(SETTING_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -84,12 +88,12 @@ def write_current_crawl_time():
                 jst = ut.fetch_jst()
                 current_time = jst.timestamp()
                 data["last_crawl_time"] = current_time
-                print(jst.strftime("%Y-%m-%d %H:%M:%S"))
+                logger.info(jst.strftime("%Y-%m-%d %H:%M:%S"))
             except ut.TimeException:
                 jst = ut.utc_to_jst(datetime.now())
                 current_time = jst.timestamp()
                 data["last_crawl_time"] = current_time
-                print(jst.strftime("%Y-%m-%d %H:%M:%S"))
+                logger.info(jst.strftime("%Y-%m-%d %H:%M:%S"))
             f.seek(0)
             json.dump(data, f, ensure_ascii=False, indent=4)
             f.truncate()
@@ -104,7 +108,7 @@ def scraper(url, file_path):
                 keywords = [item[0] for item in data]
 
         if len(keywords) == 0:
-            print("「" + url + "」に対する検索語が存在しないため、処理を中断しました。")
+            logger.info("「" + url + "」に対する検索語が存在しないため、処理を中断しました。")
             write_current_crawl_time()
             break  # 時刻を書き込んで巡回終了
 
@@ -128,7 +132,7 @@ def scraper(url, file_path):
         if page > 1:
             url = url.split("?")[0] + "?p=" + str(page)
 
-        print(url.split("?")[0] + " " + str(page) + "ページ目を探索中......")
+        logger.info(url.split("?")[0] + " " + str(page) + "ページ目を探索中......")
         response = urllib.request.urlopen(url)
 
         response_content = response.read()
@@ -154,7 +158,7 @@ def scraper(url, file_path):
                 last_timestamp_str = last_tag["data-timestamp"]
                 last_timestamp = int(last_timestamp_str)
             else:
-                print("リストが存在しませんでした。URLや、HTMLの取得方法が間違っている可能性があります。")
+                logger.warning("リストが存在しませんでした。URLや、HTMLの取得方法が間違っている可能性があります。")
                 break
 
             timestamp_elements = []
@@ -189,7 +193,7 @@ def scraper(url, file_path):
             if not len(timestamp_elements) == 0:
                 if len(timestamp_elements) > 10:
                     timestamp_elements = timestamp_elements[:10]
-                    print(
+                    logger.warning(
                         "「"
                         + input_str
                         + "」10件以上を検出：誤検出ではない場合、これ以上の採取はサイトから直接行ってください。→"
@@ -212,7 +216,7 @@ def scraper(url, file_path):
                         )  # サイト上でアップされた時刻
                         latest_dates.append(formatted_date)
 
-                print("新たにアップロードされたファイル:" + str(len(latest_dates)) + "件")
+                logger.info("新たにアップロードされたファイル:" + str(len(latest_dates)) + "件")
 
                 # evidenceフォルダが存在しない場合は作成
                 if not os.path.exists(EVI_FOLDER):
@@ -249,7 +253,7 @@ def scraper(url, file_path):
                                 torrent_file = requests.get(torrent_url)
                                 time.sleep(1)
                                 if torrent_file.status_code != 200:
-                                    print(
+                                    logger.warning(
                                         f"トレントファイルを {torrent_url} からダウンロードすることができませんでした。 Status code: {torrent_file.status_code}"
                                     )
                                     continue  # 次のURLへスキップ
@@ -279,7 +283,7 @@ def scraper(url, file_path):
                                         folder_time = ut.utc_to_jst(
                                             current_datetime
                                         ).strftime("%Y-%m-%d_%H-%M-%S")
-                                        print(
+                                        logger.warning(
                                             "フォルダ生成：NTPサーバーから現在時刻を取得できませんでした。フォルダ名はローカルのシステム時刻を参照しており、正確な生成時刻を示していない可能性があります。"
                                         )
                                     # 新しいフォルダを作成
@@ -290,7 +294,7 @@ def scraper(url, file_path):
                                         new_folder
                                     ):  # フォルダが存在しない場合は作成
                                         os.makedirs(new_folder)
-                                        print("新しく作成されたフォルダ：\n" + new_folder)
+                                        logger.info("新しく作成されたフォルダ：\n" + new_folder)
 
                                         new_file_name = os.path.join(
                                             new_folder, "source.torrent"
@@ -322,7 +326,7 @@ def scraper(url, file_path):
                                             )
                                             log_file.write(LOG)
                                         # 成人向け作品をマーク
-                                        if url_in_r18_site_urls(R18_QUERIES_FILE, url):
+                                        if url_in_r18_site_urls(url):
                                             r18_file_path = os.path.join(
                                                 new_folder, ".r18"
                                             )
@@ -330,7 +334,7 @@ def scraper(url, file_path):
                                                 pass
                                     else:
                                         os.unlink(temp_file_path)
-                                        print("フォルダが既に存在します：\n" + new_folder)
+                                        logger.warning("フォルダが既に存在します：\n" + new_folder)
         if last_timestamp > last_crawl_time:
             # ページ内末尾のタイムスタンプで確認し、巡回したことがなさそうであれば次のページへ
             page += 1
@@ -384,8 +388,8 @@ def execute():
                     server.login(mail_user, mail_pass)
                     server.send_message(msg)
                     server.quit()
-                    print("メールが送信されました。")
+                    logger.info("メールが送信されました。")
                 except Exception as e:
-                    print(f"メールの送信に失敗しました: {e}")
+                    logger.info(f"メールの送信に失敗しました: {e}")
 
     time.sleep(1)
