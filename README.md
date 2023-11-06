@@ -49,6 +49,10 @@ pyinstaller --onefile --add-binary "C:\libtorrent\build\Release\libssl-3-x64.dll
 
 ・アプリUI内にログを表示しないため、コンソールウィンドウは必要。
 
+
+<strong>libtorrentについて：</strong>
+
+
 Windows環境でのlibtorrent導入はかなり手間がかかる。
 
 https://libtorrent.org/building.html
