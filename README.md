@@ -68,4 +68,5 @@ https://libtorrent.org/building.html
 Macの場合は（環境によるかもしれないが）以下２行で済む。
 
 brew install boost --build-from-source
+
 brew install libtorrent-rasterbar
