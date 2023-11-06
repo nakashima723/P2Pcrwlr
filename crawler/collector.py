@@ -60,7 +60,7 @@ def execute():
 
         # ダウンロードの成否をチェック
         if not download_result:
-            print("本体ファイルがダウンロードできていないため、ピア取得をスキップします。")
+            logger.info("本体ファイルがダウンロードできていないため、ピア取得をスキップします。")
             logger.info(ut.get_jst_str().split(".", 1)[0])
             continue  # 存在しない、またはダウンロード失敗の場合は以降の処理をスキップ
 
