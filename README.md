@@ -38,6 +38,7 @@ http://www.ccif-j.jp/shared/pdf/BitTrrentreport.pdf
 
 https://xtech.nikkei.com/it/article/COLUMN/20080922/315234/
 
+
 運用メモ：
 
 exe化の際には以下のようなコマンドを推奨する。
@@ -45,15 +46,20 @@ exe化の際には以下のようなコマンドを推奨する。
 pyinstaller --onefile --add-binary "C:\libtorrent\build\Release\libssl-3-x64.dll;." --add-binary "C:\libtorrent\build\Release\libcrypto-3-x64.dll;." --add-binary "C:\libtorrent\build\Release\torrent-rasterbar.dll;." P2Pcrwlr.py
 
 ・libtorrentのdllをpyinstallerで収集できない場合、明示的に同梱する必要がある。ファイルパスは一例で、libtorrentのインストール先により変わる。
+
 ・アプリUI内にログを表示しないため、コンソールウィンドウは必要。
 
 Windows環境でのlibtorrent導入はかなり手間がかかる。
 
 https://libtorrent.org/building.html
 
+
 ポイントは
+
 ・あらかじめBOOSTを導入しておく
+
 ・システム環境変数を適切に設定する
+
 
 Macの場合は（環境によるかもしれないが）以下２行で済む。
 
