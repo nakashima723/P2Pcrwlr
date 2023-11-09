@@ -144,7 +144,7 @@ class Client:
         peers : list of (str, int)
             ピアのリスト。
         """
-        RETRY_COUNTER = 10
+        RETRY_COUNTER = 5
 
         session = lt.session({"listen_interfaces": "0.0.0.0:6881,[::]:6881"})
         info = lt.torrent_info(torrent_path)
@@ -184,6 +184,11 @@ class Client:
                                 if p.seed and p.ip not in peers:
                                     peers.append(p.ip)
                             else:
+                                # IPv6アドレスで、かつ第4セグメントまでがpeersに含まれるIPアドレスと一致するなら除外する条件を追加
+                                if ip_address(
+                                    peer_ip
+                                ).version == 6 and is_segment_in_peers(peer_ip, peers):
+                                    continue
                                 if (
                                     p.seed
                                     and p.ip not in peers
@@ -204,7 +209,7 @@ class Client:
                         self.logger.warning(f"ループ中に例外が発生: {e}")
 
                     cnt += 1
-                    time.sleep(1)
+                    time.sleep(2)
                 return peers[:max_list_size]
 
         except Exception as e:
@@ -619,6 +624,26 @@ def _save_peers_info(
     except PermissionError:
         logger.warning("パーミッションエラー：ピア履歴のcsvに書き込みできません。ファイルが開かれている場合は閉じてください。")
         return False  # download_pieceを中断するための戻り値
+
+
+# IPv6アドレスの第4セグメントまでを抽出する関数
+def extract_ipv6_segment(ipv6):
+    try:
+        segments = ip_address(ipv6).exploded.split(":")[:4]
+        return ":".join(segments)
+    except ValueError:
+        return None
+
+
+# peersリストに同じIPv6セグメントが存在するか確認する関数
+def is_segment_in_peers(ipv6, peers_list):
+    segment_to_check = extract_ipv6_segment(ipv6)
+    if segment_to_check is None:
+        return False
+    for peer in peers_list:
+        if extract_ipv6_segment(peer[0]) == segment_to_check:
+            return True
+    return False
 
 
 def read_piece_download_setting():
