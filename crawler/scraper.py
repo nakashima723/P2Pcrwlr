@@ -135,13 +135,47 @@ def scraper(url, file_path):
         logger.info(url.split("?")[0] + " " + str(page) + "ページ目を探索中......")
         response = urllib.request.urlopen(url)
 
-        response_content = response.read()
-        if response.headers.get("Content-Encoding") == "gzip":
-            response_content = gzip.decompress(response_content)
+        # 現在のURLでウェブページの内容を取得しようとする
+        try:
+            response = urllib.request.urlopen(url)
+        except urllib.error.HTTPError as e:
+            # HTTPエラーの場合
+            logger.error(f"HTTPエラー: {e.code} {e.reason}")
+            continue  # 次の処理へスキップ
+        except urllib.error.URLError as e:
+            # その他の通信エラーの場合
+            logger.error(f"URLエラー: {e.reason}")
+            continue  # 次の処理へスキップ
+        except Exception as e:
+            # 予期しない例外の場合
+            logger.error(f"予期しないエラー: {e}")
+            continue  # 次の処理へスキップ
 
-        html_content = response_content.decode(
-            response.headers.get_content_charset() or "utf-8"
-        )
+        # 以下のコードは例外が発生しなかった場合のみ実行される
+        response_content = response.read()
+
+        # レスポンスヘッダーからコンテンツのエンコーディングタイプを取得
+        content_encoding = response.headers.get("Content-Encoding")
+        if content_encoding == "gzip":
+            try:
+                # gzip圧縮された内容を解凍
+                response_content = gzip.decompress(response_content)
+            except OSError as e:
+                logger.error(f"gzip解凍エラー: {e}")
+                continue  # 次の処理へスキップ
+
+        try:
+            # レスポンスのエンコーディングを取得し、デコードを試みる
+            encoding = response.headers.get_content_charset(failobj="utf-8")
+            html_content = response_content.decode(encoding)
+        except UnicodeDecodeError as e:
+            # デコード失敗時の処理
+            logger.error("デコードエラー: {}".format(e))
+            continue  # 次の処理へスキップ
+        except Exception as e:
+            # その他のエラー
+            logger.error("予期しないエラー: {}".format(e))
+            continue  # 次の処理へスキップ
 
         soup = BeautifulSoup(html_content, "html.parser")
 
