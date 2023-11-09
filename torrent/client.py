@@ -168,9 +168,14 @@ class Client:
         # IP範囲ファイルが両方とも存在しない場合にすべてのピアを追加するフラグ
         add_all_peers = not ipv4_ranges and not ipv6_ranges
 
+        torrent_folder = os.path.dirname(torrent_path)
+        tmp_path = os.path.join(os.path.dirname(torrent_folder), "tmp")
+        if not os.path.exists(tmp_path):
+            os.makedirs(tmp_path, exist_ok=True)
+
         # 一時ディレクトリの削除に関するエラーハンドリングを追加する
         try:
-            with tempfile.TemporaryDirectory() as tmpdir:
+            with tempfile.TemporaryDirectory(prefix="tmp", dir=tmp_path) as tmpdir:
                 handle = session.add_torrent({"ti": info, "save_path": tmpdir})
                 cnt = 0
                 while cnt < RETRY_COUNTER:
@@ -399,7 +404,7 @@ class Client:
         )
         if not os.path.exists(log_path):
             provider = _query_jpnic_whois(peer[0])
-            time.sleep(1)
+            time.sleep(3)
         else:
             provider = ""
 
