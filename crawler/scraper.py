@@ -16,7 +16,6 @@ import urllib.request
 
 # サードパーティライブラリ
 from bs4 import BeautifulSoup
-from plyer import notification
 import requests
 from torrentool.api import Torrent
 
@@ -38,15 +37,6 @@ new_file = []
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
 logger = logging.getLogger("torrent.scraper")
-
-
-def send_notification(title, message):
-    notification.notify(
-        title=title,
-        message=message,
-        app_name="P2Pスレイヤー",
-        timeout=1,  # 通知の表示時間（秒）
-    )
 
 
 # x日以内の日付時刻かどうかチェックする関数
@@ -250,7 +240,9 @@ def scraper(url, file_path):
                         )  # サイト上でアップされた時刻
                         latest_dates.append(formatted_date)
 
-                logger.info("新たにアップロードされたファイル:" + str(len(latest_dates)) + "件")
+                logger.info(
+                    "「" + keyword + "」についてアップロードされたファイル:" + str(len(latest_dates)) + "件"
+                )
 
                 # evidenceフォルダが存在しない場合は作成
                 if not os.path.exists(EVI_FOLDER):
@@ -285,7 +277,7 @@ def scraper(url, file_path):
 
                                 # index番目のリンク先URLからファイルを取得
                                 torrent_file = requests.get(torrent_url)
-                                time.sleep(1)
+                                time.sleep(2)
                                 if torrent_file.status_code != 200:
                                     logger.warning(
                                         f"トレントファイルを {torrent_url} からダウンロードすることができませんでした。 Status code: {torrent_file.status_code}"
@@ -391,39 +383,39 @@ def execute():
 
     for url in site_urls:
         scraper(url, QUERIES_FILE)
-        time.sleep(1)
+        time.sleep(2)
     for url in r18_site_urls:
         scraper(url, R18_QUERIES_FILE)
-        time.sleep(1)
+        time.sleep(2)
 
-    if __name__ == "__main__":
-        if new_file:
-            unique_list = list(set(new_file))
-            new_file_wrapped = ["「" + s + "」" for s in unique_list]
-            new_file_str = "".join(new_file_wrapped)
-            notification_str = (
-                new_file_str + "について、新しいファイルが" + str(len(new_file)) + "件検出されました。"
-            )
-            send_notification("P2Pスレイヤー", notification_str)
+    if new_file:
+        unique_list = list(set(new_file))
+        new_file_wrapped = ["「" + s + "」" for s in unique_list]
+        new_file_str = "".join(new_file_wrapped)
+        notification_str = (
+            new_file_str + "について、新しいファイルが計" + str(len(new_file)) + "件検出されました。"
+        )
+        logger.info(notification_str)
 
-            # 送信元に使うメールアドレスが設定されている場合
-            if mail_user is not None and mail_user != "null":
-                # メールの内容を設定
-                msg = EmailMessage()
-                msg.set_content(notification_str + "\nただちにP2Pスレイヤーを起動し、証拠採取を行ってください。")
+        # 送信元に使うメールアドレスが設定されている場合
+        if mail_user is not None and mail_user != "null":
+            # メールの内容を設定
+            msg = EmailMessage()
+            msg.set_content(notification_str + "\nただちにP2Pスレイヤーを起動し、証拠採取を行ってください。")
 
-                msg["Subject"] = "【P2Pスレイヤー】新しいファイルが検出されました"
-                msg["From"] = mail_user
-                msg["To"] = mail_user
+            msg["Subject"] = "【P2Pクローラ】新しいファイルが検出されました"
+            msg["From"] = mail_user
+            msg["To"] = mail_user
 
-                # GmailのSMTPサーバーに接続してメールを送信
-                try:
-                    server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
-                    server.login(mail_user, mail_pass)
-                    server.send_message(msg)
-                    server.quit()
-                    logger.info("メールが送信されました。")
-                except Exception as e:
-                    logger.info(f"メールの送信に失敗しました: {e}")
+            # GmailのSMTPサーバーに接続してメールを送信
+            try:
+                server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
+                server.login(mail_user, mail_pass)
+                server.send_message(msg)
+                server.quit()
+                logger.info("通知メールが送信されました。")
+                new_file.clear()
+            except Exception as e:
+                logger.info(f"通知メールの送信に失敗しました: {e}")
 
     time.sleep(1)
