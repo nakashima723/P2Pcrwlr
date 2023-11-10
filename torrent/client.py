@@ -225,11 +225,18 @@ class Client:
 
         finally:
             # finallyブロックで一時ディレクトリの削除を確実に実行
-            if tmpdir and os.path.exists(tmpdir):
-                try:
-                    shutil.rmtree(tmpdir)
-                except Exception as e:
-                    logging.error(f"明示的な一時ファイルの削除に失敗しました。: {e}")
+            try:
+                # tmpdirの親ディレクトリを取得
+                parent_dir = os.path.dirname(tmpdir)
+
+                # 親ディレクトリを削除
+                if parent_dir and os.path.exists(parent_dir):
+                    shutil.rmtree(parent_dir)
+                else:
+                    logging.error("削除しようとしたディレクトリが存在しません。")
+
+            except Exception as e:
+                logging.error(f"ディレクトリの削除に失敗しました: {e}")
 
     def setup_session(self, torrent_path: str) -> tuple:
         """
