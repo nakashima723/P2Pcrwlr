@@ -30,6 +30,7 @@ class SettingsGenerator:
                 "interval": 600,
                 "piece_interval": 600,
                 "last_crawl_time": "null",
+                "port": 6881,
                 "max_list_size": 50,
                 "ip_last_modified": 0,
                 "piece_download": "true",

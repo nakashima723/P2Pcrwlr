@@ -1,4 +1,5 @@
 # 各種設定フォルダへのパスを取得するためのモジュール
+import json
 import os
 import sys
 from pathlib import Path
@@ -40,3 +41,15 @@ class Config:
         for folder in folders_to_check:
             if not os.path.exists(folder):
                 os.makedirs(folder)
+
+        if self.SETTING_FILE:
+            with open(self.SETTING_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            # data辞書に"port"キーが存在するかチェック
+            if "port" in data:
+                self.MY_PORT = data["port"]
+            else:
+                self.MY_PORT = 6881
+        else:
+            self.MY_PORT = 6881
