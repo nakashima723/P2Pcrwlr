@@ -226,9 +226,7 @@ class Client:
                     time.sleep(2)
                 return peers[:max_list_size]
 
-        except Exception as e:
-            # 一時ディレクトリの削除に失敗した場合、ログに表示する
-            logging.error(f"一時ファイルの削除に失敗しました。: {e}")
+        except Exception:
             # 処理を続行するために、例外をここでキャッチして処理をスキップする
             return peers[:max_list_size]
 
@@ -242,10 +240,10 @@ class Client:
                 if parent_dir and os.path.exists(parent_dir):
                     shutil.rmtree(parent_dir)
                 else:
-                    logging.error("削除しようとしたディレクトリが存在しません。")
+                    logging.warning("削除しようとした一時ファイルが存在しませんでした。")
 
             except Exception as e:
-                logging.error(f"ディレクトリの削除に失敗しました: {e}")
+                logging.warning(f"一時ファイルの削除に失敗しました: {e}")
 
     def setup_session(self, torrent_path: str) -> tuple:
         """
