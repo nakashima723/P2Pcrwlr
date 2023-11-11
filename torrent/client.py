@@ -28,6 +28,9 @@ import utils.time as ut
 class Client:
     def __init__(self) -> None:
         logging.basicConfig(level=logging.INFO)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        con = Config(base_path=current_dir, level=1)
+        self.my_port = con.MY_PORT
         self.logger = logging.getLogger(__name__)
         self.piece_download = read_piece_download_setting()
 
@@ -73,11 +76,10 @@ class Client:
             self.logger.info("本体ファイルDL済： %s", os.path.basename(target_file_path))
             return True
 
-        session = lt.session({"listen_interfaces": "0.0.0.0:6881,[::]:6881"})
+        session = lt.session(
+            {"listen_interfaces": f"0.0.0.0:{self.my_port},[::]:{self.my_port}"}
+        )
         self.logger.info("本体ファイル" + target_file_path + "のダウンロードを行います。")
-
-        # 最大アップロード速度を0KB/sに設定
-        session.set_upload_rate_limit(0)
 
         info = lt.torrent_info(torrent_path)
         handle = session.add_torrent({"ti": info, "save_path": save_path})
@@ -146,11 +148,10 @@ class Client:
         """
         RETRY_COUNTER = 5
 
-        session = lt.session({"listen_interfaces": "0.0.0.0:6881,[::]:6881"})
+        session = lt.session(
+            {"listen_interfaces": f"0.0.0.0:{self.my_port},[::]:{self.my_port}"}
+        )
         info = lt.torrent_info(torrent_path)
-
-        # 最大アップロード速度を0KB/sに設定
-        session.set_upload_rate_limit(0)
 
         peers: list[tuple[str, int]] = []
 
@@ -159,7 +160,7 @@ class Client:
 
         # IPv6アドレスの最初の4つのセクションを取得して除外リストに追加
         if ipv6:
-            excluded_ipv6_network = ip_network(":".join(ipv6.split(":")[:4]) + "::/64")
+            excluded_ipv6_network = get_excluded_ipv6(ipv6)
 
         # 対象をIPアドレスリストの範囲に限定（IPv4とIPv6）
         ipv4_ranges = load_ip_ranges(4)
@@ -181,34 +182,42 @@ class Client:
                 while cnt < RETRY_COUNTER:
                     try:
                         peer_info_list = handle.get_peer_info()
+
                         for p in peer_info_list:
                             peer_ip = p.ip[0]
-
-                            # 全てのピアを追加するフラグが真の場合、条件を無視して追加
+                            if peer_ip == ipv4:
+                                continue
+                            if peer_ip == ipv6:
+                                continue
+                            # IPアドレスが同じで、ポート番号が異なるピアは除外
+                            if any(peer[0] == peer_ip for peer in peers):
+                                continue
                             if add_all_peers:
                                 if p.seed and p.ip not in peers:
                                     peers.append(p.ip)
-                            else:
-                                # IPv6アドレスで、かつ第4セグメントまでがpeersに含まれるIPアドレスと一致するなら除外する条件を追加
-                                if ip_address(
-                                    peer_ip
-                                ).version == 6 and is_segment_in_peers(peer_ip, peers):
                                     continue
+
+                            if ip_address(peer_ip).version == 4:  # IPv4アドレスの場合
                                 if (
                                     p.seed
                                     and p.ip not in peers
-                                    and peer_ip != ipv4
-                                    and (
-                                        not ipv6
-                                        or not ip_address(peer_ip)
-                                        in excluded_ipv6_network
+                                    and _ip_in_range(peer_ip, ipv4_ranges)
+                                ):
+                                    peers.append(p.ip)
+
+                            elif ip_address(peer_ip).version == 6:
+                                # excluded_ipv6_networkがNoneでないかどうかを確認
+                                is_not_in_self_network = True
+                                if excluded_ipv6_network is not None:
+                                    is_not_in_self_network = (
+                                        ip_address(peer_ip) not in excluded_ipv6_network
                                     )
-                                ):  # 除外範囲のチェック
-                                    # 範囲フィルタリング
-                                    if _ip_in_range(
-                                        peer_ip, ipv4_ranges
-                                    ) or _ip_in_range(peer_ip, ipv6_ranges):
-                                        peers.append(p.ip)
+
+                                # その他の条件と組み合わせる
+                                if is_not_in_self_network and _ip_in_range(
+                                    peer_ip, ipv6_ranges
+                                ):
+                                    peers.append(p.ip)
 
                     except Exception as e:
                         self.logger.warning(f"ループ中に例外が発生: {e}")
@@ -253,7 +262,9 @@ class Client:
             セッション、トレント情報、IPフィルタのタプル。
         """
         # 基本のセッションとIPフィルタを定義
-        session = lt.session({"listen_interfaces": "0.0.0.0:6881,[::]:6881"})
+        session = lt.session(
+            {"listen_interfaces": f"0.0.0.0:{self.my_port},[::]:{self.my_port}"}
+        )
 
         # アップロード量を0に設定
         session.set_upload_rate_limit(0)
@@ -411,7 +422,7 @@ class Client:
         )
         if not os.path.exists(log_path):
             provider = _query_jpnic_whois(peer[0])
-            time.sleep(3)
+            time.sleep(5)
         else:
             provider = ""
 
@@ -638,6 +649,17 @@ def _save_peers_info(
         return False  # download_pieceを中断するための戻り値
 
 
+def get_excluded_ipv6(ipv6):
+    # IPv6アドレスの第4セグメントまでを抽出する関数
+    ipv6_segments = ipv6.split(":")[:4]  # IPv6アドレスの最初の4つのセグメントを取得
+    # すべてのセグメントが空でないことを確認
+    if all(segment for segment in ipv6_segments):
+        return ip_network(":".join(ipv6_segments) + "::/64")
+    else:
+        # 条件に合致しない場合の処理
+        return None
+
+
 # IPv6アドレスの第4セグメントまでを抽出する関数
 def extract_ipv6_segment(ipv6):
     try:
@@ -734,6 +756,7 @@ def _get_public_ips() -> tuple[str, str]:
         response_ipv4 = requests.get("https://api.ipify.org?format=json")
         response_ipv4.raise_for_status()
         ipv4 = response_ipv4.json().get("ip")
+        time.sleep(1)
     except RequestException as e:
         logger.warning(f"IPv4の取得に失敗しました: {e}")
 
