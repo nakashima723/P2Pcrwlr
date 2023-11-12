@@ -27,6 +27,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 con = Config(base_path=current_dir, level=1)
 
 EVI_FOLDER = con.EVI_FOLDER
+TORRENT_FOLDER = con.TORRENT_FOLDER
 SETTING_FOLDER = con.SETTING_FOLDER
 SETTING_FILE = con.SETTING_FILE
 QUERIES_FILE = con.QUERIES_FILE
@@ -401,7 +402,11 @@ def execute():
         if mail_user is not None and mail_user != "null":
             # メールの内容を設定
             msg = EmailMessage()
-            msg.set_content(notification_str + "\nただちにP2Pスレイヤーを起動し、証拠採取を行ってください。")
+            msg.set_content(
+                notification_str
+                + "\nただちにP2Pクローラを起動し、証拠採取を行ってください。/n/n収録先パス："
+                + TORRENT_FOLDER
+            )
 
             msg["Subject"] = "【P2Pクローラ】新しいファイルが検出されました"
             msg["From"] = mail_user
