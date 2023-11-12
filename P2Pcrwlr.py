@@ -2,7 +2,6 @@
 import bencodepy
 import csv
 from datetime import datetime
-import glob
 import json
 import logging
 import multiprocessing
@@ -862,22 +861,25 @@ def main():
         return open_folder_button
 
     # 採取候補の編集用ボタン
-    button_frame = tk.Frame(tabs[1])
-    button_frame.pack(fill=tk.X, pady=(0, 5))
+    button_frame1 = tk.Frame(tabs[1])
+    button_frame1.pack(fill=tk.X, pady=(0, 5))
 
-    bulk_add_button = tk.Button(button_frame, text="全年齢で追加", font=small_font)
+    bulk_add_button = tk.Button(button_frame1, text="全年齢＋", font=font)
     bulk_add_button.pack(side=tk.LEFT, padx=(10, 10))
 
-    r18_bulk_add_button = tk.Button(button_frame, text="R18で追加", font=small_font)
+    r18_bulk_add_button = tk.Button(button_frame1, text="R18＋", font=font)
     r18_bulk_add_button.pack(side=tk.LEFT, padx=(0, 10))
 
     # 選択したtorrentファイルから、証拠フォルダを生成するアクション
-    mark_button = tk.Button(button_frame, text="誤検出としてマーク", font=small_font)
+    mark_button = tk.Button(button_frame1, text="誤検出としてマーク", font=small_font)
     mark_button.pack(side=tk.LEFT, padx=(0, 10))
 
-    start_button = tk.Button(button_frame, text="証拠採取を開始", font=font)
+    start_button = tk.Button(button_frame1, text="証拠採取を開始", font=font)
     start_button.config(state=tk.DISABLED)
     start_button.pack(side=tk.RIGHT, padx=(0, 10))
+
+    open_folder_button1 = setup_open_folder_button(button_frame1, TORRENT_FOLDER)
+    open_folder_button1.pack(side=tk.RIGHT, padx=(0, 10))
 
     refresh_button1 = tk.Button(button_frame, text="更新", font=small_font)
     refresh_button1.pack(side=tk.RIGHT, padx=(0, 10))
@@ -898,35 +900,33 @@ def main():
     refresh_button2 = tk.Button(button_frame2, text="更新", font=small_font)
     refresh_button2.pack(side=tk.RIGHT, padx=(0, 10))
 
-    # 誤検出タブの編集用ボタン
-    false_button_frame = tk.Frame(tabs[4])
-    false_button_frame.pack(fill=tk.X, pady=(0, 5))
-
-    delete_button = tk.Button(false_button_frame, text="削除", font=small_font)
-    delete_button.pack(side=tk.LEFT, padx=(10, 10))
-
-    unmark_button = tk.Button(false_button_frame, text="証拠採取の候補にもどす", font=font)
-    unmark_button.pack(side=tk.RIGHT, padx=(0, 10))
-
-    open_folder_button3 = setup_open_folder_button(false_button_frame, TORRENT_FOLDER)
-    open_folder_button3.pack(side=tk.RIGHT, padx=(0, 10))
-
-    refresh_button3 = tk.Button(false_button_frame, text="更新", font=small_font)
-    refresh_button3.pack(side=tk.RIGHT, padx=(0, 10))
-
     # 完了タブの編集用ボタン
-    complete_button_frame = tk.Frame(tabs[3])
-    complete_button_frame.pack(fill=tk.X, pady=(0, 5))
+    button_frame3 = tk.Frame(tabs[3])
+    button_frame3.pack(fill=tk.X, pady=(0, 5))
 
-    restart_button = tk.Button(complete_button_frame, text="追加の証拠採取を行う", font=font)
+    restart_button = tk.Button(button_frame3, text="追加の証拠採取を行う", font=font)
     restart_button.pack(side=tk.RIGHT, padx=(0, 10))
 
-    open_folder_button2 = setup_open_folder_button(
-        complete_button_frame, TORRENT_FOLDER
-    )
-    open_folder_button2.pack(side=tk.RIGHT, padx=(0, 10))
+    open_folder_button3 = setup_open_folder_button(button_frame3, TORRENT_FOLDER)
+    open_folder_button3.pack(side=tk.RIGHT, padx=(0, 10))
 
-    refresh_button4 = tk.Button(complete_button_frame, text="更新", font=small_font)
+    refresh_button3 = tk.Button(button_frame3, text="更新", font=small_font)
+    refresh_button3.pack(side=tk.RIGHT, padx=(0, 10))
+
+    # 誤検出タブの編集用ボタン
+    button_frame4 = tk.Frame(tabs[4])
+    button_frame4.pack(fill=tk.X, pady=(0, 5))
+
+    delete_button = tk.Button(button_frame4, text="削除", font=small_font)
+    delete_button.pack(side=tk.LEFT, padx=(10, 10))
+
+    unmark_button = tk.Button(button_frame4, text="証拠採取の候補にもどす", font=font)
+    unmark_button.pack(side=tk.RIGHT, padx=(0, 10))
+
+    open_folder_button4 = setup_open_folder_button(button_frame4, TORRENT_FOLDER)
+    open_folder_button4.pack(side=tk.RIGHT, padx=(0, 10))
+
+    refresh_button4 = tk.Button(button_frame4, text="更新", font=small_font)
     refresh_button4.pack(side=tk.RIGHT, padx=(0, 10))
 
     def names(suspect_listbox, suspect_text, start_button, selected_tab=None):
@@ -1041,13 +1041,18 @@ def main():
                 directory = os.path.dirname(torrent_file_path)
                 torrent_situation = extract_log_lines(directory)
 
+                open_folder_button1.config(command=lambda: open_folder(directory))
+                open_folder_button2.config(command=lambda: open_folder(directory))
+                open_folder_button3.config(command=lambda: open_folder(directory))
+                open_folder_button4.config(command=lambda: open_folder(directory))
+
                 match = re.search(
                     r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}", folder_names[index]
                 )
                 datetime_str = match.group().replace("_", " ").replace("-", ":")
                 dt = datetime.strptime(datetime_str, "%Y:%m:%d %H:%M:%S")
 
-                # 取得済みのピア数を表示
+                # 取得済みのピア数とピース数の合計を表示
                 def peer_counter(directory):
                     files = os.listdir(directory)
                     peers_csv_file = None
@@ -1058,30 +1063,36 @@ def main():
 
                     # 条件に合うファイルが見つかったかチェック
                     if peers_csv_file is None:
-                        return "なし"
+                        return "なし", "なし"
 
                     # 条件に合うファイルのパスを組み立てる
                     peers_csv_path = os.path.join(directory, peers_csv_file)
 
-                    # 1列目の要素をリスト化する
-                    with open(peers_csv_path, "r", encoding="utf-8") as file:
-                        reader = csv.reader(file)
-                        first_column_elements = [row[0] for row in reader if row]
+                    try:
+                        # 1列目の要素と4列目の数値を抽出する
+                        with open(peers_csv_path, "r", encoding="utf-8") as file:
+                            reader = csv.reader(file)
+                            first_column_elements = []
+                            total_pieces = 0
+                            for row in reader:
+                                if row:
+                                    # IPアドレス（row[0]）がfirst_column_elementsに存在しない場合のみ追加する
+                                    if row[0] not in first_column_elements:
+                                        first_column_elements.append(row[0])
+                                    total_pieces += int(row[3])  # 4列目の数値を合計
 
-                    # 重複を削除
-                    unique_elements = set(first_column_elements)
+                        # 重複を削除
+                        unique_elements = set(first_column_elements)
 
-                    return len(unique_elements)
+                        return len(unique_elements), total_pieces
+                    except Exception:
+                        return "エラー", "エラー"
 
-                def count_bin_files(directory):
-                    # サブフォルダ内のすべての .bin ファイルのパスを取得
-                    bin_files = glob.glob(os.path.join(directory, "*", "*.bin"))
-
-                    return len(bin_files)
-
-                suspect_text.insert(tk.END, f"【 採取済みピア数：{peer_counter(directory)} 】　")
+                # UIに表示するためのコード部分（例）
+                unique_peers, unique_piece = peer_counter(directory)
+                suspect_text.insert(tk.END, " 【 採取済みピア数：" + str(unique_peers) + " 】")
                 suspect_text.insert(
-                    tk.END, f"【 ピース数：{count_bin_files(directory)} 】\n\n"
+                    tk.END, " 【 ピース数合計：" + str(unique_piece) + " 】​​\n\n"
                 )
 
                 # トレントファイルに含まれる情報を表示
