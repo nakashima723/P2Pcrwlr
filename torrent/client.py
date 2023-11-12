@@ -348,6 +348,9 @@ class Client:
 
         a = handle.read_piece(piece_index)
 
+        # ダウンロード開始前のタイムスタンプを記録
+        start_time = time.time()
+
         for _ in range(10):  # 10回リトライ
             alerts = session.pop_alerts()
             for a in alerts:
@@ -365,6 +368,25 @@ class Client:
 
         # ダウンロードが完了した瞬間のタイムスタンプを記録
         completed_timestamp = ut.get_jst_str()
+
+        # ダウンロード後のタイムスタンプを記録（速度チェック用）
+        end_time = time.time()
+
+        # ピースダウンロードにかかった合計時間を計算（ミリ秒単位）
+        total_time = (end_time - start_time) * 1000
+
+        file_size_kb = len(a) / 1024
+
+        if file_size_kb != 0 and total_time != 0:
+            # ミリ秒を秒に変換
+            total_time_seconds = total_time / 1000
+
+            # アップロード速度を計算（KB/s）
+            upload_speed = round(file_size_kb / total_time_seconds, 1)
+
+        else:
+            logger.warning("アップロード速度の計算に必要なデータが不足しています。")
+            upload_speed = False
 
         error_prefix = ""
         log_error_message = ""
@@ -428,6 +450,7 @@ class Client:
             peer,
             provider,
             completed_timestamp,
+            upload_speed,
             valid_piece,
             csv_path,
         )
@@ -447,6 +470,7 @@ class Client:
             piece_index,
             log_path,
             provider,
+            upload_speed,
             completed_timestamp,
             log_error_message,
             version,
@@ -524,6 +548,7 @@ def _write_peer_log(
     piece_index,
     log_path,
     provider,
+    upload_speed,
     completed_timestamp,
     log_error_message="",
     version="",
@@ -542,8 +567,14 @@ def _write_peer_log(
         ピアを表すタプル。
     piece_index : int
         ダウンロードするピースのindex。
-    save_path : str
+    log_path : str
         ログを書き込むファイルのパス。
+    provider : str
+        プロバイダ情報。
+    upload_speed : int
+        実際にピースダウンロードを行った際の、ピア側アップロード速度。
+    completed_timestamp : str
+        完了タイムスタンプ。
     """
 
     # ファイルを開く前にディレクトリの存在を確認
@@ -565,11 +596,12 @@ def _write_peer_log(
             f.write(f"ファイル名：{info.name()}\n")
             f.write(f"ファイルハッシュ: {info.info_hash()}\n")
             f.write(f"証拠収集開始時刻: {completed_timestamp}\n")
+            f.write(f"初出アップロード速度：{upload_speed}KB/s\n")
             f.write(f"P2Pクローラ {version}\n")
             f.write("---\n")
 
         f.write(
-            f"piece{piece_index}{log_error_message} 完了時刻: {completed_timestamp} {version}\n"
+            f"piece{piece_index}{log_error_message} 完了時刻: {completed_timestamp} 速度：{upload_speed} KB/s {version}\n"
         )
 
 
@@ -577,6 +609,7 @@ def _save_peers_info(
     peer: tuple[str, int],
     provider: str,
     completed_timestamp: str,
+    upload_speed: int,
     valid_piece: bool,
     csv_path: str,
 ) -> None:
@@ -589,6 +622,8 @@ def _save_peers_info(
         ピアを表すタプル。
     provider : str
         プロバイダ情報。
+    upload_speed : int
+        実際にピースダウンロードを行った際の、ピア側アップロード速度。
     completed_timestamp : str
         完了タイムスタンプ。
     valid_piece : bool
@@ -610,8 +645,8 @@ def _save_peers_info(
             for row in reader:
                 # peerのIPアドレスとポート番号が一致する行を見つけたら
                 if row[:2] == [peer[0], str(peer[1])]:
-                    # 5列目のみcompleted_timestampで更新
-                    row[5] = completed_timestamp
+                    # 6列目のみcompleted_timestampで更新
+                    row[6] = completed_timestamp
                     updated = True
                 new_data.append(row)
 
@@ -624,7 +659,7 @@ def _save_peers_info(
                     # peerが一致し、valid_pieceがTrueの場合に3列目を更新
                     if row[:2] == [peer[0], str(peer[1])] and valid_piece:
                         try:
-                            # 4列目を数値に変換して1を加える
+                            # 3列目を数値に変換して1を加える
                             row[3] = str(int(row[3]) + 1)
                         except ValueError:
                             # 3列目が数値でなければエラーメッセージを表示
@@ -637,7 +672,14 @@ def _save_peers_info(
                 writer = csv.writer(f)
                 # 新しいピア情報を追加
                 writer.writerow(
-                    peer + (provider, num, completed_timestamp, completed_timestamp)
+                    peer
+                    + (
+                        provider,
+                        num,
+                        upload_speed,
+                        completed_timestamp,
+                        completed_timestamp,
+                    )
                 )
 
         return True
