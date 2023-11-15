@@ -878,10 +878,7 @@ def main():
     start_button.config(state=tk.DISABLED)
     start_button.pack(side=tk.RIGHT, padx=(0, 10))
 
-    open_folder_button1 = setup_open_folder_button(button_frame1, TORRENT_FOLDER)
-    open_folder_button1.pack(side=tk.RIGHT, padx=(0, 10))
-
-    refresh_button1 = tk.Button(button_frame, text="更新", font=small_font)
+    refresh_button1 = tk.Button(button_frame1, text="更新", font=small_font)
     refresh_button1.pack(side=tk.RIGHT, padx=(0, 10))
 
     # 採集状況の編集用ボタン
@@ -1041,7 +1038,6 @@ def main():
                 directory = os.path.dirname(torrent_file_path)
                 torrent_situation = extract_log_lines(directory)
 
-                open_folder_button1.config(command=lambda: open_folder(directory))
                 open_folder_button2.config(command=lambda: open_folder(directory))
                 open_folder_button3.config(command=lambda: open_folder(directory))
                 open_folder_button4.config(command=lambda: open_folder(directory))
