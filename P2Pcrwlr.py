@@ -130,11 +130,11 @@ def main():
             return False
 
     # ピースのダウンロード有無の設定チェックボックス欄
-    piece_frame = tk.Frame(tabs[5])
-    piece_frame.pack(fill=tk.X, pady=(30, 0))
+    # piece_frame = tk.Frame(tabs[5])
+    # piece_frame.pack(fill=tk.X, pady=(30, 0))
 
-    piece_label = tk.Label(piece_frame, text="ピース実物をダウンロード後に保存する", font=font)
-    piece_label.pack(side=tk.LEFT, padx=(150, 10))
+    # piece_label = tk.Label(piece_frame, text="ピース実物をダウンロード後に保存する", font=font)
+    # piece_label.pack(side=tk.LEFT, padx=(150, 10))
 
     # チェックボックスの初期値を設定
     piece_var = tk.IntVar()
@@ -144,10 +144,10 @@ def main():
     piece_var.set(initial_value)
 
     # チェックボックスの作成
-    piece_checkbox = tk.Checkbutton(
-        piece_frame, variable=piece_var, command=save_piece_setting
-    )
-    piece_checkbox.pack(side=tk.LEFT, padx=(0, 10))
+    # piece_checkbox = tk.Checkbutton(
+    #    piece_frame, variable=piece_var, command=save_piece_setting
+    # )
+    # piece_checkbox.pack(side=tk.LEFT, padx=(0, 10))
 
     # 巡回の間隔
     interval_frame = tk.Frame(tabs[0])
@@ -1053,7 +1053,7 @@ def main():
                     files = os.listdir(directory)
                     peers_csv_file = None
                     for file in files:
-                        if file.startswith("peer") and file.endswith(".csv"):
+                        if file.startswith("peers_") and file.endswith(".csv"):
                             peers_csv_file = file
                             break
 
@@ -1072,10 +1072,10 @@ def main():
                             total_pieces = 0
                             for row in reader:
                                 if row:
-                                    # IPアドレス（row[0]）がfirst_column_elementsに存在しない場合のみ追加する
+                                    # ポート番号は無視して、IPアドレスのユニーク数を勘定する
                                     if row[0] not in first_column_elements:
                                         first_column_elements.append(row[0])
-                                    total_pieces += int(row[3])  # 4列目の数値を合計
+                                    total_pieces += int(row[4])  # 5列目の数値をすべて合計
 
                         # 重複を削除
                         unique_elements = set(first_column_elements)
@@ -1085,11 +1085,9 @@ def main():
                         return "エラー", "エラー"
 
                 # UIに表示するためのコード部分（例）
-                unique_peers, unique_piece = peer_counter(directory)
+                unique_peers, unique_log = peer_counter(directory)
                 suspect_text.insert(tk.END, " 【 採取済みピア数：" + str(unique_peers) + " 】")
-                suspect_text.insert(
-                    tk.END, " 【 ピース数合計：" + str(unique_piece) + " 】​​\n\n"
-                )
+                suspect_text.insert(tk.END, " 【 ログ数合計：" + str(unique_log) + " 】​​\n\n")
 
                 # トレントファイルに含まれる情報を表示
                 suspect_text.insert(
@@ -1286,9 +1284,10 @@ def main():
                 os.path.join(target_folder, "source.torrent")
             )
 
-            # 特定のフォルダ（DL対象と "complete_evidence"）を探索対象から外す
+            # 特定のフォルダ（DL対象と "complete_evidence","sign"）を探索対象から外す
             excluded_targets = set(dl_targets)
             excluded_targets.add("complete_evidence")
+            excluded_targets.add("sign")
 
             private_key_path = os.path.join(KEYS_FOLDER, "private_key_P2Pcrwlr.asc")
             public_key_path = os.path.join(KEYS_FOLDER, "public_key_P2Pcrwlr.asc")
@@ -1303,10 +1302,15 @@ def main():
             # 証拠フォルダのルートに公開鍵をコピー
             shutil.copy2(public_key_path, target_folder)
 
-            # target_folder 及びそのサブディレクトリ内のすべてのファイルを探索
+            # target_folder とそのサブディレクトリ内のすべてのファイルを探索
             for dirpath, dirnames, filenames in os.walk(target_folder):
                 # 探索対象から外すフォルダを削除
                 dirnames[:] = [d for d in dirnames if d not in excluded_targets]
+
+                # 各フォルダに 'sign' サブフォルダを作成（存在しない場合のみ）
+                sign_folder_path = os.path.join(dirpath, "sign")
+                if not os.path.exists(sign_folder_path):
+                    os.makedirs(sign_folder_path)
 
                 # .log ファイルを探す
                 log_files = [f for f in filenames if f.endswith(".log")]
@@ -1316,6 +1320,16 @@ def main():
                     if peer_log not in excluded_targets:  # DL対象内の.logファイルは除外
                         file_path = os.path.join(dirpath, peer_log)
                         es.sign_file(file_path, private_key_path)
+
+                        # 署名ファイルを 'sign' フォルダに移動
+                        sig_file = file_path + ".sig"
+                        if os.path.exists(sig_file):
+                            os.rename(
+                                sig_file,
+                                os.path.join(
+                                    sign_folder_path, os.path.basename(sig_file)
+                                ),
+                            )
 
         text.config(state=tk.NORMAL)
         text.delete(1.0, tk.END)

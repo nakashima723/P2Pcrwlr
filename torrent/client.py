@@ -31,6 +31,7 @@ class Client:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         con = Config(base_path=current_dir, level=1)
         self.my_port = con.MY_PORT
+        self.version = con.version
         self.logger = logging.getLogger(__name__)
         self.piece_download = read_piece_download_setting()
 
@@ -124,10 +125,9 @@ class Client:
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             )
         )
-
         return True
 
-    def fetch_peer_list(
+    def get_peer_log(
         self, torrent_path: str, max_list_size: int = 20
     ) -> list[tuple[str, int]]:
         """
@@ -146,14 +146,11 @@ class Client:
         peers : list of (str, int)
             ピアのリスト。
         """
-        RETRY_COUNTER = 5
-
         session = lt.session(
             {"listen_interfaces": f"0.0.0.0:{self.my_port},[::]:{self.my_port}"}
         )
-        info = lt.torrent_info(torrent_path)
 
-        peers: list[tuple[str, int]] = []
+        info = lt.torrent_info(torrent_path)
 
         # 自分のIPを取得する_get_public_ips()を呼び出し、結果を2つの変数に格納
         ipv4, ipv6 = _get_public_ips()
@@ -162,47 +159,98 @@ class Client:
         if ipv6:
             excluded_ipv6_network = get_excluded_ipv6(ipv6)
 
-        # 対象をIPアドレスリストの範囲に限定（IPv4とIPv6）
         ipv4_ranges = load_ip_ranges(4)
         ipv6_ranges = load_ip_ranges(6)
 
-        # IP範囲ファイルが両方とも存在しない場合にすべてのピアを追加するフラグ
+        # IP範囲ファイルが両方とも存在しない場合に、すべてのピアを追加するフラグ
         add_all_peers = not ipv4_ranges and not ipv6_ranges
 
+        if not add_all_peers:
+            ip_filter = _default_ip_filter(torrent_path)
+            # IPv4とIPv6の範囲を許可リストに追加
+            _add_ip_ranges_to_filter(ip_filter, ipv4_ranges, allow=True)
+            _add_ip_ranges_to_filter(ip_filter, ipv6_ranges, allow=True)
+
+            # excluded_ipv6_networkを禁止リストに追加
+            if excluded_ipv6_network:
+                start = str(excluded_ipv6_network[0])
+                end = str(excluded_ipv6_network[-1])
+                ip_filter.add_rule(start, end, 1)  # 1は禁止を意味する
+            if ipv4:
+                ip_filter.add_rule(ipv4, ipv4, 1)
+            if ipv6:
+                ip_filter.add_rule(ipv6, ipv6, 1)
+
+        # ピア情報の取得時に使う一時フォルダの格納場所を、TORRENT_FOLDER内に作成
         torrent_folder = os.path.dirname(torrent_path)
         tmp_path = os.path.join(os.path.dirname(torrent_folder), "tmp")
         if not os.path.exists(tmp_path):
-            os.makedirs(tmp_path, exist_ok=True)
+            os.makedirs(tmp_path, exist_ok=True)  # 自動削除に失敗しても、まとめて消せる格納用フォルダ
 
-        # 一時ディレクトリの削除に関するエラーハンドリングを追加する
+        peers: list[tuple[str, int]] = []  # 判定用にピアのIP（p.ip）だけを格納するリスト
+        RETRY_COUNTER = 10
+        log = []
+
         try:
             with tempfile.TemporaryDirectory(prefix="tmp", dir=tmp_path) as tmpdir:
+                # 一時ファイルとして対象ファイルを作成し、ダウンロードの進捗0％からスタート
                 handle = session.add_torrent({"ti": info, "save_path": tmpdir})
+                handle.set_upload_limit(100000)  # アップロード速度を10KB/sに設定
+                valid_piece = True  # 破損ピースが検出されていなければTrue
+
+                # アラートをポーリングして破損したピースがあるかチェック
+                alerts = session.pop_alerts()
+                for alert in alerts:
+                    if isinstance(alert, lt.hash_failed_alert):
+                        valid_piece = False
+                        break
+
                 cnt = 0
                 while cnt < RETRY_COUNTER:
                     try:
-                        peer_info_list = handle.get_peer_info()
+                        peer_info_list = handle.get_peer_info()  # 接続済みピアの情報を取得
+                        timestamp = ut.get_jst_str()
 
                         for p in peer_info_list:
+                            if not p.seed:
+                                continue  # シーダーでなければ収録しない
+
+                            key = (p.ip[0], p.ip[1])
+                            if key in peers and p.last_active == 0:
+                                p.timestamp = timestamp
+                                p.valid = valid_piece
+                                log.append(p)
+                                continue  # すでに存在するピアは、最終接続時刻（int秒前）が0なら追加収録
+
                             peer_ip = p.ip[0]
-                            if peer_ip == ipv4:
+                            if peer_ip == ipv4 or peer_ip == ipv6:
+                                continue  # 自分自身のIPと一致する場合は収録しない
+
+                            if (
+                                not p.last_active == 0  # 最終接続時刻が0秒前のデータのみ収録
+                                or p.up_speed <= 20  # プロトコルメッセージのみ（数KB）の通信である可能性を排除
+                            ):
                                 continue
-                            if peer_ip == ipv6:
-                                continue
-                            # IPアドレスが同じで、ポート番号が異なるピアは除外
+
+                            # IPアドレスが同じでポート番号が異なるピアは、同じ周回では重複して収録しない
                             if any(peer[0] == peer_ip for peer in peers):
                                 continue
-                            if add_all_peers:
-                                if p.seed and p.ip not in peers:
+
+                            if add_all_peers:  # IP範囲を問わず、シーダーをすべて収録する場合
+                                if p.ip not in peers:
+                                    p.timestamp = timestamp
+                                    p.valid = valid_piece
+                                    log.append(p)
                                     peers.append(p.ip)
                                     continue
 
                             if ip_address(peer_ip).version == 4:  # IPv4アドレスの場合
-                                if (
-                                    p.seed
-                                    and p.ip not in peers
-                                    and _ip_in_range(peer_ip, ipv4_ranges)
+                                if p.ip not in peers and _ip_in_range(
+                                    peer_ip, ipv4_ranges
                                 ):
+                                    p.timestamp = timestamp
+                                    p.valid = valid_piece
+                                    log.append(p)
                                     peers.append(p.ip)
 
                             elif ip_address(peer_ip).version == 6:
@@ -217,83 +265,44 @@ class Client:
                                 if is_not_in_self_network and _ip_in_range(
                                     peer_ip, ipv6_ranges
                                 ):
+                                    p.timestamp = timestamp
+                                    p.valid = valid_piece
+                                    log.append(p)
                                     peers.append(p.ip)
-
                     except Exception as e:
                         self.logger.warning(f"ループ中に例外が発生: {e}")
 
                     cnt += 1
-                    time.sleep(2)
-                return peers[:max_list_size]
+                    if len(peers) == max_list_size:
+                        self.logger.info("取得ピア数の上限に達しました。")
+                        break
+
+                    if _over_progress(handle):
+                        self.logger.info(
+                            "ダウンロードの進捗が50%を超えたため、ピア取得を中断します。(ループ" + str(cnt + 1) + "回目)"
+                        )
+                        break
+
+                    time.sleep(3)
 
         except Exception:
-            # 処理を続行するために、例外をここでキャッチして処理をスキップする
-            return peers[:max_list_size]
-
-        finally:
-            # finallyブロックで一時ディレクトリの削除を確実に実行
+            logging.info("一時ファイルの削除を試行中...")
             try:
-                # tmpdirの親ディレクトリを取得
                 parent_dir = os.path.dirname(tmpdir)
-
                 # 親ディレクトリを削除
-                if parent_dir and os.path.exists(parent_dir):
+                if os.path.exists(parent_dir):
                     shutil.rmtree(parent_dir)
-                else:
-                    logging.warning("削除しようとした一時ファイルが存在しませんでした。")
 
             except Exception as e:
                 logging.warning(f"一時ファイルの削除に失敗しました: {e}")
 
-    def setup_session(self, torrent_path: str) -> tuple:
-        """
-        ピースダウンロード用に、torrentファイルと関連する初期設定を行う。
+        logging.info("取得ピア数：" + str(len(peers)))
+        logging.info("ログを記録しています...")
+        if log:
+            save_path = os.path.dirname(torrent_path)
+            _save_peer_log(log, info, save_path, self.version)
 
-        Parameters
-        ----------
-        torrent_path : str
-            .torrentファイルへのパス。
-
-        Returns
-        -------
-        tuple:
-            セッション、トレント情報、IPフィルタのタプル。
-        """
-        # 基本のセッションとIPフィルタを定義
-        session = lt.session(
-            {"listen_interfaces": f"0.0.0.0:{self.my_port},[::]:{self.my_port}"}
-        )
-
-        # アップロード量を0に設定
-        session.set_upload_rate_limit(0)
-
-        # torrentファイルを読み込む
-        info = lt.torrent_info(torrent_path)
-
-        # トラッカーの一覧を取得
-        trackers = info.trackers()
-
-        # IPフィルタを作成
-        ip_filter = lt.ip_filter()
-        # すべてのアドレスを禁止
-        ip_filter.add_rule("0.0.0.0", "255.255.255.255", 1)
-        ip_filter.add_rule("::", "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", 1)
-
-        # 各トラッカーのIPアドレスを取得し、許可リストに追加
-        for tracker in trackers:
-            url = tracker.url
-            parsed_url = urllib.parse.urlparse(url)
-            hostname = parsed_url.hostname
-            port = parsed_url.port
-            try:
-                addr_infos = socket.getaddrinfo(hostname, port)
-                for family, type, proto, canonname, sockaddr in addr_infos:
-                    tracker_ip = sockaddr[0]
-                    ip_filter.add_rule(tracker_ip, tracker_ip, 0)
-            except socket.gaierror:
-                # ホスト名を解決できない場合、スキップ
-                pass
-        return session, info, ip_filter
+        return log
 
     def download_piece(
         self,
@@ -348,9 +357,6 @@ class Client:
 
         a = handle.read_piece(piece_index)
 
-        # ダウンロード開始前のタイムスタンプを記録
-        start_time = time.time()
-
         for _ in range(10):  # 10回リトライ
             alerts = session.pop_alerts()
             for a in alerts:
@@ -368,25 +374,6 @@ class Client:
 
         # ダウンロードが完了した瞬間のタイムスタンプを記録
         completed_timestamp = ut.get_jst_str()
-
-        # ダウンロード後のタイムスタンプを記録（速度チェック用）
-        end_time = time.time()
-
-        # ピースダウンロードにかかった合計時間を計算（ミリ秒単位）
-        total_time = (end_time - start_time) * 1000
-
-        file_size_kb = len(a) / 1024
-
-        if file_size_kb != 0 and total_time != 0:
-            # ミリ秒を秒に変換
-            total_time_seconds = total_time / 1000
-
-            # アップロード速度を計算（KB/s）
-            upload_speed = round(file_size_kb / total_time_seconds, 1)
-
-        else:
-            logger.warning("アップロード速度の計算に必要なデータが不足しています。")
-            upload_speed = False
 
         error_prefix = ""
         log_error_message = ""
@@ -450,7 +437,6 @@ class Client:
             peer,
             provider,
             completed_timestamp,
-            upload_speed,
             valid_piece,
             csv_path,
         )
@@ -464,13 +450,12 @@ class Client:
         if self.piece_download:
             _write_piece_to_file(a, unique_file_path)
 
-        _write_peer_log(
+        _write_piece_log(
             info,
             peer,
             piece_index,
             log_path,
             provider,
-            upload_speed,
             completed_timestamp,
             log_error_message,
             version,
@@ -479,6 +464,119 @@ class Client:
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def _default_ip_filter(torrent_path: str) -> tuple:
+    # IPフィルタを作成
+    ip_filter = lt.ip_filter()
+    # 最初にすべてのアドレスを禁止し、以降は許可した範囲とだけ接続する
+    ip_filter.add_rule("0.0.0.0", "255.255.255.255", 1)
+    ip_filter.add_rule("::", "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", 1)
+
+    # torrentファイルを読み込む
+    info = lt.torrent_info(torrent_path)
+
+    # トラッカーの一覧を取得
+    trackers = info.trackers()
+
+    # 各トラッカーのIPアドレスを取得し、許可リストに追加
+    for tracker in trackers:
+        url = tracker.url
+        parsed_url = urllib.parse.urlparse(url)
+        hostname = parsed_url.hostname
+        port = parsed_url.port
+        try:
+            addr_infos = socket.getaddrinfo(hostname, port)
+            for family, type, proto, canonname, sockaddr in addr_infos:
+                tracker_ip = sockaddr[0]
+                ip_filter.add_rule(tracker_ip, tracker_ip, 0)
+        except socket.gaierror:
+            # ホスト名を解決できない場合、スキップ
+            pass
+    return ip_filter
+
+
+def _add_ip_ranges_to_filter(ip_filter, ip_ranges, allow=True):
+    # IPフィルタに範囲を追加する関数
+    for ip_range in ip_ranges:
+        # IPアドレス範囲の開始と終了を取得
+        start = str(ip_range[0])
+        end = str(ip_range[-1])
+        # 許可する場合は0、禁止する場合は1を使用
+        ip_filter.add_rule(start, end, 0 if allow else 1)
+
+
+def _format_timestamp_str(timestamp):
+    timestamp = timestamp.replace(" ", "-")
+    timestamp = timestamp.replace(":", "-")
+    formatted_timestamp = timestamp.split(".")[0]
+    return formatted_timestamp
+
+
+def _save_peer_log(log, info, save_path: str, version: str):
+    # save_path内のファイルをリストアップ
+    csv_name = f"peers_{info.info_hash()}.csv"
+    csv_path = os.path.join(save_path, csv_name)
+
+    # ログの生データを記録
+    for p in log:
+        peer = p.ip
+        _make_peers_list(peer, p.timestamp, p.valid, csv_path)
+
+    # ピア別のログ記録
+    for p in log:
+        peers_folder = os.path.join(save_path, "peers")
+        if not os.path.exists(peers_folder):
+            os.makedirs(peers_folder, exist_ok=True)
+
+        # peer_infoオブジェクトの値を文字列に変換
+        port = str(p.ip[1])
+        client = p.client.decode("utf-8")
+        speed = str(p.up_speed)
+        if not p.valid:
+            validity_str = "破損ピース：あり"
+        else:
+            validity_str = ""  # 破損ピースがなかった場合、なにも記入しない
+
+        log_line = (
+            p.timestamp + "　" + client + "　速度：" + speed + " KB/s　" + validity_str + "\n"
+        )
+
+        # ファイル名を決定
+        peer_modified = p.ip[0].replace(":", "-") if ":" in p.ip[0] else p.ip[0]
+        peer_file_name = (
+            peer_modified + "_" + port + "_" + str(info.info_hash()) + ".log"
+        )
+
+        peer_file_path = os.path.join(peers_folder, peer_file_name)
+        if not os.path.exists(peer_file_path):
+            file_mode = "w"
+        else:
+            file_mode = "a"
+
+        with open(peer_file_path, file_mode) as f:
+            if file_mode == "w":
+                # 新規ファイルの場合はヘッダーを書き込み
+                f.write(f"IPアドレス：{p.ip[0]}\n")
+                f.write(f"ポート番号：{port}\n")
+                f.write(f"クライアント：{client}\n")
+                f.write("プロバイダ：未取得\n")
+                f.write(f"ファイル名：{info.name()}\n")
+                f.write(f"ファイルハッシュ: {info.info_hash()}\n")
+                f.write(f"証拠収集開始時刻: {p.timestamp}\n")
+                f.write(f"P2Pクローラ {version}\n")
+                f.write("------------------------------------\n")
+
+            f.write(log_line)
+
+
+def _over_progress(handle):
+    status = handle.status()  # トレントの現在の状態を取得
+    # ダウンロード進捗状況（割合）を計算
+    progress = status.progress * 100  # 進捗状況をパーセンテージで表す
+    # 進捗が50%以上の場合、いったん一時ファイルを削除
+    if progress >= 50.0:
+        return True
 
 
 def _print_download_status(torrent_status, logger: logging.Logger) -> None:
@@ -542,13 +640,12 @@ def _write_piece_to_file(piece: bytes, save_path: str) -> None:
         f.write(piece)
 
 
-def _write_peer_log(
+def _write_piece_log(
     info,
     peer,
     piece_index,
     log_path,
     provider,
-    upload_speed,
     completed_timestamp,
     log_error_message="",
     version="",
@@ -567,14 +664,8 @@ def _write_peer_log(
         ピアを表すタプル。
     piece_index : int
         ダウンロードするピースのindex。
-    log_path : str
+    save_path : str
         ログを書き込むファイルのパス。
-    provider : str
-        プロバイダ情報。
-    upload_speed : int
-        実際にピースダウンロードを行った際の、ピア側アップロード速度。
-    completed_timestamp : str
-        完了タイムスタンプ。
     """
 
     # ファイルを開く前にディレクトリの存在を確認
@@ -596,20 +687,77 @@ def _write_peer_log(
             f.write(f"ファイル名：{info.name()}\n")
             f.write(f"ファイルハッシュ: {info.info_hash()}\n")
             f.write(f"証拠収集開始時刻: {completed_timestamp}\n")
-            f.write(f"初出アップロード速度：{upload_speed}KB/s\n")
             f.write(f"P2Pクローラ {version}\n")
             f.write("---\n")
 
         f.write(
-            f"piece{piece_index}{log_error_message} 完了時刻: {completed_timestamp} 速度：{upload_speed} KB/s {version}\n"
+            f"piece{piece_index}{log_error_message} 完了時刻: {completed_timestamp} {version}\n"
         )
+
+
+def _make_peers_list(
+    peer: tuple[str, int], timestamp: str, valid_piece: bool, csv_path: str
+) -> None:
+    """
+    ピアの一覧をファイルに記録または更新する。
+
+    Parameters
+    ----------
+    peer : (str, int)
+        ピアを表すタプル。
+    timestamp : str
+        完了タイムスタンプ。
+    valid_piece : bool
+        取得できたのが正常なピースかどうか。
+    csv_path : str
+        記録ファイルのパス。
+    """
+    provider = "未取得"
+    remote_host = "未取得"
+    num = 1 if valid_piece else 0
+    updated = False
+
+    new_data = []
+
+    try:
+        if os.path.exists(csv_path):
+            with open(csv_path, "r+", newline="", encoding="utf-8") as f:
+                reader = csv.reader(f)
+                for row in reader:
+                    if row[:2] == [peer[0], str(peer[1])]:
+                        row[4] = str(int(row[4]) + num) if valid_piece else row[4]
+                        row[6] = timestamp
+                        updated = True
+                    new_data.append(row)
+
+                f.seek(0)  # ファイルポインタを先頭に戻す
+                f.truncate()  # ファイル内容を削除
+
+                writer = csv.writer(f)
+                for row in new_data:
+                    writer.writerow(row)
+
+                if not updated:
+                    # ピアが新規である場合は追加
+                    writer.writerow(
+                        peer + (provider, remote_host, num, timestamp, timestamp)
+                    )
+        else:
+            with open(csv_path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(
+                    peer + (provider, remote_host, num, timestamp, timestamp)
+                )
+
+    except PermissionError:
+        logger.warning("パーミッションエラー：ピア履歴のcsvに書き込みできません。ファイルが開かれている場合は閉じてください。")
+        return False  # download_pieceを中断するための戻り値
 
 
 def _save_peers_info(
     peer: tuple[str, int],
     provider: str,
     completed_timestamp: str,
-    upload_speed: int,
     valid_piece: bool,
     csv_path: str,
 ) -> None:
@@ -622,8 +770,6 @@ def _save_peers_info(
         ピアを表すタプル。
     provider : str
         プロバイダ情報。
-    upload_speed : int
-        実際にピースダウンロードを行った際の、ピア側アップロード速度。
     completed_timestamp : str
         完了タイムスタンプ。
     valid_piece : bool
@@ -645,8 +791,8 @@ def _save_peers_info(
             for row in reader:
                 # peerのIPアドレスとポート番号が一致する行を見つけたら
                 if row[:2] == [peer[0], str(peer[1])]:
-                    # 6列目のみcompleted_timestampで更新
-                    row[6] = completed_timestamp
+                    # 5列目のみcompleted_timestampで更新
+                    row[5] = completed_timestamp
                     updated = True
                 new_data.append(row)
 
@@ -659,7 +805,7 @@ def _save_peers_info(
                     # peerが一致し、valid_pieceがTrueの場合に3列目を更新
                     if row[:2] == [peer[0], str(peer[1])] and valid_piece:
                         try:
-                            # 3列目を数値に変換して1を加える
+                            # 4列目を数値に変換して1を加える
                             row[3] = str(int(row[3]) + 1)
                         except ValueError:
                             # 3列目が数値でなければエラーメッセージを表示
@@ -672,14 +818,7 @@ def _save_peers_info(
                 writer = csv.writer(f)
                 # 新しいピア情報を追加
                 writer.writerow(
-                    peer
-                    + (
-                        provider,
-                        num,
-                        upload_speed,
-                        completed_timestamp,
-                        completed_timestamp,
-                    )
+                    peer + (provider, num, completed_timestamp, completed_timestamp)
                 )
 
         return True
@@ -779,6 +918,21 @@ def _ip_in_range(ip: str, ip_ranges: list) -> bool:
             return True
 
     return False
+
+
+def _get_remote_host(ip_str):
+    try:
+        # IPアドレスの形式を確認（IPv4またはIPv6）
+        ip = ipaddress.ip_address(ip_str)
+
+        # リバースDNSルックアップを実行してホスト名を取得
+        host_name = socket.gethostbyaddr(ip_str)[0]
+        return host_name
+    except ValueError:
+        return "取得失敗"
+    except Exception as e:
+        logger.warnin(f"ホスト名の取得に失敗しました: {e}")
+        return "取得失敗"
 
 
 def _get_public_ips() -> tuple[str, str]:

@@ -22,7 +22,6 @@ def execute():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     con = Config(base_path=current_dir, level=1)
 
-    version = con.version
     EVI_FOLDER = con.EVI_FOLDER
     SETTING_FILE = con.SETTING_FILE
 
@@ -66,22 +65,9 @@ def execute():
 
         # ピースの収集対象とするピアの一覧を取得
         logger.info("ピアの一覧を取得しています...")
-        peers = client.fetch_peer_list(source_files[i], max_list_size)
-        logger.info("採取対象ピア数: " + str(len(peers)))
+        log = client.get_peer_log(source_files[i], max_list_size)
 
-        # 日本国内からのみダウンロードするなど、各種設定を行ったセッションを作成
-        session, info, ip_filter = client.setup_session(source_files[i])
-
-        # ピースごとにバイナリマッチ検査を行うためのインスタンスを作成
-        matcher = BinaryMatcher(source_files[i])
-
-        # 取得した各ピアにピースダウンロードを実行
-        if peers:
-            for peer in peers:
-                client.download_piece(
-                    session, matcher, info, ip_filter, folder_list[i], peer, version
-                )
-                time.sleep(1)
+        if not len(log) == 0:
             logger.info("ピース収集が完了しました。")
             logger.info(ut.get_jst_str().split(".", 1)[0])
         else:
