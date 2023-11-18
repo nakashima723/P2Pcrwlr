@@ -45,6 +45,23 @@ SETTING_FILE = con.SETTING_FILE
 def main():
     multiprocessing.freeze_support()
 
+    timestamp = ut.fetch_jst()
+    expire_date = con.EXPIRE_DATE
+
+    def show_popup_and_exit(expire_date):
+        # Tkinterウィンドウの初期化（ウィンドウは表示されない）
+        popup = tk.Tk()
+        popup.withdraw()  # メインウィンドウを隠す
+
+        # メッセージボックスの表示
+        messagebox.showinfo("期限切れ", "アプリの使用期限が切れています。(" + expire_date + " まで)")
+
+        # アプリケーションの終了
+        sys.exit()
+
+    if ut.compare_timestamp_with_string(timestamp, expire_date):
+        show_popup_and_exit(expire_date)
+
     logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
     logger = logging.getLogger("P2Pcrwlr")
 

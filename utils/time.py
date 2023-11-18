@@ -75,3 +75,32 @@ def utc_to_jst(datetime_utc) -> datetime:
     datetime_jst = datetime_utc.astimezone(jst)
 
     return datetime_jst
+
+
+def compare_timestamp_with_string(timestamp: datetime, comparison_string: str) -> bool:
+    """
+    指定されたtimestampがcomparison_stringで示された時刻を超えているかを判定する。
+
+    Args:
+    timestamp (datetime): 比較する日時（ミリ秒単位含む）
+    comparison_string (str): 比較対象の時刻を表す文字列（形式: 'YYYY-MM-DD HH:MM:SS'）
+
+    Returns:
+    bool: True（timestampがcomparison_stringを超えている場合）、False（そうでない場合）
+    """
+
+    # 文字列からdatetimeオブジェクトへの変換（ミリ秒は含まない）
+    comparison_datetime = datetime.strptime(comparison_string, "%Y-%m-%d %H:%M:%S")
+
+    # タイムゾーン情報を持つ場合は削除
+    if (
+        timestamp.tzinfo is not None
+        and timestamp.tzinfo.utcoffset(timestamp) is not None
+    ):
+        timestamp = timestamp.replace(tzinfo=None)
+
+    # timestampのミリ秒を捨象
+    timestamp_without_ms = timestamp.replace(microsecond=0)
+
+    # 比較結果を返す
+    return timestamp_without_ms > comparison_datetime
