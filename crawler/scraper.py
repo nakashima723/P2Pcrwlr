@@ -404,7 +404,7 @@ def execute():
             msg = EmailMessage()
             msg.set_content(
                 notification_str
-                + "\nただちにP2Pクローラを起動し、証拠採取を行ってください。/n/n収録先パス："
+                + "\nただちにP2Pクローラを起動し、証拠採取を行ってください。\n\n収録先パス："
                 + TORRENT_FOLDER
             )
 
