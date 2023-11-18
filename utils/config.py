@@ -22,6 +22,7 @@ class Config:
                 self.application_path = self.application_path.parent
 
         self.version = "ver.1.0"
+        self.EXPIRE_DATE = None  # アプリが無効になる日時をyyyy-mm-dd-hh-mmで入力（Noneならば無期限）
         self.EVI_FOLDER = os.path.join(self.application_path, "evi")
         self.TORRENT_FOLDER = os.path.join(self.EVI_FOLDER, "tor")
         self.SETTING_FOLDER = os.path.join(self.application_path, "settings")
