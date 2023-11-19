@@ -66,7 +66,6 @@ class Client:
 
         # 現在の時刻を記録
         last_time = time.time()
-        self.logger.info("starting %s", info.name())
 
         while not handle.status().is_seeding:
             current_status = handle.status()
@@ -94,7 +93,7 @@ class Client:
 
         self.logger.info("ダウンロード済み： %s", info.name())
         self.logger.info(
-            "ファイルハッシュ: %s, ファイルサイズ: %d, 時刻: %s"
+            "ハッシュ: %s, ファイルサイズ: %d, 時刻: %s"
             % (
                 handle.info_hash(),
                 info.total_size(),
@@ -158,7 +157,6 @@ class Client:
             if ipv6:
                 ip_filter.add_rule(ipv6, ipv6, 1)
 
-            ip_filter.add_rule("192.168.0.0", "192.168.0.255", 1)
             session.set_ip_filter(ip_filter)
 
         # ピア情報の取得時に使う一時フォルダの格納場所を、TORRENT_FOLDER内に作成
@@ -206,11 +204,7 @@ class Client:
                             if peer_ip == ipv4 or peer_ip == ipv6:
                                 continue  # 自分自身のIPと一致する場合は収録しない
 
-                            if (
-                                not p.last_active == 0
-                                or p.down_speed
-                                <= 20480  # プロトコルメッセージのみ（数KB）の通信である可能性を排除
-                            ):
+                            if not p.last_active == 0 or p.payload_down_speed <= 20480:
                                 continue  # 最終接続時刻が0秒前で、20KB/s以上のUP速度があるピアのみ収録
 
                             # IPアドレスが同じでポート番号が異なるピアは、同じ周回では重複して収録しない
@@ -275,8 +269,7 @@ class Client:
             except Exception as e:
                 logging.warning(f"一時ファイルの削除に失敗しました: {e}")
 
-        logging.info("取得ピア数：" + str(len(peers)))
-        logging.info("ログを記録しています...")
+        logging.info("取得ピア数：" + str(len(peers)) + "　ログを記録しています...")
         if log:
             save_path = os.path.dirname(torrent_path)
             _save_peer_log(
@@ -372,7 +365,7 @@ def _save_peer_log(
         # peer_infoオブジェクトの値を文字列に変換
         port = str(p.ip[1])
         client = p.client.decode("utf-8")
-        speed = f"{p.down_speed / 1000:.1f}"
+        speed = f"{p.payload_down_speed / 1000:.1f}"
         if not p.valid:
             validity_str = "破損ピース：あり"
         else:
@@ -411,6 +404,8 @@ def _save_peer_log(
 
     if not add_all_pears:
         _write_provider(csv_path, remote_host_path)
+    else:
+        logging.info("IP範囲指定がないため、プロバイダの取得はスキップします。")
 
 
 def _over_progress(handle):
