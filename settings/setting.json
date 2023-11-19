@@ -1,11 +1,11 @@
 {
     "interval": 600,
     "piece_interval": 600,
-    "last_crawl_time": 1700400797.038345,
+    "last_crawl_time": 1700409136.462638,
     "port": 40576,
     "max_list_size": 50,
-    "ip_last_modified": 1700320664,
-    "add_all_peers": false,
+    "ip_last_modified": 1700407060,
+    "add_all_peers": true,
     "mail_user": "null",
     "mail_pass": "null",
     "site_urls": [

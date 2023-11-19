@@ -46,55 +46,32 @@ class Client:
             本体ファイルのダウンロード先のパス。
         """
         info = lt.torrent_info(torrent_path)
-        target_file_path = os.path.join(save_path, info.name())
+        target_file_path = os.path.join(save_path, info.name())  # ダウンロード対象ファイルのパス
+        if not os.path.exists(target_file_path):
+            self.logger.info("本体ファイル" + target_file_path + "のダウンロードを行います。")
+            new_file = True
+        else:
+            self.logger.info("本体ファイル" + target_file_path + "の状態を確認中...")
+            new_file = False
 
-        # .download_skip ファイルのパスを組み立てる
-        skip_file_path = os.path.join(save_path, ".download_skip")
-
-        # .download_skip ファイルが存在する場合、ダウンロードを行わない
-        if os.path.exists(skip_file_path):
-            self.logger.info("本体ファイルのダウンロードをスキップ: %s", target_file_path)
-            return False
-
-        # すでにDL対象のファイル・フォルダが存在する場合、そのサイズを取得
-        def get_size(path: str) -> int:
-            if os.path.isfile(path):  # パスが単一のファイルの場合
-                return os.path.getsize(path)
-
-            total = 0  # パスがディレクトリの場合
-            for dirpath, dirnames, filenames in os.walk(path):
-                for f in filenames:
-                    fp = os.path.join(dirpath, f)
-                    total += os.path.getsize(fp)
-            return total
-
-        # 期待されるサイズと一致する場合、新規ダウンロードを行わない
-        if (
-            os.path.exists(target_file_path)
-            and get_size(target_file_path) == info.total_size()
-        ):
-            self.logger.info("本体ファイルDL済： %s", os.path.basename(target_file_path))
-            return True
-
+        # 設定ファイルで指定したポートをリスナーに設定し、セッションを開始
         session = lt.session(
             {"listen_interfaces": f"0.0.0.0:{self.my_port},[::]:{self.my_port}"}
         )
-        self.logger.info("本体ファイル" + target_file_path + "のダウンロードを行います。")
 
-        info = lt.torrent_info(torrent_path)
+        # 本体ファイルのダウンロ－ドを開始
         handle = session.add_torrent({"ti": info, "save_path": save_path})
-
         # 進捗を追跡する変数
         last_downloaded = 0
 
         # 現在の時刻を記録
         last_time = time.time()
-
-        self.logger.info("starting %s", handle.status().name)
+        self.logger.info("starting %s", info.name())
 
         while not handle.status().is_seeding:
             current_status = handle.status()
-            _print_download_status(current_status, self.logger)
+            if new_file:
+                _print_download_status(current_status, self.logger)
 
             # 現在の進捗を取得
             current_downloaded = current_status.total_done
@@ -115,9 +92,9 @@ class Client:
 
             time.sleep(1)
 
-        self.logger.info("complete %s", handle.status().name)
+        self.logger.info("ダウンロード済み： %s", info.name())
         self.logger.info(
-            "File Hash: %s, File size: %d, Time: %s"
+            "ファイルハッシュ: %s, ファイルサイズ: %d, 時刻: %s"
             % (
                 handle.info_hash(),
                 info.total_size(),
@@ -230,11 +207,11 @@ class Client:
                                 continue  # 自分自身のIPと一致する場合は収録しない
 
                             if (
-                                not p.last_active == 0  # 最終接続時刻が0秒前のデータのみ収録
+                                not p.last_active == 0
                                 or p.down_speed
                                 <= 20480  # プロトコルメッセージのみ（数KB）の通信である可能性を排除
                             ):
-                                continue
+                                continue  # 最終接続時刻が0秒前で、20KB/s以上のUP速度があるピアのみ収録
 
                             # IPアドレスが同じでポート番号が異なるピアは、同じ周回では重複して収録しない
                             if any(peer[0] == peer_ip for peer in peers):
@@ -432,7 +409,6 @@ def _save_peer_log(
 
             f.write(log_line)
 
-        time.sleep(1)
     if not add_all_pears:
         _write_provider(csv_path, remote_host_path)
 
