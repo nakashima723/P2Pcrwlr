@@ -44,15 +44,17 @@ def get_info_hash(torrent_file):
 
 
 def fetch_html(site_url, info_hash):
-    uri = "?q="
-    url = site_url + uri + info_hash
-    response = requests.get(url)
-    if response.status_code == 200:
-        return BeautifulSoup(response.content, "html.parser")
-    else:
-        logger.warning(
-            f"エラー: Failed to fetch the content with status code {response.status_code}"
-        )
+    try:
+        uri = "?q="
+        url = site_url + uri + info_hash
+        response = requests.get(url)
+        if response.status_code == 200:
+            return BeautifulSoup(response.content, "html.parser")
+        else:
+            logger.warning(f"エラー: サイトにアクセスできませんでした。 {response.status_code}")
+            return None
+    except Exception as e:
+        logger.error(f"エラー:  サイトにアクセスできませんでした。 {e}")
         return None
 
 
@@ -85,59 +87,62 @@ def fetch_complete_evidence(site_url, folder_name, info_hash):
     # fetch_html関数を使用してHTMLのDOM情報を取得
     soup = fetch_html(site_url, info_hash)
 
-    # 各種テキストを取得
-    complete_text = find_next_div_text(soup, "Completed:")
-    seeder_text = find_next_div_text(soup, "Seeders:")
-    leecher_text = find_next_div_text(soup, "Leechers:")
-    log_timestamp = ut.get_jst_str()
+    if soup is not None:
+        # 各種テキストを取得
+        complete_text = find_next_div_text(soup, "Completed:")
+        seeder_text = find_next_div_text(soup, "Seeders:")
+        leecher_text = find_next_div_text(soup, "Leechers:")
+        log_timestamp = ut.get_jst_str()
 
-    # 「evidence」から始まるログファイルを探して、テキストを追加
-    log_files = [
-        f for f in os.listdir(folder_name) if f.startswith("evi") and f.endswith(".log")
-    ]
-    if log_files:
-        write_to_log(
-            folder_name,
-            log_files[0],
-            complete_text
-            + " Completed "
-            + seeder_text
-            + " Seeder "
-            + leecher_text
-            + " Leecher "
-            + log_timestamp
-            + " from:"
-            + site_url,
-        )
+        # 「evidence」から始まるログファイルを探して、テキストを追加
+        log_files = [
+            f
+            for f in os.listdir(folder_name)
+            if f.startswith("evi") and f.endswith(".log")
+        ]
+        if log_files:
+            write_to_log(
+                folder_name,
+                log_files[0],
+                complete_text
+                + " Completed "
+                + seeder_text
+                + " Seeder "
+                + leecher_text
+                + " Leecher "
+                + log_timestamp
+                + " from:"
+                + site_url,
+            )
 
-    # 「complete_evidence」が存在しない場合のみCSS関連とHTML保存の処理を行う
-    if not os.path.exists(complete_evidence_folder):
-        os.makedirs(complete_evidence_folder, exist_ok=True)
-        save_file_name = f"complete_evidence_{info_hash}.html"
-        output_path = os.path.join(complete_evidence_folder, save_file_name)
+        # 「complete_evidence」が存在しない場合のみCSS関連とHTML保存の処理を行う
+        if not os.path.exists(complete_evidence_folder):
+            os.makedirs(complete_evidence_folder, exist_ok=True)
+            save_file_name = f"complete_evidence_{info_hash}.html"
+            output_path = os.path.join(complete_evidence_folder, save_file_name)
 
-        # HTML内のCSSファイルへのリンクを見つける
-        for link in soup.find_all("link", rel="stylesheet"):
-            css_url = urljoin(url, link["href"])
-            css_response = requests.get(css_url)
+            # HTML内のCSSファイルへのリンクを見つける
+            for link in soup.find_all("link", rel="stylesheet"):
+                css_url = urljoin(url, link["href"])
+                css_response = requests.get(css_url)
 
-            # クエリパラメータを除去してファイル名を抽出
-            parsed_css_url = urlparse(css_url)
-            css_filename = os.path.basename(parsed_css_url.path)
+                # クエリパラメータを除去してファイル名を抽出
+                parsed_css_url = urlparse(css_url)
+                css_filename = os.path.basename(parsed_css_url.path)
 
-            css_filepath = os.path.join(complete_evidence_folder, css_filename)
+                css_filepath = os.path.join(complete_evidence_folder, css_filename)
 
-            # CSSファイルをダウンロードして、指定されたフォルダに保存する
-            with open(css_filepath, "wb") as css_file:
-                css_file.write(css_response.content)
+                # CSSファイルをダウンロードして、指定されたフォルダに保存する
+                with open(css_filepath, "wb") as css_file:
+                    css_file.write(css_response.content)
 
-            # HTMLファイル内のCSSリンクを更新する
-            link["href"] = css_filename
+                # HTMLファイル内のCSSリンクを更新する
+                link["href"] = css_filename
 
-        # HTMLファイルとしてローカルに保存
-        output_path = os.path.join(complete_evidence_folder, save_file_name)
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(str(soup.prettify()))
+            # HTMLファイルとしてローカルに保存
+            output_path = os.path.join(complete_evidence_folder, save_file_name)
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(str(soup.prettify()))
 
 
 def archive_evidence(urls, folder):
@@ -156,8 +161,12 @@ def archive_evidence(urls, folder):
         else:
             logger.warning(f"エラー: フォルダ {folder} に source.torrent が存在しませんでした。")
 
+    time.sleep(3)
+
 
 def execute():
+    time.sleep(60)
+
     file_lock = threading.Lock()
     with file_lock:
         with open(SETTING_FILE, "r", encoding="utf-8") as f:
@@ -173,7 +182,4 @@ def execute():
 
             # .r18ファイルの存在に基づいて、処理するURLリストを決定
             target_urls = r18_site_urls if r18_file.exists() else site_urls
-
             archive_evidence(target_urls, folder)
-
-    time.sleep(1)
