@@ -6,6 +6,7 @@ import math
 import os
 import logging
 import urllib.request
+import time
 from email.utils import parsedate_to_datetime
 from utils.config import Config
 
@@ -139,6 +140,7 @@ def update_data_and_settings(settings, fetched_unix_timestamp):
 
 
 def execute():
+    time.sleep(5)
     try:
         # HTTPSリクエストを送信し、ヘッダーを取得
         with urllib.request.urlopen(url) as response:

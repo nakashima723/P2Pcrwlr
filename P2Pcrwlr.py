@@ -19,19 +19,10 @@ from tkinter import filedialog, messagebox, ttk
 # 独自モジュール
 import encrypt.signature as es
 from utils.config import Config
-from utils.generator import SettingsGenerator, QueryGenerator
 import utils.time as ut
 from utils.task_handler import TaskHandler
 
 # 設定ファイル・フォルダが存在しないときは生成
-settings_manager = SettingsGenerator()
-settings_manager.make_setting_json()
-settings_manager.make_evi_folder()
-query_manager = QueryGenerator("queries.json")
-query_manager.make_query_json()
-r18query_manager = QueryGenerator("r18queries.json")
-r18query_manager.make_query_json()
-
 current_dir = os.path.dirname(os.path.abspath(__file__))
 con = Config(base_path=current_dir, level=0)
 
@@ -124,47 +115,47 @@ def main():
 
     def save_piece_setting():
         # チェックボックスの状態を取得
-        piece_download = piece_var.get()
+        add_all_peers = peer_var.get()
 
         # 設定を読み込む
         with open(SETTING_FILE, "r") as f:
             settings = json.load(f)
 
         # 設定を更新
-        settings["piece_download"] = True if piece_download == 1 else False  # ここを修正
+        settings["add_all_peers"] = True if add_all_peers == 1 else False
 
         # 設定を保存
-        with open(SETTING_FILE, "w") as f:
+        with open(SETTING_FILE, "w", encoding="utf-8") as f:  # UTF-8エンコーディングを指定
             json.dump(settings, f, ensure_ascii=False, indent=2)
 
-    # 設定ファイルから "piece_setting" の値を読み込む関数
-    def load_piece_setting_from_file():
+    def load_peer_setting_from_file():
+        # 設定ファイルから "peer_setting" の値を読み込む関数
         try:
             with open(SETTING_FILE, "r") as f:
                 settings = json.load(f)
-            return settings.get("piece_download", False)
+            return settings.get("add_all_peers", False)
         except (FileNotFoundError, json.JSONDecodeError):
             return False
 
     # ピースのダウンロード有無の設定チェックボックス欄
-    # piece_frame = tk.Frame(tabs[5])
-    # piece_frame.pack(fill=tk.X, pady=(30, 0))
+    peer_frame = tk.Frame(tabs[5])
+    peer_frame.pack(fill=tk.X, pady=(30, 0))
 
-    # piece_label = tk.Label(piece_frame, text="ピース実物をダウンロード後に保存する", font=font)
-    # piece_label.pack(side=tk.LEFT, padx=(150, 10))
+    peer_label = tk.Label(peer_frame, text="IP範囲指定によらず、全シーダーの情報を記録する", font=font)
+    peer_label.pack(side=tk.LEFT, padx=(140, 10))
 
     # チェックボックスの初期値を設定
-    piece_var = tk.IntVar()
+    peer_var = tk.IntVar()
 
-    # 設定ファイルから "piece_setting" の値を読み込み、それに基づいて初期値を設定
-    initial_value = 1 if load_piece_setting_from_file() else 0
-    piece_var.set(initial_value)
+    # 設定ファイルから "add_all_peers" の値を読み込み、それに基づいて初期値を設定
+    initial_value = 1 if load_peer_setting_from_file() else 0
+    peer_var.set(initial_value)
 
     # チェックボックスの作成
-    # piece_checkbox = tk.Checkbutton(
-    #    piece_frame, variable=piece_var, command=save_piece_setting
-    # )
-    # piece_checkbox.pack(side=tk.LEFT, padx=(0, 10))
+    peer_checkbox = tk.Checkbutton(
+        peer_frame, variable=peer_var, command=save_piece_setting
+    )
+    peer_checkbox.pack(side=tk.LEFT, padx=(0, 10))
 
     # 巡回の間隔
     interval_frame = tk.Frame(tabs[0])
@@ -1341,12 +1332,10 @@ def main():
                         # 署名ファイルを 'sign' フォルダに移動
                         sig_file = file_path + ".sig"
                         if os.path.exists(sig_file):
-                            os.rename(
-                                sig_file,
-                                os.path.join(
-                                    sign_folder_path, os.path.basename(sig_file)
-                                ),
+                            dest_path = os.path.join(
+                                sign_folder_path, os.path.basename(sig_file)
                             )
+                            shutil.move(sig_file, dest_path)
 
         text.config(state=tk.NORMAL)
         text.delete(1.0, tk.END)

@@ -1,13 +1,11 @@
 # 標準ライブラリ
 import csv
 from datetime import datetime
-import hashlib
 import ipaddress
 from ipaddress import ip_address, ip_network
 import json
 import logging
 import os
-import random
 import re
 import shutil
 import socket
@@ -32,8 +30,9 @@ class Client:
         con = Config(base_path=current_dir, level=1)
         self.my_port = con.MY_PORT
         self.version = con.version
+        self.version = con.version
+        self.REMOTE_HOST = con.REMOTE_HOST
         self.logger = logging.getLogger(__name__)
-        self.piece_download = read_piece_download_setting()
 
     def download(self, torrent_path: str, save_path: str) -> None:
         """
@@ -103,7 +102,7 @@ class Client:
             # 現在の時刻を取得
             current_time = time.time()
 
-            # 1分経過したかどうかを確認
+            # 経過時間を確認
             if current_time - last_time >= 30:
                 # 進捗があるかどうかを確認
                 if current_downloaded == last_downloaded:
@@ -155,15 +154,16 @@ class Client:
         # 自分のIPを取得する_get_public_ips()を呼び出し、結果を2つの変数に格納
         ipv4, ipv6 = _get_public_ips()
 
-        # IPv6アドレスの最初の4つのセクションを取得して除外リストに追加
+        # 自分のIPアドレスの、最初の4つのセクションを取得して除外リストに追加
         if ipv6:
             excluded_ipv6_network = get_excluded_ipv6(ipv6)
 
+        # 設定ファイル（ipv4.txt, ipv6.txt）で指定した範囲のみ許可する
         ipv4_ranges = load_ip_ranges(4)
         ipv6_ranges = load_ip_ranges(6)
 
-        # IP範囲ファイルが両方とも存在しない場合に、すべてのピアを追加するフラグ
-        add_all_peers = not ipv4_ranges and not ipv6_ranges
+        # すべてのピアを追加するフラグを、設定ファイルから読み込み
+        add_all_peers = _load_peer_setting()
 
         if not add_all_peers:
             ip_filter = _default_ip_filter(torrent_path)
@@ -181,11 +181,14 @@ class Client:
             if ipv6:
                 ip_filter.add_rule(ipv6, ipv6, 1)
 
+            ip_filter.add_rule("192.168.0.0", "192.168.0.255", 1)
+            session.set_ip_filter(ip_filter)
+
         # ピア情報の取得時に使う一時フォルダの格納場所を、TORRENT_FOLDER内に作成
         torrent_folder = os.path.dirname(torrent_path)
         tmp_path = os.path.join(os.path.dirname(torrent_folder), "tmp")
         if not os.path.exists(tmp_path):
-            os.makedirs(tmp_path, exist_ok=True)  # 自動削除に失敗しても、まとめて消せる格納用フォルダ
+            os.makedirs(tmp_path, exist_ok=True)  # 自動削除に失敗したとき、まとめて消せる格納用フォルダ
 
         peers: list[tuple[str, int]] = []  # 判定用にピアのIP（p.ip）だけを格納するリスト
         RETRY_COUNTER = 10
@@ -228,7 +231,8 @@ class Client:
 
                             if (
                                 not p.last_active == 0  # 最終接続時刻が0秒前のデータのみ収録
-                                or p.up_speed <= 20  # プロトコルメッセージのみ（数KB）の通信である可能性を排除
+                                or p.down_speed
+                                <= 20480  # プロトコルメッセージのみ（数KB）の通信である可能性を排除
                             ):
                                 continue
 
@@ -279,19 +283,17 @@ class Client:
 
                     if _over_progress(handle):
                         self.logger.info(
-                            "ダウンロードの進捗が50%を超えたため、ピア取得を中断します。(ループ" + str(cnt + 1) + "回目)"
+                            "ダウンロードの進捗が80%を超えたため、ピア取得を中断します。(ループ" + str(cnt + 1) + "回目)"
                         )
                         break
 
                     time.sleep(3)
 
         except Exception:
-            logging.info("一時ファイルの削除を試行中...")
             try:
-                parent_dir = os.path.dirname(tmpdir)
-                # 親ディレクトリを削除
-                if os.path.exists(parent_dir):
-                    shutil.rmtree(parent_dir)
+                if os.path.exists(tmp_path):
+                    shutil.rmtree(tmp_path)
+                    logging.info("一時ファイルを削除しました。")
 
             except Exception as e:
                 logging.warning(f"一時ファイルの削除に失敗しました: {e}")
@@ -300,170 +302,29 @@ class Client:
         logging.info("ログを記録しています...")
         if log:
             save_path = os.path.dirname(torrent_path)
-            _save_peer_log(log, info, save_path, self.version)
+            _save_peer_log(
+                log, info, save_path, self.REMOTE_HOST, self.version, add_all_peers
+            )
 
         return log
-
-    def download_piece(
-        self,
-        session,
-        matcher,
-        info,
-        ip_filter,
-        save_path: str,
-        peer: tuple[str, int],
-        version: str,
-    ) -> None:
-        """
-        指定したピアからピースをダウンロードする。
-
-        Parameters
-        ----------
-        session : lt.session
-            ダウンロード用のセッション。
-        matcher : Binarymatcher
-            ピースのバイナリマッチ検査用インスタンス。
-        info : lt.torrent_info
-            トレント情報。
-        ip_filter : lt.ip_filter
-            IPフィルタ。
-        save_path : str
-            ピースを保存するディレクトリのパス。
-        peer : tuple[str, int]
-            ピースをダウンロードするピア。
-        version : str
-            P2Pクローラのバージョン情報。
-        """
-
-        # 指定されたピアのみからダウンロード
-        ip_filter.add_rule(peer[0], peer[0], 0)
-        session.set_ip_filter(ip_filter)
-
-        # Debug log
-        self.logger.debug(f"IP Filter added for peer: {peer[0]}")
-
-        handle = session.add_torrent({"ti": info, "save_path": save_path})
-
-        # Debug log
-        self.logger.debug(f"Torrent handle status: {handle.status()}")
-
-        # 全てのピースからランダムに1つ選ぶ
-        piece_index = random.randint(0, info.num_pieces() - 1)
-
-        # 指定したindexのみpriorityを非ゼロにする
-        pp = [0] * info.num_pieces()
-        pp[piece_index] = 1
-        handle.prioritize_pieces(pp)
-
-        a = handle.read_piece(piece_index)
-
-        for _ in range(10):  # 10回リトライ
-            alerts = session.pop_alerts()
-            for a in alerts:
-                if isinstance(a, lt.read_piece_alert):
-                    # ピースのデータを取得
-                    a = a.buffer
-                    break
-            else:
-                time.sleep(1)  # 1秒待機して再度アラートを確認
-                continue
-            break
-        else:
-            self.logger.warning("read_piece_alert が受信されませんでした。")
-            return
-
-        # ダウンロードが完了した瞬間のタイムスタンプを記録
-        completed_timestamp = ut.get_jst_str()
-
-        error_prefix = ""
-        log_error_message = ""
-        valid_piece = False
-
-        # ピースサイズが0かどうかをチェック
-        if a is None or len(a) == 0:
-            self.logger.warning("ピースサイズが0でした。通信エラーがあった可能性があります。")
-            error_prefix = "BLANK_"
-            log_error_message = " エラー：ピースダウンロード失敗 "
-
-        else:
-            # ダウンロードしたピースのハッシュを計算
-            downloaded_piece_hash = _calculate_piece_hash(a)
-            # 元の.torrentファイルのハッシュを取得
-            original_piece_hash = info.hash_for_piece(piece_index)
-
-            # 二つのハッシュを比較
-            if downloaded_piece_hash != original_piece_hash:
-                self.logger.warning("ダウンロードしたピースのハッシュが一致しません。ピースが破損している可能性があります。")
-                error_prefix = "FALSE_"
-                log_error_message = " エラー：ピースハッシュ不一致 "
-            else:
-                match_result = matcher.instant_binary_match(a, piece_index)
-                # instant_binary_matchの結果に基づいて処理を分岐
-                if match_result is False:
-                    self.logger.warning(
-                        "ダウンロードしたピースのバイナリが一致しません。Torrentファイル、または本体ファイルの内容が不正な可能性があります。"
-                    )
-                    error_prefix = "INVALID_"
-                    log_error_message = " エラー：バイナリ不一致 "
-                elif isinstance(match_result, (int, float)):
-                    self.logger.info(f"{peer[0]}からピース{piece_index}のダウンロードに成功。")
-                    valid_piece = True
-
-        # ピア・ピースの情報を文字列として整理
-        peer_modified = peer[0].replace(":", "-") if ":" in peer[0] else peer[0]
-
-        file_path = os.path.join(
-            save_path,
-            f"{peer_modified}_{str(peer[1])}",
-            "{}{:05}_{}_{}_{}.bin".format(
-                error_prefix, piece_index, peer_modified, peer[1], info.info_hash()
-            ),
-        )
-
-        # 証拠フォルダ内のピアを一覧するためのデータ、peer_(info_hash).csvを編集
-        csv_path = os.path.join(save_path, "peer_" + str(info.info_hash()) + ".csv")
-        log_path = os.path.join(
-            save_path,
-            f"{peer_modified}_{str(peer[1])}",
-            "{}_{}_{}.log".format(peer_modified, str(peer[1]), info.info_hash()),
-        )
-        if not os.path.exists(log_path):
-            provider = _query_jpnic_whois(peer[0])
-            time.sleep(5)
-        else:
-            provider = ""
-
-        peer_csv = _save_peers_info(
-            peer,
-            provider,
-            completed_timestamp,
-            valid_piece,
-            csv_path,
-        )
-
-        if not peer_csv:
-            return
-
-        unique_file_path = _get_unique_filename(file_path)
-
-        # 保存オプションがONのとき、ピース実物を保存
-        if self.piece_download:
-            _write_piece_to_file(a, unique_file_path)
-
-        _write_piece_log(
-            info,
-            peer,
-            piece_index,
-            log_path,
-            provider,
-            completed_timestamp,
-            log_error_message,
-            version,
-        )
 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def _load_peer_setting():
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    con = Config(base_path=current_dir, level=1)
+    SETTING_FILE = con.SETTING_FILE
+
+    # 設定ファイルから "peer_setting" の値を読み込む関数
+    try:
+        with open(SETTING_FILE, "r") as f:
+            settings = json.load(f)
+        return settings.get("add_all_peers", False)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return False
 
 
 def _default_ip_filter(torrent_path: str) -> tuple:
@@ -513,7 +374,9 @@ def _format_timestamp_str(timestamp):
     return formatted_timestamp
 
 
-def _save_peer_log(log, info, save_path: str, version: str):
+def _save_peer_log(
+    log, info, save_path: str, remote_host_path: str, version: str, add_all_pears: bool
+):
     # save_path内のファイルをリストアップ
     csv_name = f"peers_{info.info_hash()}.csv"
     csv_path = os.path.join(save_path, csv_name)
@@ -532,7 +395,7 @@ def _save_peer_log(log, info, save_path: str, version: str):
         # peer_infoオブジェクトの値を文字列に変換
         port = str(p.ip[1])
         client = p.client.decode("utf-8")
-        speed = str(p.up_speed)
+        speed = f"{p.down_speed / 1000:.1f}"
         if not p.valid:
             validity_str = "破損ピース：あり"
         else:
@@ -554,7 +417,7 @@ def _save_peer_log(log, info, save_path: str, version: str):
         else:
             file_mode = "a"
 
-        with open(peer_file_path, file_mode) as f:
+        with open(peer_file_path, file_mode, encoding="utf-8") as f:
             if file_mode == "w":
                 # 新規ファイルの場合はヘッダーを書き込み
                 f.write(f"IPアドレス：{p.ip[0]}\n")
@@ -569,13 +432,17 @@ def _save_peer_log(log, info, save_path: str, version: str):
 
             f.write(log_line)
 
+        time.sleep(1)
+    if not add_all_pears:
+        _write_provider(csv_path, remote_host_path)
+
 
 def _over_progress(handle):
     status = handle.status()  # トレントの現在の状態を取得
     # ダウンロード進捗状況（割合）を計算
     progress = status.progress * 100  # 進捗状況をパーセンテージで表す
-    # 進捗が50%以上の場合、いったん一時ファイルを削除
-    if progress >= 50.0:
+    # 進捗が80%以上の場合、いったん一時ファイルを削除
+    if progress >= 80.0:
         return True
 
 
@@ -603,96 +470,6 @@ def _print_download_status(torrent_status, logger: logging.Logger) -> None:
             torrent_status.num_peers,
         )
     )
-
-
-def _calculate_piece_hash(piece_data: bytes) -> bytes:
-    """
-    ピースのデータからSHA-1ハッシュを計算する。
-    Parameters
-    ----------
-    piece_data : bytes
-        ピースのデータ。
-    Returns
-    -------
-    bytes
-        計算されたSHA-1ハッシュ。
-    """
-    sha1 = hashlib.sha1()
-    sha1.update(piece_data)
-    return sha1.digest()
-
-
-def _write_piece_to_file(piece: bytes, save_path: str) -> None:
-    """
-    ピースを指定されたパスに書き込む.
-
-    Parameters
-    ----------
-    piece : bytes
-        ピースのバイト列。
-
-    save_path : str
-        保存先ファイルのパス。
-    """
-    dir = os.path.dirname(save_path)
-    os.makedirs(dir, exist_ok=True)
-    with open(save_path, "wb") as f:
-        f.write(piece)
-
-
-def _write_piece_log(
-    info,
-    peer,
-    piece_index,
-    log_path,
-    provider,
-    completed_timestamp,
-    log_error_message="",
-    version="",
-):
-    """
-    ピアごとのピースのダウンロードログを、指定されたファイルに書き込む。
-    指定されたファイルがまだ存在しない場合は新規作成してヘッダーを書き込む。
-    指定されたファイルがすでに存在する場合は、追記する。
-
-    Parameters
-    ----------
-    torrent_info : torrent_info
-        .torrentファイルの情報を保持するクラス。
-        https://www.libtorrent.org/reference-Torrent_Info.html#torrent_info
-    peer : (str, int)
-        ピアを表すタプル。
-    piece_index : int
-        ダウンロードするピースのindex。
-    save_path : str
-        ログを書き込むファイルのパス。
-    """
-
-    # ファイルを開く前にディレクトリの存在を確認
-    save_dir = os.path.dirname(log_path)
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir, exist_ok=True)
-
-    if not os.path.exists(log_path):
-        file_mode = "w"
-    else:
-        file_mode = "a"
-
-    with open(log_path, file_mode) as f:
-        if file_mode == "w":
-            # 新規ファイルの場合はヘッダーを書き込み
-            f.write(f"IPアドレス：{peer[0]}\n")
-            f.write(f"ポート番号：{peer[1]}\n")
-            f.write(f"プロバイダ：{provider}\n")
-            f.write(f"ファイル名：{info.name()}\n")
-            f.write(f"ファイルハッシュ: {info.info_hash()}\n")
-            f.write(f"証拠収集開始時刻: {completed_timestamp}\n")
-            f.write(f"P2Pクローラ {version}\n")
-            f.write("---\n")
-
-        f.write(
-            f"piece{piece_index}{log_error_message} 完了時刻: {completed_timestamp} {version}\n"
-        )
 
 
 def _make_peers_list(
@@ -754,78 +531,69 @@ def _make_peers_list(
         return False  # download_pieceを中断するための戻り値
 
 
-def _save_peers_info(
-    peer: tuple[str, int],
-    provider: str,
-    completed_timestamp: str,
-    valid_piece: bool,
-    csv_path: str,
-) -> None:
-    """
-    ピアの一覧をファイルに記録または更新する。
+def _get_provider(remote_host, remote_host_path):
+    with open(remote_host_path, mode="r", encoding="utf-8") as file:
+        reader = csv.reader(file)
+        for row in reader:
+            if row[0] in remote_host:
+                return row[1]  # プロバイダ名を返す
+    return None  # 一致するものがない場合
 
-    Parameters
-    ----------
-    peer : (str, int)
-        ピアを表すタプル。
-    provider : str
-        プロバイダ情報。
-    completed_timestamp : str
-        完了タイムスタンプ。
-    valid_piece : bool
-        取得できたのが正常なピースかどうか。
-    save_path : str
-        記録ファイルのパス。
-    """
-    updated = False
-    new_data = []
 
-    if valid_piece:
-        num = 1
-    else:
-        num = 0
+def _write_provider(csv_path, remote_host_path):
+    processed_ips = {}  # 処理済みのIPアドレスとその結果を記録
+    peers_folder = os.path.join(os.path.dirname(csv_path), "peers")  # 'peers'フォルダのパス
 
-    if os.path.exists(csv_path):
-        with open(csv_path, "r", encoding="utf-8") as f:
-            reader = csv.reader(f)
-            for row in reader:
-                # peerのIPアドレスとポート番号が一致する行を見つけたら
-                if row[:2] == [peer[0], str(peer[1])]:
-                    # 5列目のみcompleted_timestampで更新
-                    row[5] = completed_timestamp
-                    updated = True
-                new_data.append(row)
+    # CSVファイルを読み込み、処理を行う
+    with open(csv_path, mode="r", encoding="utf-8") as file:
+        rows = list(csv.reader(file))
 
-    try:
-        # ピアが既存であった場合は、更新されたデータでファイルを上書き
-        if updated:
-            with open(csv_path, "w", newline="", encoding="utf-8") as f:
-                writer = csv.writer(f)
-                for row in new_data:
-                    # peerが一致し、valid_pieceがTrueの場合に3列目を更新
-                    if row[:2] == [peer[0], str(peer[1])] and valid_piece:
-                        try:
-                            # 4列目を数値に変換して1を加える
-                            row[3] = str(int(row[3]) + 1)
-                        except ValueError:
-                            # 3列目が数値でなければエラーメッセージを表示
-                            logger.warning("csvデータ上の値が数値ではないため、書き込みできませんでした。")
-                            continue  # 次の行の処理を続ける
-                    writer.writerow(row)
-        else:
-            # ピアが新規である場合は追加
-            with open(csv_path, "a", newline="", encoding="utf-8") as f:
-                writer = csv.writer(f)
-                # 新しいピア情報を追加
-                writer.writerow(
-                    peer + (provider, num, completed_timestamp, completed_timestamp)
-                )
+    # row[2]が「未取得」ではないip_addressをprocessed_ipsに収録
+    for row in rows:
+        ip_address = row[0]
+        if row[2] != "未取得":
+            processed_ips[ip_address] = (row[2], row[3])
 
-        return True
+    for row in rows:
+        ip_address = row[0]
+        if ip_address not in processed_ips:  # 未処理のIPアドレスの場合のみ処理
+            if row[2] == "未取得":  # リモートホストが未取得の場合のみ処理
+                # リモートホストの取得
+                remote_host = _get_remote_host(ip_address)
+                row[2] = remote_host if remote_host else "取得失敗"
 
-    except PermissionError:
-        logger.warning("パーミッションエラー：ピア履歴のcsvに書き込みできません。ファイルが開かれている場合は閉じてください。")
-        return False  # download_pieceを中断するための戻り値
+                # プロバイダ名の取得
+                if remote_host and remote_host != "取得失敗":
+                    provider = _get_provider(remote_host, remote_host_path)
+                    row[3] = provider if provider else _query_jpnic_whois(ip_address)
+                else:
+                    row[3] = _query_jpnic_whois(ip_address)
+
+                processed_ips[ip_address] = (row[2], row[3])
+            else:
+                # 既にリモートホストが取得されている場合は、処理済みの情報を使用
+                row[2], row[3] = processed_ips[ip_address]
+
+    # 処理したデータをCSVファイルに書き込む
+    with open(csv_path, mode="w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerows(rows)
+
+    # 'peers'フォルダ内の対象.logファイルに書き込む
+    for ip, (remote_host, provider) in processed_ips.items():
+        ip_filename = ip.replace(":", "-")  # IPv6アドレスの場合の置換
+        for filename in os.listdir(peers_folder):
+            if filename.startswith(ip_filename) and filename.endswith(".log"):
+                log_file_path = os.path.join(peers_folder, filename)
+
+                if os.path.exists(log_file_path):
+                    with open(log_file_path, "r+", encoding="utf-8") as log_file:
+                        lines = log_file.readlines()
+                        if len(lines) >= 4 and "未取得" in lines[3]:
+                            lines[3] = lines[3].replace("未取得", provider)  # 4行目の「未取得」を置換
+                            log_file.seek(0)  # ファイルの先頭に戻る
+                            log_file.writelines(lines)  # 変更内容を書き込む
+                            log_file.truncate()  # ファイルの末尾を現在の位置で切り捨てる
 
 
 def get_excluded_ipv6(ipv6):
@@ -857,21 +625,6 @@ def is_segment_in_peers(ipv6, peers_list):
         if extract_ipv6_segment(peer[0]) == segment_to_check:
             return True
     return False
-
-
-def read_piece_download_setting():
-    # IP範囲をファイルから読み込む
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    con = Config(base_path=current_dir, level=1)
-
-    SETTING_FILE = con.SETTING_FILE
-
-    # ファイルを開いて、JSONをパース
-    with open(SETTING_FILE, "r", encoding="utf-8") as f:
-        settings = json.load(f)
-
-    # "piece_download" の値を取得して返す
-    return settings.get("piece_download", None)
 
 
 def load_ip_ranges(version: int) -> list:
@@ -920,18 +673,20 @@ def _ip_in_range(ip: str, ip_ranges: list) -> bool:
     return False
 
 
-def _get_remote_host(ip_str):
+def _get_remote_host(ip_address):
     try:
         # IPアドレスの形式を確認（IPv4またはIPv6）
-        ip = ipaddress.ip_address(ip_str)
+        ip = ipaddress.ip_address(ip_address)
 
         # リバースDNSルックアップを実行してホスト名を取得
-        host_name = socket.gethostbyaddr(ip_str)[0]
+        host_name = socket.gethostbyaddr(ip_address)[0]
+        time.sleep(1)
         return host_name
     except ValueError:
+        time.sleep(1)
         return "取得失敗"
-    except Exception as e:
-        logger.warnin(f"ホスト名の取得に失敗しました: {e}")
+    except Exception:
+        time.sleep(1)
         return "取得失敗"
 
 
@@ -983,12 +738,14 @@ def _query_jpnic_whois(ip_address):
             data += buffer
     except ConnectionResetError:
         logger.warning("プロバイダ取得エラー：Whoisサーバーによって接続がリセットされました。")
+        time.sleep(5)
         return "取得失敗（Whoisサーバーからの拒否）"
     except socket.error as e:
         logger.warning(f"プロバイダ取得エラー：ソケットエラーが発生しました: {e}")
         return "取得失敗（ソケットエラー）"
     finally:
         sock.close()
+        time.sleep(5)
 
     result = data.decode("iso-2022-jp", "ignore")
 
@@ -997,18 +754,9 @@ def _query_jpnic_whois(ip_address):
         provider = match.group(1)
         if provider == "":
             provider = "取得失敗（不明）"
+        else:
+            # '株式会社'を含む場合は削除する
+            provider = provider.replace("株式会社", "")
         return provider
     else:
         return "取得失敗(JPNIC管理外)"
-
-
-def _get_unique_filename(path):
-    """指定されたパスのファイルが存在する場合、連番を追加して新しいパスを返す。"""
-    if not os.path.exists(path):
-        return path
-    else:
-        base, ext = os.path.splitext(path)
-        counter = 1
-        while os.path.exists(f"{base}_{counter}{ext}"):
-            counter += 1
-        return f"{base}_{counter}{ext}"
