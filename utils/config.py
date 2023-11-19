@@ -3,6 +3,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from utils.generator import SettingsGenerator
 
 
 class Config:
@@ -22,14 +23,22 @@ class Config:
                 self.application_path = self.application_path.parent
 
         self.version = "ver.1.0"
-        self.EXPIRE_DATE = None  # アプリが無効になる日時をyyyy-mm-dd-hh-mmで入力（Noneならば無期限）
+        self.EXPIRE_DATE = None  # アプリが無効になる日時をyyyy-mm-dd hh:mm:ssで入力（Noneならば無期限）
         self.EVI_FOLDER = os.path.join(self.application_path, "evi")
         self.TORRENT_FOLDER = os.path.join(self.EVI_FOLDER, "tor")
         self.SETTING_FOLDER = os.path.join(self.application_path, "settings")
         self.KEYS_FOLDER = os.path.join(self.application_path, "keys")
+        self.REMOTE_HOST = os.path.join(self.SETTING_FOLDER, "remote_host.csv")
         self.SETTING_FILE = os.path.join(self.SETTING_FOLDER, "setting.json")
         self.QUERIES_FILE = os.path.join(self.SETTING_FOLDER, "queries.json")
         self.R18_QUERIES_FILE = os.path.join(self.SETTING_FOLDER, "r18queries.json")
+
+        settings_manager = SettingsGenerator()
+        settings_manager.make_setting_json()
+        settings_manager.make_evi_folder()
+        settings_manager.make_query_json()
+        settings_manager.make_r18_query_json()
+        settings_manager.make_remote_host_csv()
 
         # 存在しない場合、Config側で作成
         folders_to_check = [

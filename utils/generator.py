@@ -1,25 +1,37 @@
 # 各種設定ファイルが存在しない場合に、初期設定を生成するモジュール
 import json
 import os
+import sys
+from pathlib import Path
 import threading
-from utils.config import Config
 
 
 class SettingsGenerator:
-    def __init__(self):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        con = Config(base_path=current_dir, level=1)
-        self.SETTING_FOLDER = con.SETTING_FOLDER
-        self.SETTING_FILE = con.SETTING_FILE
-        self.KEYS_FOLDER = con.KEYS_FOLDER
-        self.EVI_FOLDER = con.EVI_FOLDER
+    def __init__(self, base_path=None, level=0):
+        if getattr(sys, "frozen", False):
+            # プログラムが実際に実行されている場所を取得
+            self.application_path = Path(sys.executable).parent
+        else:
+            if base_path:
+                self.application_path = Path(base_path)
+            else:
+                self.application_path = Path(
+                    os.path.dirname(os.path.abspath(sys.argv[0]))
+                )
+
+            for _ in range(level):
+                self.application_path = self.application_path.parent
+
+        self.EVI_FOLDER = os.path.join(self.application_path, "evi")
+        self.TORRENT_FOLDER = os.path.join(self.EVI_FOLDER, "tor")
+        self.SETTING_FOLDER = os.path.join(self.application_path, "settings")
+        self.KEYS_FOLDER = os.path.join(self.application_path, "keys")
+        self.REMOTE_HOST = os.path.join(self.SETTING_FOLDER, "remote_host.csv")
+        self.SETTING_FILE = os.path.join(self.SETTING_FOLDER, "setting.json")
+        self.QUERIES_FILE = os.path.join(self.SETTING_FOLDER, "queries.json")
+        self.R18_QUERIES_FILE = os.path.join(self.SETTING_FOLDER, "r18queries.json")
 
         self.file_lock = threading.Lock()
-
-        # 設定フォルダが存在しない場合は生成
-        self.make_setting_json()
-        self.make_keys_json()
-        self.make_evi_folder()
 
     def make_setting_json(self):
         if not os.path.exists(self.SETTING_FOLDER):
@@ -29,11 +41,11 @@ class SettingsGenerator:
             data = {
                 "interval": 600,
                 "piece_interval": 600,
-                "last_crawl_time": "null",
+                "last_crawl_time": 0,
                 "port": 6881,
                 "max_list_size": 50,
                 "ip_last_modified": 0,
-                "piece_download": "true",
+                "add_all_peers": "false",
                 "mail_user": "null",
                 "mail_pass": "null",
                 "site_urls": ["https://nyaa.si/"],
@@ -51,17 +63,22 @@ class SettingsGenerator:
         if not os.path.exists(self.EVI_FOLDER):
             os.makedirs(self.EVI_FOLDER)
 
-
-class QueryGenerator:
-    def __init__(self, queries_file):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        con = Config(base_path=current_dir, level=1)
-        self.QUERIES_FILE = con.QUERIES_FILE
-        self.file_lock = threading.Lock()
-
     def make_query_json(self):
         if not os.path.exists(self.QUERIES_FILE):
             data = []
             with self.file_lock:
                 with open(self.QUERIES_FILE, "w", encoding="utf-8") as f:
                     json.dump(data, f, ensure_ascii=False, indent=2)
+
+    def make_r18_query_json(self):
+        if not os.path.exists(self.R18_QUERIES_FILE):
+            data = []
+            with self.file_lock:
+                with open(self.R18_QUERIES_FILE, "w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+
+    def make_remote_host_csv(self):
+        if not os.path.exists(self.REMOTE_HOST):
+            # UTF-8で空のCSVファイルを作成
+            with open(self.REMOTE_HOST, "w", encoding="utf-8"):
+                pass
