@@ -28,9 +28,11 @@ class Client:
         logging.basicConfig(level=logging.INFO)
         current_dir = os.path.dirname(os.path.abspath(__file__))
         con = Config(base_path=current_dir, level=1)
-        self.my_port = con.MY_PORT
         self.version = con.version
-        self.version = con.version
+        self.MY_PORT = con.MY_PORT
+        self.UPLOAD_LIMIT = con.UPLOAD_LIMIT
+        self.MAX_UPLOAD_LIMIT = int(self.UPLOAD_LIMIT) * 1000
+        self.SETTING_FILE = con.SETTING_FILE
         self.REMOTE_HOST = con.REMOTE_HOST
         self.logger = logging.getLogger(__name__)
 
@@ -45,22 +47,23 @@ class Client:
         save_path : str
             本体ファイルのダウンロード先のパス。
         """
-        info = lt.torrent_info(torrent_path)
+        info = lt.torrent_info(torrent_path)  # 当該証拠フォルダ内にあるsource.torrentの情報
         target_file_path = os.path.join(save_path, info.name())  # ダウンロード対象ファイルのパス
+
         if not os.path.exists(target_file_path):
             self.logger.info("本体ファイル" + target_file_path + "のダウンロードを行います。")
-            new_file = True
         else:
             self.logger.info("本体ファイル" + target_file_path + "の状態を確認中...")
-            new_file = False
 
         # 設定ファイルで指定したポートをリスナーに設定し、セッションを開始
         session = lt.session(
-            {"listen_interfaces": f"0.0.0.0:{self.my_port},[::]:{self.my_port}"}
+            {"listen_interfaces": f"0.0.0.0:{self.MY_PORT},[::]:{self.MY_PORT}"}
         )
 
         # 本体ファイルのダウンロ－ドを開始
         handle = session.add_torrent({"ti": info, "save_path": save_path})
+        handle.set_upload_limit(self.MAX_UPLOAD_LIMIT)
+
         # 進捗を追跡する変数
         last_downloaded = 0
 
@@ -69,8 +72,7 @@ class Client:
 
         while not handle.status().is_seeding:
             current_status = handle.status()
-            if new_file:
-                _print_download_status(current_status, self.logger)
+            _print_download_status(current_status, self.logger)
 
             # 現在の進捗を取得
             current_downloaded = current_status.total_done
@@ -89,14 +91,14 @@ class Client:
                 last_downloaded = current_downloaded
                 last_time = current_time
 
-            time.sleep(1)
+            time.sleep(5)
 
         self.logger.info("ダウンロード済み： %s", info.name())
         self.logger.info(
-            "ハッシュ: %s, ファイルサイズ: %d, 時刻: %s"
+            "ハッシュ: %s, ファイルサイズ: %.2f MB, 時刻: %s"
             % (
                 handle.info_hash(),
-                info.total_size(),
+                info.total_size() / 1048576,  # バイトをメガバイトに変換
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             )
         )
@@ -122,7 +124,7 @@ class Client:
             ピアのリスト。
         """
         session = lt.session(
-            {"listen_interfaces": f"0.0.0.0:{self.my_port},[::]:{self.my_port}"}
+            {"listen_interfaces": f"0.0.0.0:{self.MY_PORT},[::]:{self.MY_PORT}"}
         )
 
         info = lt.torrent_info(torrent_path)
@@ -161,9 +163,13 @@ class Client:
 
         # ピア情報の取得時に使う一時フォルダの格納場所を、TORRENT_FOLDER内に作成
         torrent_folder = os.path.dirname(torrent_path)
-        tmp_path = os.path.join(os.path.dirname(torrent_folder), "tmp")
-        if not os.path.exists(tmp_path):
-            os.makedirs(tmp_path, exist_ok=True)  # 自動削除に失敗したとき、まとめて消せる格納用フォルダ
+        tmp_path = os.path.join(os.path.dirname(torrent_folder), "tmp")  # 一時ファイル格納用
+
+        if os.path.exists(tmp_path):  # 自動削除に至らなかったケースに備え、いったん全て消す
+            shutil.rmtree(tmp_path)
+
+        if not os.path.exists(tmp_path):  # 再生成
+            os.makedirs(tmp_path, exist_ok=True)
 
         peers: list[tuple[str, int]] = []  # 判定用にピアのIP（p.ip）だけを格納するリスト
         RETRY_COUNTER = 10
@@ -173,10 +179,13 @@ class Client:
             with tempfile.TemporaryDirectory(prefix="tmp", dir=tmp_path) as tmpdir:
                 # 一時ファイルとして対象ファイルを作成し、ダウンロードの進捗0％からスタート
                 handle = session.add_torrent({"ti": info, "save_path": tmpdir})
-                handle.set_upload_limit(100000)  # アップロード速度を10KB/sに設定
+                handle.set_upload_limit(
+                    self.MAX_UPLOAD_LIMIT
+                )  # 設定値（KB/s）をもとにアップロード速度を制限
+
                 valid_piece = True  # 破損ピースが検出されていなければTrue
 
-                # アラートをポーリングして破損したピースがあるかチェック
+                # アラートをポーリングして、破損したピースがあるかチェック
                 alerts = session.pop_alerts()
                 for alert in alerts:
                     if isinstance(alert, lt.hash_failed_alert):
