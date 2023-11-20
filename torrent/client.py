@@ -337,13 +337,6 @@ def _add_ip_ranges_to_filter(ip_filter, ip_ranges, allow=True):
         ip_filter.add_rule(start, end, 0 if allow else 1)
 
 
-def _format_timestamp_str(timestamp):
-    timestamp = timestamp.replace(" ", "-")
-    timestamp = timestamp.replace(":", "-")
-    formatted_timestamp = timestamp.split(".")[0]
-    return formatted_timestamp
-
-
 def _save_peer_log(
     log, info, save_path: str, remote_host_path: str, version: str, add_all_pears: bool
 ):

@@ -100,20 +100,45 @@ def main():
     mail_frame.pack(fill=tk.X, pady=(30, 0))
 
     mail_label = tk.Label(mail_frame, text="通知先アドレス：", font=font)
-    mail_label.pack(side=tk.LEFT, padx=(80, 10))
+    mail_label.pack(side=tk.LEFT, padx=(120, 10))
 
     mail_entry = tk.Entry(mail_frame, font=font, insertwidth=3)
-    mail_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 80), expand=True)
+    mail_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 140), expand=True)
 
     pass_frame = tk.Frame(tabs[5])
     pass_frame.pack(fill=tk.X, pady=(10, 0))
     pass_label = tk.Label(pass_frame, text="アプリパスワード：", font=font)
-    pass_label.pack(side=tk.LEFT, padx=(80, 10))
+    pass_label.pack(side=tk.LEFT, padx=(140, 10))
 
     pass_entry = tk.Entry(pass_frame, font=font, insertwidth=3)
-    pass_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 20), expand=True)
+    pass_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 200), expand=True)
 
-    def save_piece_setting():
+    # 使用ポート、最大ピア数、最大アップロード速度の設定欄
+    port_frame = tk.Frame(tabs[5])
+    port_frame.pack(fill=tk.X, pady=(10, 0))
+    port_label = tk.Label(port_frame, text="使用ポート：", font=font)
+    port_label.pack(side=tk.LEFT, padx=(250, 0))
+    port_entry = tk.Entry(port_frame, font=font, insertwidth=3)
+    port_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 260), expand=True)
+
+    max_list_frame = tk.Frame(tabs[5])
+    max_list_frame.pack(fill=tk.X, pady=(10, 0))
+    max_list_label = tk.Label(max_list_frame, text="最大ピア数：", font=font)
+    max_list_label.pack(side=tk.LEFT, padx=(290, 0))
+    max_list_entry = tk.Entry(max_list_frame, font=font, insertwidth=3)
+    max_list_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 290), expand=True)
+
+    max_upload_frame = tk.Frame(tabs[5])
+    max_upload_frame.pack(fill=tk.X, pady=(10, 0))
+    max_upload_label = tk.Label(max_upload_frame, text="最大アップロード速度（KB/s）：", font=font)
+    max_upload_label.pack(side=tk.LEFT, padx=(200, 0))
+    max_upload_entry = tk.Entry(max_upload_frame, font=font, insertwidth=3)
+    max_upload_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 210), expand=True)
+
+    setting_update_frame = tk.Frame(tabs[5])
+    setting_update_frame.pack(fill=tk.X, pady=(20, 10))
+
+    def save_peer_setting():
         # チェックボックスの状態を取得
         add_all_peers = peer_var.get()
 
@@ -131,15 +156,16 @@ def main():
     def load_peer_setting_from_file():
         # 設定ファイルから "peer_setting" の値を読み込む関数
         try:
-            with open(SETTING_FILE, "r") as f:
+            with open(SETTING_FILE, "r", encoding="utf-8") as f:
                 settings = json.load(f)
             return settings.get("add_all_peers", False)
         except (FileNotFoundError, json.JSONDecodeError):
+            print("まだ設定ファイルがありません。")
             return False
 
     # ピースのダウンロード有無の設定チェックボックス欄
     peer_frame = tk.Frame(tabs[5])
-    peer_frame.pack(fill=tk.X, pady=(30, 0))
+    peer_frame.pack(fill=tk.X, pady=(30, 40))
 
     peer_label = tk.Label(peer_frame, text="IP範囲指定によらず、全シーダーの情報を記録する", font=font)
     peer_label.pack(side=tk.LEFT, padx=(140, 10))
@@ -153,7 +179,7 @@ def main():
 
     # チェックボックスの作成
     peer_checkbox = tk.Checkbutton(
-        peer_frame, variable=peer_var, command=save_piece_setting
+        peer_frame, variable=peer_var, command=save_peer_setting
     )
     peer_checkbox.pack(side=tk.LEFT, padx=(0, 10))
 
@@ -187,15 +213,29 @@ def main():
     with open(SETTING_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
 
+    data.setdefault("interval", 600)
+    data.setdefault("piece_interval", 600)
+    data.setdefault("port", 6881)
+    data.setdefault("max_list_size", 50)
+    data.setdefault("max_upload_limit", 100)
+    data.setdefault("mail_user", "")
+    data.setdefault("mail_pass", "")
+
     mail_user = data["mail_user"]
     mail_pass = data["mail_pass"]
 
     interval_value = data["interval"]
     piece_interval_value = data["piece_interval"]
+    port = data["port"]
+    max_list_size = data["max_list_size"]
+    max_upload_limit = data["max_upload_limit"]
 
-    # メール設定欄に、現在の設定ファイルの値を設定
+    # 設定タブに、現在の設定ファイルの値を設定
     mail_entry.insert(0, mail_user)
     pass_entry.insert(0, mail_pass)
+    port_entry.insert(0, str(port))
+    max_list_entry.insert(0, str(max_list_size))
+    max_upload_entry.insert(0, str(max_upload_limit))
 
     for option, value in interval_options:
         if value == interval_value:
@@ -719,10 +759,28 @@ def main():
         populate_treeview(r18treeview, r18queries_data)
 
     # メール通知設定を更新するボタンの関数
-    def save_mail_settings():
+    def save_settings():
         # エントリウィジェットから値を取得
         mail_user = mail_entry.get()
         mail_password = pass_entry.get()
+        mail_user = mail_entry.get()
+        mail_password = pass_entry.get()
+        port = port_entry.get()
+        max_list_size = max_list_entry.get()
+        max_upload_limit = max_upload_entry.get()
+
+        # 数値チェック関数
+        def is_number(value):
+            try:
+                int(value)
+                return True
+            except ValueError:
+                return False
+
+        # 数値であるかチェック
+        if not all(is_number(val) for val in [port, max_list_size, max_upload_limit]):
+            logger.warning("数値のみ入力可能です。")
+            return
 
         # 設定を読み込む
         with open(SETTING_FILE, "r") as f:
@@ -731,17 +789,22 @@ def main():
         # 設定を更新
         settings["mail_user"] = mail_user
         settings["mail_pass"] = mail_password
+        settings["port"] = int(port)
+        settings["max_list_size"] = int(max_list_size)
+        settings["max_upload_limit"] = int(max_upload_limit)
 
         # 設定を保存
         with open(SETTING_FILE, "w") as f:
             json.dump(settings, f, ensure_ascii=False, indent=2)
         # メール通知設定を更新するボタンの関数
 
+        logger.warning("設定を更新しました。")
+
     # ボタンに関数を紐付け
     mail_set_button = tk.Button(
-        pass_frame, text="更新", font=font, command=save_mail_settings
+        setting_update_frame, text="更新", font=font, command=save_settings
     )
-    mail_set_button.pack(side=tk.LEFT, padx=(0, 100))
+    mail_set_button.pack(side=tk.LEFT, padx=(350, 0))
 
     # データを読み込み、各Treeviewに表示
     queries_data = load_queries("queries.json")
@@ -918,6 +981,9 @@ def main():
     refresh_button3 = tk.Button(button_frame3, text="更新", font=small_font)
     refresh_button3.pack(side=tk.RIGHT, padx=(0, 10))
 
+    archive_button = tk.Button(button_frame3, text="アーカイブ", font=font)
+    archive_button.pack(side=tk.LEFT, padx=(0, 10))
+
     # 誤検出タブの編集用ボタン
     button_frame4 = tk.Frame(tabs[4])
     button_frame4.pack(fill=tk.X, pady=(0, 5))
@@ -933,6 +999,13 @@ def main():
 
     refresh_button4 = tk.Button(button_frame4, text="更新", font=small_font)
     refresh_button4.pack(side=tk.RIGHT, padx=(0, 10))
+
+    # 誤検出タブの編集用ボタン
+    setting_frame = tk.Frame(tabs[5])
+    setting_frame.pack(fill=tk.X, pady=(0, 50))
+
+    setting_button = tk.Button(setting_frame, text="設定フォルダを開く", font=font)
+    setting_button.pack(side=tk.LEFT, padx=(280, 0))
 
     def names(suspect_listbox, suspect_text, start_button, selected_tab=None):
         # torrentファイルに対応するフォルダ名を格納する配列
@@ -1261,8 +1334,38 @@ def main():
 
         return list(top_level_targets)
 
+    def archive_folder():
+        archive_folder = os.path.join(TORRENT_FOLDER, "archive")
+        if not os.path.exists(archive_folder):
+            os.makedirs(archive_folder, exist_ok=True)
+
+        selected_indices = complete_listbox.curselection()
+
+        if not selected_indices:
+            open_folder(archive_folder)
+            return []
+
+        index = selected_indices[0]
+        selected_text = complete_listbox.get(index)
+        target_folder = find_matching_folders(complete_listbox)[0]
+        flag_file = os.path.join(target_folder, ".complete")
+
+        if not os.path.isfile(flag_file):
+            with open(os.path.join(target_folder, ".complete"), "w", encoding="utf-8"):
+                pass
+
+        # flag_fileが存在する場合、削除
+        if os.path.isfile(flag_file):
+            os.remove(flag_file)
+
+        # target_folderをarchive_folderに移動
+        destination = os.path.join(archive_folder, os.path.basename(target_folder))
+        shutil.move(target_folder, destination)
+        logger.info("「" + selected_text + "」をアーカイブに移動しました。")
+
+        update()
+
     def mark_folder(listbox, text, status):
-        # 日付を抽出
         selected_indices = listbox.curselection()
 
         if not selected_indices:
@@ -1306,9 +1409,6 @@ def main():
             if not os.path.isfile(public_key_path):
                 logger.warning("公開鍵ファイルが存在しません。")
                 return
-
-            # 証拠フォルダのルートに公開鍵をコピー
-            shutil.copy2(public_key_path, target_folder)
 
             # target_folder とそのサブディレクトリ内のすべてのファイルを探索
             for dirpath, dirnames, filenames in os.walk(target_folder):
@@ -1501,7 +1601,9 @@ def main():
     restart_button.config(
         command=lambda: unmark_folder(complete_listbox, complete_text, ".complete")
     )
+    archive_button.config(command=archive_folder)
     delete_button.config(command=delete_folder)
+    setting_button.config(command=lambda: open_folder(SETTING_FOLDER))
     bulk_add_button.config(command=lambda: on_bulk_add_button_click("all"))
     r18_bulk_add_button.config(command=lambda: on_bulk_add_button_click("r18"))
 

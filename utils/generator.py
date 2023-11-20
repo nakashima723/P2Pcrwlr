@@ -4,6 +4,7 @@ import os
 import sys
 from pathlib import Path
 import threading
+import time
 
 
 class SettingsGenerator:
@@ -38,16 +39,18 @@ class SettingsGenerator:
             os.makedirs(self.SETTING_FOLDER)
 
         if not os.path.exists(self.SETTING_FILE):
+            timestamp = time.time()
             data = {
                 "interval": 600,
                 "piece_interval": 600,
-                "last_crawl_time": 0,
+                "last_crawl_time": timestamp,
                 "port": 6881,
                 "max_list_size": 50,
+                "max_upload_limit": 100,
                 "ip_last_modified": 0,
-                "add_all_peers": "false",
-                "mail_user": "null",
-                "mail_pass": "null",
+                "add_all_peers": False,
+                "mail_user": "",
+                "mail_pass": "",
                 "site_urls": ["https://nyaa.si/"],
                 "r18_site_urls": ["https://sukebei.nyaa.si/"],
             }
