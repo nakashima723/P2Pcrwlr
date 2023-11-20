@@ -396,6 +396,7 @@ def _save_peer_log(
                 f.write(f"ポート番号：{port}\n")
                 f.write(f"クライアント：{client}\n")
                 f.write("プロバイダ：未取得\n")
+                f.write("リモートホスト：未取得\n")
                 f.write(f"ファイル名：{info.name()}\n")
                 f.write(f"ファイルハッシュ: {info.info_hash()}\n")
                 f.write(f"証拠収集開始時刻: {p.timestamp}\n")
@@ -562,6 +563,10 @@ def _write_provider(csv_path, remote_host_path):
                 if os.path.exists(log_file_path):
                     with open(log_file_path, "r+", encoding="utf-8") as log_file:
                         lines = log_file.readlines()
+                        if len(lines) >= 5 and "未取得" in lines[4]:
+                            lines[4] = lines[4].replace(
+                                "未取得", remote_host
+                            )  # 5行目の「未取得」を置換
                         if len(lines) >= 4 and "未取得" in lines[3]:
                             lines[3] = lines[3].replace("未取得", provider)  # 4行目の「未取得」を置換
                             log_file.seek(0)  # ファイルの先頭に戻る
