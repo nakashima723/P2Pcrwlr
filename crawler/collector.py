@@ -3,13 +3,11 @@
 import json
 import logging
 import os
-import time
 
 # サードパーティライブラリ
 from torrent.client import Client
 
 # 独自モジュール
-from utils.binary_matcher import BinaryMatcher
 from utils.config import Config
 import utils.time as ut
 
@@ -23,7 +21,7 @@ def execute():
     con = Config(base_path=current_dir, level=1)
 
     EVI_FOLDER = con.EVI_FOLDER
-    SETTING_FILE = con.SETTING_FILE
+    MAX_LIST_SIZE = con.MAX_LIST_SIZE
 
     folder_list = []  # 「.process」ファイルを含む証拠フォルダパスのリスト
 
@@ -46,11 +44,6 @@ def execute():
         # パスを「source_files」リストに追加
         source_files.append(source_file_path)
 
-    # JSON ファイルを開き、データを読み込む
-    with open(SETTING_FILE, "r", encoding="utf-8") as file:
-        settings = json.load(file)
-        max_list_size = settings.get("max_list_size")
-
     client = Client()
 
     for i in range(len(source_files)):
@@ -65,7 +58,7 @@ def execute():
 
         # ピースの収集対象とするピアの一覧を取得
         logger.info("ピアの一覧を取得しています...")
-        log = client.get_peer_log(source_files[i], max_list_size)
+        log = client.get_peer_log(source_files[i], MAX_LIST_SIZE)
 
         if not len(log) == 0:
             logger.info("ピース収集が完了しました。")

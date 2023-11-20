@@ -61,5 +61,15 @@ class Config:
                 self.MY_PORT = data["port"]
             else:
                 self.MY_PORT = 6881
+            if "max_list_size" in data:
+                self.MAX_LIST_SIZE = data["max_list_size"]
+            else:
+                self.MAX_LIST_SIZE = 50
+            if "max_upload_limit" in data:
+                self.UPLOAD_LIMIT = data["max_upload_limit"]
+            else:
+                self.UPLOAD_LIMIT = 100
         else:
             self.MY_PORT = 6881
+            self.MAX_LIST_SIZE = 100
+            self.UPLOAD_LIMIT = 100

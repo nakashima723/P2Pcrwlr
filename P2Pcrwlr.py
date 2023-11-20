@@ -113,7 +113,7 @@ def main():
     pass_entry = tk.Entry(pass_frame, font=font, insertwidth=3)
     pass_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 200), expand=True)
 
-    # 使用ポート、最大ピア数、最大アップロード速度の設定欄
+    # 使用ポート、取得ピア数、最大アップロード速度の設定欄
     port_frame = tk.Frame(tabs[5])
     port_frame.pack(fill=tk.X, pady=(10, 0))
     port_label = tk.Label(port_frame, text="使用ポート：", font=font)
@@ -123,7 +123,7 @@ def main():
 
     max_list_frame = tk.Frame(tabs[5])
     max_list_frame.pack(fill=tk.X, pady=(10, 0))
-    max_list_label = tk.Label(max_list_frame, text="最大ピア数：", font=font)
+    max_list_label = tk.Label(max_list_frame, text="取得ピア数：", font=font)
     max_list_label.pack(side=tk.LEFT, padx=(290, 0))
     max_list_entry = tk.Entry(max_list_frame, font=font, insertwidth=3)
     max_list_entry.pack(side=tk.LEFT, fill=tk.X, padx=(0, 290), expand=True)
@@ -801,10 +801,10 @@ def main():
         logger.warning("設定を更新しました。")
 
     # ボタンに関数を紐付け
-    mail_set_button = tk.Button(
-        setting_update_frame, text="更新", font=font, command=save_settings
+    setting_update_button = tk.Button(
+        setting_update_frame, text="設定を更新", font=font, command=save_settings
     )
-    mail_set_button.pack(side=tk.LEFT, padx=(350, 0))
+    setting_update_button.pack(side=tk.LEFT, padx=(320, 0))
 
     # データを読み込み、各Treeviewに表示
     queries_data = load_queries("queries.json")
