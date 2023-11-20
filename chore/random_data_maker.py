@@ -15,8 +15,8 @@ random_filename = generate_random_string(32)
 zipname = random_filename + ".zip"
 random_filename = random_filename + ".bin"
 
-# 1MB（10240 * 1024 バイト）のランダムなバイナリデータを生成
-random_data = os.urandom(10240 * 1024)
+# 100MB（102400 * 1024 バイト）のランダムなバイナリデータを生成
+random_data = os.urandom(102400 * 1024)
 
 # バイナリデータを一時ファイルに保存
 with open(random_filename, "wb") as f:

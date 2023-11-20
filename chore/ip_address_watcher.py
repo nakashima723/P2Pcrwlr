@@ -50,7 +50,7 @@ class IPAddressWatcherApp(App):
         self.update_log(0)
 
         # 1分ごとにupdate_logを呼び出す
-        Clock.schedule_interval(self.update_log, 10)
+        Clock.schedule_interval(self.update_log, 60)
 
         return layout
 
