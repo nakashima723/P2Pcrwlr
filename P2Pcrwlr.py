@@ -988,10 +988,13 @@ def main():
     button_frame4 = tk.Frame(tabs[4])
     button_frame4.pack(fill=tk.X, pady=(0, 5))
 
+    delete_all_button = tk.Button(button_frame4, text="すべて削除", font=font)
+    delete_all_button.pack(side=tk.LEFT, padx=(10, 10))
+
     delete_button = tk.Button(button_frame4, text="削除", font=small_font)
     delete_button.pack(side=tk.LEFT, padx=(10, 10))
 
-    unmark_button = tk.Button(button_frame4, text="証拠採取の候補にもどす", font=font)
+    unmark_button = tk.Button(button_frame4, text="採取候補にもどす", font=font)
     unmark_button.pack(side=tk.RIGHT, padx=(0, 10))
 
     open_folder_button4 = setup_open_folder_button(button_frame4, TORRENT_FOLDER)
@@ -1229,38 +1232,39 @@ def main():
         names(false_listbox, false_text, unmark_button, selected_tab="false")
         names(suspect_listbox, suspect_text, start_button, selected_tab=None)
 
-    def delete_folder():
-        # 1. リストボックス「false_listbox」の選択された要素のインデックスを取得
-        selected_indices = false_listbox.curselection()
-
-        # 選択された要素が存在しない場合、処理を終了
-        if not selected_indices:
-            return
-
-        num = selected_indices[0]
-        selected_text = false_listbox.get(num)
-
-        # 2. num番目のフォルダを削除
+    def get_false_folders():
+        # TORRENT_FOLDER内のすべてのサブフォルダを取得し、'.false' ファイルがあるものをリストアップ
         torrent_folder = TORRENT_FOLDER
         subdirs = [
             os.path.join(torrent_folder, folder)
             for folder in os.listdir(torrent_folder)
             if os.path.isdir(os.path.join(torrent_folder, folder))
         ]
-        folder_list = [
+        return [
             subdir
             for subdir in subdirs
             if os.path.isfile(os.path.join(subdir, ".false"))
         ]
-        target_folder = folder_list[num]
-        shutil.rmtree(target_folder)
 
-        false_text.config(state=tk.NORMAL)
-        false_text.delete(1.0, tk.END)
-        false_text.insert(tk.END, "「" + selected_text + "」をフォルダごと削除しました。")
-        false_text.config(state=tk.DISABLED)
-
+    def delete_folder(folder_path):
+        # 指定されたフォルダを削除
+        shutil.rmtree(folder_path)
         update()
+
+    def delete_all_folders():
+        # メッセージボックスで確認
+        if messagebox.askokcancel("確認", "誤検出として分類された、すべてのフォルダを削除します。よろしいですか？"):
+            # '.false' ファイルがあるフォルダを取得
+            false_folders = get_false_folders()
+
+            # 取得したフォルダをすべて削除
+            for folder in false_folders:
+                delete_folder(folder)
+
+            update()
+        else:
+            # キャンセルされた場合、何もしない
+            pass
 
     def find_matching_folders(listbox):
         # 日付を抽出
@@ -1603,6 +1607,7 @@ def main():
     )
     archive_button.config(command=archive_folder)
     delete_button.config(command=delete_folder)
+    delete_all_button.config(command=delete_all_folders)
     setting_button.config(command=lambda: open_folder(SETTING_FOLDER))
     bulk_add_button.config(command=lambda: on_bulk_add_button_click("all"))
     r18_bulk_add_button.config(command=lambda: on_bulk_add_button_click("r18"))
