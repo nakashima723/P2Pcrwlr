@@ -1,3 +1,17 @@
+P2Pcrwlr
+Copyright (c) 2022-2023, Nakashima Natsumi
+All rights reserved.
+
+This program may only be used by the rights holders of the works targeted for
+download, or their official representatives, who have been authorized by the
+program's creator, and solely for the purpose of collecting evidence of
+illegal uploads within Japan.
+
+yokoshima723@gmail.com
+
+------------------------------------------------------------------------------
+
+libtorrent
 Copyright (c) 2003-2020, Arvid Norberg
 All rights reserved.
 
