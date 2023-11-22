@@ -187,7 +187,7 @@ def main():
     interval_frame = tk.Frame(tabs[0])
     interval_frame.pack(pady=(10, 10))
 
-    interval_label = tk.Label(interval_frame, text="巡回の間隔　Torrent/ピース", font=font)
+    interval_label = tk.Label(interval_frame, text="巡回の間隔　Torrent/ピア取得", font=font)
     interval_label.pack(side=tk.LEFT, padx=(50, 10))
 
     options_list = [
@@ -305,7 +305,7 @@ def main():
     patrol_button = tk.Button(
         interval_frame, text="いますぐ巡回", font=font, command=combined_actions
     )
-    patrol_button.pack(side=tk.RIGHT, padx=(30, 0))
+    patrol_button.pack(side=tk.RIGHT, padx=(0, 0))
 
     # 新しい検索語を追加
     keyword_entry_frame = tk.Frame(tabs[0])
