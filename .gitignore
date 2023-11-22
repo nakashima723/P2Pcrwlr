@@ -189,3 +189,4 @@ cython_debug/
 *.asc
 *.sig
 *.json
+settings/setting.json
