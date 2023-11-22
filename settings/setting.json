@@ -1,13 +1,14 @@
 {
     "interval": 600,
     "piece_interval": 600,
-    "last_crawl_time": 1700410135.182526,
+    "last_crawl_time": 1700656168.465975,
     "port": 40576,
     "max_list_size": 50,
-    "ip_last_modified": 1700407060,
-    "add_all_peers": true,
-    "mail_user": "yokoshima723@gmail.com",
-    "mail_pass": "mbalcjysgsndsbbd",
+    "max_upload_limit": 50,
+    "ip_last_modified": 1700579858,
+    "add_all_peers": false,
+    "mail_user": "",
+    "mail_pass": "",
     "site_urls": [
         "https://nyaa.si/"
     ],
