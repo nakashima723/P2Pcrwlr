@@ -10,6 +10,7 @@
 *.mp3
 *.jpg
 *.jpeg
+*.json
 *.gif
 *.png
 *.csv
