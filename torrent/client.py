@@ -49,11 +49,13 @@ class Client:
         """
         info = lt.torrent_info(torrent_path)  # 当該証拠フォルダ内にあるsource.torrentの情報
         target_file_path = os.path.join(save_path, info.name())  # ダウンロード対象ファイルのパス
+        new_file = True
 
         if not os.path.exists(target_file_path):
             self.logger.info("本体ファイル" + target_file_path + "のダウンロードを行います。")
         else:
             self.logger.info("本体ファイル" + target_file_path + "の状態を確認中...")
+            new_file = False
 
         # 設定ファイルで指定したポートをリスナーに設定し、セッションを開始
         session = lt.session(
@@ -72,7 +74,8 @@ class Client:
 
         while not handle.status().is_seeding:
             current_status = handle.status()
-            _print_download_status(current_status, self.logger)
+            if new_file:
+                _print_download_status(current_status, self.logger)
 
             # 現在の進捗を取得
             current_downloaded = current_status.total_done
@@ -277,6 +280,8 @@ class Client:
 
             except Exception as e:
                 logging.warning(f"一時ファイルの削除に失敗しました: {e}")
+
+        session.remove_torrent(handle)  # ログ書き込み処理の前に、ダウンロード・アップロードを完全に停止
 
         logging.info("取得ピア数：" + str(len(peers)) + "　ログを記録しています...")
         if log:
