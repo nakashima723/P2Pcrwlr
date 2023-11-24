@@ -1304,6 +1304,12 @@ def main():
 
         return matching_folders
 
+    def delete_selected_folder(listbox):
+        folder_path = find_matching_folders(listbox)[0]
+        # 指定されたフォルダを削除
+        delete_folder(folder_path)
+        update()
+
     def get_dl_targets_from_torrent(torrent_path):
         # Torrentデータを読み込む
         with open(torrent_path, "rb") as f:
@@ -1606,7 +1612,7 @@ def main():
         command=lambda: unmark_folder(complete_listbox, complete_text, ".complete")
     )
     archive_button.config(command=archive_folder)
-    delete_button.config(command=delete_folder)
+    delete_button.config(command=lambda: delete_selected_folder(false_listbox))
     delete_all_button.config(command=delete_all_folders)
     setting_button.config(command=lambda: open_folder(SETTING_FOLDER))
     bulk_add_button.config(command=lambda: on_bulk_add_button_click("all"))
