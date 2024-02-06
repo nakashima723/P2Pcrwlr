@@ -124,7 +124,6 @@ def scraper(url, file_path):
             url = url.split("?")[0] + "?p=" + str(page)
 
         logger.info(url.split("?")[0] + " " + str(page) + "ページ目を探索中......")
-        response = urllib.request.urlopen(url)
 
         # 現在のURLでウェブページの内容を取得しようとする
         try:

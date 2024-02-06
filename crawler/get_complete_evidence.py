@@ -48,14 +48,24 @@ def fetch_html(site_url, info_hash):
         uri = "?q="
         url = site_url + uri + info_hash
         response = requests.get(url)
-        if response.status_code == 200:
-            return BeautifulSoup(response.content, "html.parser")
-        else:
-            logger.warning(f"エラー: サイトにアクセスできませんでした。 {response.status_code}")
-            return None
+        response.raise_for_status()  # HTTPエラーがあればここで例外を発生させる
+        return BeautifulSoup(response.content, "html.parser")
+    except requests.exceptions.HTTPError as e:
+        # HTTPエラーの場合
+        logger.error(f"HTTPエラー: {e.response.status_code} {e.response.reason}")
+    except requests.exceptions.ConnectionError as e:
+        # 接続エラーの場合
+        logger.error(f"接続エラー: {e}")
+    except requests.exceptions.Timeout as e:
+        # タイムアウトエラーの場合
+        logger.error(f"タイムアウトエラー: {e}")
+    except requests.exceptions.RequestException as e:
+        # requestsに関するその他のエラー
+        logger.error(f"リクエストエラー: {e}")
     except Exception as e:
-        logger.error(f"エラー:  サイトにアクセスできませんでした。 {e}")
-        return None
+        # その他の予期しないエラー
+        logger.error(f"予期しないエラー: {e}")
+    return None
 
 
 # 「col-md-1」のクラスを持ち、内部テキストが指定されたラベルの次のdivの内部テキストを取得
