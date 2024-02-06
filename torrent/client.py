@@ -216,8 +216,8 @@ class Client:
                             if peer_ip == ipv4 or peer_ip == ipv6:
                                 continue  # 自分自身のIPと一致する場合は収録しない
 
-                            if not p.last_active == 0 or p.payload_down_speed <= 20480:
-                                continue  # 最終接続時刻が0秒前で、20KB/s以上のUP速度があるピアのみ収録
+                            if not p.last_active == 0 or p.payload_down_speed <= 10240:
+                                continue  # 最終接続時刻が0秒前で、10KB/s以上のUP速度があるピアのみ収録
 
                             # IPアドレスが同じでポート番号が異なるピアは、同じ周回では重複して収録しない
                             if any(peer[0] == peer_ip for peer in peers):
